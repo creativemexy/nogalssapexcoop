@@ -1,0 +1,9 @@
+{
+  "/api/admin/dashboard-stats/route": "app/api/admin/dashboard-stats/route.js",
+  "/api/settings/registration-fee/route": "app/api/settings/registration-fee/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/dashboard/apex/cooperatives/page": "app/dashboard/apex/cooperatives/page.js",
+  "/dashboard/apex/page": "app/dashboard/apex/page.js",
+  "/dashboard/apex/loans/page": "app/dashboard/apex/loans/page.js"
+}
