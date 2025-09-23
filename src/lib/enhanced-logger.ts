@@ -28,8 +28,6 @@ export const createLog = async ({ action, user, details, metadata }: LogData) =>
                 action: details ? `${action}: ${details}` : action,
                 userId: (user as any).id,
                 userEmail: (user as any).email,
-                type: 'INFO', // or another default type as required by your Log model
-                ...(metadata && { metadata }),
             },
         });
     } catch (error) {

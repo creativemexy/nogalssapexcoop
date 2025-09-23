@@ -27,7 +27,6 @@ export const createLog = async ({ action, user }: LogData) => {
                 action,
                 userId: (user as any).id,
                 userEmail: user.email,
-                type: 'INFO', // or another appropriate default type
             },
         });
     } catch (error) {

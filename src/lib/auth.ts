@@ -42,10 +42,10 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
           role: user.role,
-          cooperativeId: user.cooperativeId,
-          leaderId: user.leaderId,
-          apexId: user.apexId,
-          businessId: user.businessId,
+          cooperativeId: user.cooperativeId ?? null,
+          leaderId: (user as any).leaderId ?? null,
+          apexId: (user as any).apexId ?? null,
+          businessId: user.businessId ?? null,
         };
       }
     })
@@ -56,22 +56,40 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
-        token.cooperativeId = user.cooperativeId;
-        token.leaderId = user.leaderId;
-        token.apexId = user.apexId;
-        token.businessId = user.businessId;
+        // Use type assertion to extend user with custom properties
+        const customUser = user as typeof user & {
+          role?: string;
+          cooperativeId?: string | null;
+          leaderId?: string | null;
+          apexId?: string | null;
+          businessId?: string | null;
+        };
+        token.role = customUser.role;
+        token.cooperativeId = customUser.cooperativeId;
+        token.leaderId = customUser.leaderId;
+        token.apexId = customUser.apexId;
+        token.businessId = customUser.businessId;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.sub!;
-        session.user.role = token.role as any;
-        session.user.cooperativeId = token.cooperativeId as string;
-        session.user.leaderId = token.leaderId as string;
-        session.user.apexId = token.apexId as string;
-        session.user.businessId = token.businessId as string;
+      if (token && session.user) {
+        // TypeScript fix: add 'id' to session.user via type assertion
+        // TypeScript fix: add custom properties to session.user via type assertion
+        (session.user as typeof session.user & {
+          id?: string;
+          role?: string;
+          cooperativeId?: string | null;
+          leaderId?: string | null;
+          apexId?: string | null;
+          businessId?: string | null;
+        }).id = token.sub as string;
+
+        (session.user as typeof session.user & { role?: string }).role = token.role as string | undefined;
+        (session.user as typeof session.user & { cooperativeId?: string | null }).cooperativeId = token.cooperativeId as string | null | undefined;
+        (session.user as typeof session.user & { leaderId?: string | null }).leaderId = token.leaderId as string | null | undefined;
+        (session.user as typeof session.user & { apexId?: string | null }).apexId = token.apexId as string | null | undefined;
+        (session.user as typeof session.user & { businessId?: string | null }).businessId = token.businessId as string | null | undefined;
       }
       return session;
     }
