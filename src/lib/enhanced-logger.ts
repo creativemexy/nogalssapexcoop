@@ -10,13 +10,15 @@ interface LogData {
 }
 
 export const createLog = async ({ action, user, details, metadata }: LogData) => {
-    if (!user || !user.id || !user.email) {
+    // Type guard to ensure user has id and email
+    const hasIdAndEmail = typeof (user as any)?.id === 'string' && typeof (user as any)?.email === 'string';
+    if (!user || !hasIdAndEmail) {
         // Cannot log without user information
         return;
     }
 
     // Exclude SUPER_ADMIN from logging their own actions
-    if (user.role === UserRole.SUPER_ADMIN) {
+    if ((user as any)?.role === UserRole.SUPER_ADMIN) {
         return;
     }
 
@@ -24,8 +26,10 @@ export const createLog = async ({ action, user, details, metadata }: LogData) =>
         await prisma.log.create({
             data: {
                 action: details ? `${action}: ${details}` : action,
-                userId: user.id,
-                userEmail: user.email,
+                userId: (user as any).id,
+                userEmail: (user as any).email,
+                type: 'INFO', // or another default type as required by your Log model
+                ...(metadata && { metadata }),
             },
         });
     } catch (error) {

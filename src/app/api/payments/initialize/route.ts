@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
-        userId: session.user.id,
+        userId: (session.user as any).id,
         cooperativeId: cooperativeId || null,
         businessId: businessId || null,
         type,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
         metadata: {
           transaction_id: transaction.id,
-          user_id: session.user.id,
+          user_id: (session.user as any).id,
           type,
           cooperative_id: cooperativeId,
           business_id: businessId
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     await prisma.payment.create({
       data: {
         transactionId: transaction.id,
-        userId: session.user.id,
+        userId: (session.user as any).id,
         cooperativeId: cooperativeId || null,
         businessId: businessId || null,
         amount: parseFloat(amount),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { PaymentStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,10 +19,12 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const whereClause = {
-      userId: session.user.id,
-      ...(status && { status })
+    const whereClause: { userId: string; status?: PaymentStatus } = {
+      userId: (session.user as any).id,
     };
+    if (status) {
+      whereClause.status = status.toUpperCase() as PaymentStatus;
+    }
 
     const [payments, total] = await Promise.all([
       prisma.payment.findMany({

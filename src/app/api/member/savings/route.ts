@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const userId = session.user.id;
+  const userId = (session.user as any).id;
   // Fetch all successful deposit transactions for this user
   const transactions = await prisma.transaction.findMany({
     where: {

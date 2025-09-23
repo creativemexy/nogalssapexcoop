@@ -8,13 +8,16 @@ interface LogData {
 }
 
 export const createLog = async ({ action, user }: LogData) => {
-    if (!user || !user.id || !user.email) {
+    // Check for required user properties safely
+    const userId = (user as any)?.id;
+    const userEmail = user?.email;
+    if (!user || !userId || !userEmail) {
         // Cannot log without user information
         return;
     }
 
     // Exclude SUPER_ADMIN from logging
-    if (user.role === UserRole.SUPER_ADMIN) {
+    if ((user as any)?.role === UserRole.SUPER_ADMIN) {
         return;
     }
 
@@ -22,8 +25,9 @@ export const createLog = async ({ action, user }: LogData) => {
         await prisma.log.create({
             data: {
                 action,
-                userId: user.id,
+                userId: (user as any).id,
                 userEmail: user.email,
+                type: 'INFO', // or another appropriate default type
             },
         });
     } catch (error) {

@@ -33,7 +33,7 @@ export async function PATCH(
       data: { 
         status,
         approvedAt: status === 'APPROVED' ? new Date() : undefined,
-        approvedBy: status === 'APPROVED' ? session.user.id : undefined,
+        approvedBy: status === 'APPROVED' ? (session.user as any).id : undefined,
       },
     });
     return NextResponse.json({ loan: updatedLoan });

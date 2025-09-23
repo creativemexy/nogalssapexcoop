@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
                     data: {
                         userId: leaderUser.id,
                         cooperativeId: cooperative.id,
-                        position: leaderTitle,
+                        title: leaderTitle,
                     },
                 });
 

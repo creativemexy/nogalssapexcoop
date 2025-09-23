@@ -372,7 +372,8 @@ export default function RegisterPage() {
                         </div>
                     </div>
                 );
-            case 2:
+            case 2: {
+                const selectedState = states.find(s => s.name === formData.state);
                 return (
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -426,6 +427,7 @@ export default function RegisterPage() {
                         </div>
                     </div>
                 );
+            }
             case 3:
                 return (
                     <div className="space-y-4">
