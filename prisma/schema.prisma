@@ -17,6 +17,9 @@ enum UserRole {
   COOPERATIVE
   MEMBER
   BUSINESS
+  FINANCE
+  APEX_FUNDS
+  NOGALSS_FUNDS
 }
 
 enum PaymentStatus {
