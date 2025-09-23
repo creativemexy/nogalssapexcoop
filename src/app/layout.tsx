@@ -6,7 +6,7 @@ import SessionProvider from '@/components/providers/SessionProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Nogalss National Apex Cooperative Society Ltd',
+  title: 'NOGALSS National Apex Cooperative Society Ltd',
   description: 'Empowering communities through cooperative excellence',
   icons: {
     icon: [

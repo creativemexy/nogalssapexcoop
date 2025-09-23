@@ -10,7 +10,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== 'APEX') {
+  if (!session?.user || (session.user as any).role !== 'APEX') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const { fee } = await req.json();

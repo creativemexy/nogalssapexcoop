@@ -26,7 +26,7 @@ export default function DashboardPage() {
       BUSINESS: '/dashboard/business',
     };
 
-    const redirectPath = dashboardMap[session.user?.role as string];
+    const redirectPath = dashboardMap[((session.user as any)?.role) as string];
     if (redirectPath) {
       router.push(redirectPath);
     } else {

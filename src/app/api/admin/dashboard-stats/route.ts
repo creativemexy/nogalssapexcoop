@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is super admin or apex
-    if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'APEX') {
+    if ((session.user as any).role !== 'SUPER_ADMIN' && (session.user as any).role !== 'APEX') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -108,13 +108,13 @@ export default function SuperAdminProfile() {
             
             <div>
               <label className="block text-sm font-medium text-gray-700">Role</label>
-              <p className="mt-1 text-sm text-gray-900">{session.user?.role}</p>
+              <p className="mt-1 text-sm text-gray-900">{(session.user as any)?.role}</p>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700">Member Since</label>
               <p className="mt-1 text-sm text-gray-900">
-                {session.user?.createdAt ? new Date(session.user.createdAt).toLocaleDateString() : 'N/A'}
+                {(session.user as any)?.createdAt ? new Date((session.user as any).createdAt).toLocaleDateString() : 'N/A'}
               </p>
             </div>
           </div>

@@ -53,7 +53,7 @@ export default function DashboardLayout({
               <span className="text-sm text-gray-600">
                 Welcome, {session.user?.name}
               </span>
-              {session.user?.role === 'SUPER_ADMIN' && (
+              {(session.user as any)?.role === 'SUPER_ADMIN' && (
                 <Link href="/dashboard/super-admin/profile" className="text-green-600 hover:text-green-500 text-sm">
                   Profile
                 </Link>

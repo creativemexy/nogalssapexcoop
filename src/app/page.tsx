@@ -4,21 +4,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import 'keen-slider/keen-slider.min.css';
 import { useKeenSlider } from 'keen-slider/react';
-import { useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import SocialMediaIcons from '@/components/SocialMediaIcons';
 
 export default function HomePage() {
-  const sliderRef = useRef(null);
-  const [slider] = useKeenSlider({
+  const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
     loop: true,
     slides: { perView: 1, spacing: 0 },
     mode: 'snap',
     drag: true,
     initial: 0,
-    duration: 1000,
-    easing: (t) => t,
   });
   const slides = [
     {
@@ -63,7 +59,7 @@ export default function HomePage() {
         
         {/* Navigation Arrows */}
         <button 
-          onClick={() => slider?.prev()}
+          onClick={() => instanceRef.current?.prev()}
           className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all duration-200 z-20 backdrop-blur-sm"
           aria-label="Previous slide"
         >
@@ -72,7 +68,7 @@ export default function HomePage() {
           </svg>
         </button>
         <button 
-          onClick={() => slider?.next()}
+          onClick={() => instanceRef.current?.next()}
           className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all duration-200 z-20 backdrop-blur-sm"
           aria-label="Next slide"
         >
@@ -114,7 +110,7 @@ export default function HomePage() {
             <div className="text-center">
               <div className="bg-[#0D5E42]/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-[#0D5E42]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 04 0z" />
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Member Management</h3>

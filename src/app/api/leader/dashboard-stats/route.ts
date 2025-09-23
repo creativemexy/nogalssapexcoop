@@ -6,10 +6,10 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== 'LEADER') {
+    if (!session?.user || (session.user as any).role !== 'LEADER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const cooperativeId = session.user.cooperativeId;
+    const cooperativeId = (session.user as any).cooperativeId;
     if (!cooperativeId) {
       return NextResponse.json({ error: 'No cooperative found for leader' }, { status: 400 });
     }

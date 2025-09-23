@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     // 1. Check if user is authenticated and is a SUPER_ADMIN
-    if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
+    if (!session?.user || (session.user as any).role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

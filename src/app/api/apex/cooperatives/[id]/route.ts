@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== 'APEX') {
+  if (!session?.user || (session.user as any).role !== 'APEX') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -65,7 +65,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== 'APEX') {
+  if (!session?.user || (session.user as any).role !== 'APEX') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
