@@ -78,3 +78,69 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user || (session.user as any).role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { 
+      name, 
+      registrationNumber, 
+      address, 
+      city, 
+      state, 
+      phoneNumber, 
+      email, 
+      bankName, 
+      bankAccountNumber 
+    } = body;
+
+    // Validate required fields
+    if (!name || !registrationNumber || !address || !city || !state || !phoneNumber || !email || !bankName || !bankAccountNumber) {
+      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    }
+
+    // Check if registration number already exists
+    const existingCooperative = await prisma.cooperative.findUnique({
+      where: { registrationNumber }
+    });
+
+    if (existingCooperative) {
+      return NextResponse.json({ error: 'A cooperative with this registration number already exists' }, { status: 409 });
+    }
+
+    // Create the cooperative
+    const cooperative = await prisma.cooperative.create({
+      data: {
+        name,
+        registrationNumber,
+        address,
+        city,
+        state,
+        phoneNumber,
+        email,
+        bankName,
+        bankAccountNumber,
+        isActive: true
+      }
+    });
+
+    return NextResponse.json({ 
+      message: 'Cooperative created successfully',
+      cooperative: {
+        id: cooperative.id,
+        name: cooperative.name,
+        registrationNumber: cooperative.registrationNumber
+      }
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creating cooperative:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

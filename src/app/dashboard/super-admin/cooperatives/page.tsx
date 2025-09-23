@@ -27,6 +27,8 @@ export default function CooperativesPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
 
   useEffect(() => {
     fetchCooperatives();
@@ -63,6 +65,29 @@ export default function CooperativesPage() {
     fetchCooperatives();
   };
 
+  const handleAddCooperative = async (formData: any) => {
+    try {
+      setAddLoading(true);
+      const response = await fetch('/api/admin/cooperatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create cooperative');
+      }
+      
+      setShowAddModal(false);
+      fetchCooperatives(); // Refresh the list
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -86,7 +111,10 @@ export default function CooperativesPage() {
               Search
             </button>
           </form>
-          <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
             + Add Cooperative
           </button>
         </div>
@@ -180,6 +208,179 @@ export default function CooperativesPage() {
           </div>
         )}
       </div>
+
+      {/* Add Cooperative Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Add New Cooperative</h2>
+            <AddCooperativeForm 
+              onSubmit={handleAddCooperative}
+              onCancel={() => setShowAddModal(false)}
+              loading={addLoading}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Add Cooperative Form Component
+function AddCooperativeForm({ onSubmit, onCancel, loading }: { 
+  onSubmit: (data: any) => void; 
+  onCancel: () => void; 
+  loading: boolean;
+}) {
+  const [formData, setFormData] = useState({
+    name: '',
+    registrationNumber: '',
+    address: '',
+    city: '',
+    state: '',
+    phoneNumber: '',
+    email: '',
+    bankName: '',
+    bankAccountNumber: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Cooperative Name *</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Registration Number *</label>
+          <input
+            type="text"
+            name="registrationNumber"
+            value={formData.registrationNumber}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Address *</label>
+        <input
+          type="text"
+          name="address"
+          value={formData.address}
+          onChange={handleChange}
+          required
+          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">City *</label>
+          <input
+            type="text"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">State *</label>
+          <input
+            type="text"
+            name="state"
+            value={formData.state}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
+          <input
+            type="tel"
+            name="phoneNumber"
+            value={formData.phoneNumber}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Email *</label>
+        <input
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Bank Name *</label>
+          <input
+            type="text"
+            name="bankName"
+            value={formData.bankName}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Bank Account Number *</label>
+          <input
+            type="text"
+            name="bankAccountNumber"
+            value={formData.bankAccountNumber}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+        >
+          {loading ? 'Creating...' : 'Create Cooperative'}
+        </button>
+      </div>
+    </form>
   );
 } 
