@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
         include: {
           _count: {
             select: {
-              users: true,
-              leaders: true
+              members: true,
+              leader: true
             }
           }
         },
@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
       state: coop.state,
       status: coop.isActive ? 'Active' : 'Inactive',
       createdAt: coop.createdAt,
-      memberCount: coop._count.users,
-      leaderCount: coop._count.leaders,
+      memberCount: coop._count.members,
+      leaderCount: coop._count.leader,
       email: coop.email,
       phoneNumber: coop.phoneNumber,
       address: coop.address,
