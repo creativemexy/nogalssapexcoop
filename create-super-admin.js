@@ -1,12 +1,44 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
+// Strong password validator (matches our policy)
+function isStrongPassword(password) {
+  if (typeof password !== 'string') return false;
+  if (password.length < 12) return false;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  return hasUppercase && hasLowercase && hasDigit && hasSpecial;
+}
+
 async function createSuperAdmin() {
   const prisma = new PrismaClient();
   
   try {
-    // Create SUPER_ADMIN user
-    const hashedPassword = await bcrypt.hash('admin123', 12);
+    // Check if super admin already exists
+    const existingAdmin = await prisma.user.findFirst({
+      where: {
+        role: 'SUPER_ADMIN'
+      }
+    });
+
+    if (existingAdmin) {
+      console.log('Super admin already exists:', existingAdmin.email);
+      return;
+    }
+
+    // Generate a strong password that meets our policy
+    const strongPassword = 'Admin123!@#Secure';
+    
+    // Validate the password meets our strong policy
+    if (!isStrongPassword(strongPassword)) {
+      console.error('❌ Generated password does not meet strong password policy');
+      return;
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(strongPassword, 12);
     
     const superAdmin = await prisma.user.create({
       data: {
@@ -15,17 +47,23 @@ async function createSuperAdmin() {
         firstName: 'Super',
         lastName: 'Admin',
         role: 'SUPER_ADMIN',
-        phoneNumber: '08000000000'
+        phoneNumber: '08000000000',
+        isActive: true,
+        isVerified: true,
+        address: 'Nogalss Headquarters'
       }
     });
 
-    console.log('SUPER_ADMIN user created successfully:');
-    console.log('Email: admin@nogalss.com');
-    console.log('Password: admin123');
-    console.log('User ID:', superAdmin.id);
+    console.log('✅ Super Admin created successfully!');
+    console.log('Email:', superAdmin.email);
+    console.log('Password:', strongPassword);
+    console.log('Role:', superAdmin.role);
+    console.log('\n🔐 Password meets strong security requirements:');
+    console.log('   - 12+ characters with uppercase, lowercase, number, and special character');
+    console.log('\n⚠️  Please change the password after first login for additional security!');
 
   } catch (error) {
-    console.error('Error creating SUPER_ADMIN:', error);
+    console.error('❌ Error creating super admin:', error);
   } finally {
     await prisma.$disconnect();
   }

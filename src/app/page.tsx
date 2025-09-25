@@ -7,6 +7,7 @@ import { useKeenSlider } from 'keen-slider/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import SocialMediaIcons from '@/components/SocialMediaIcons';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
   const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
@@ -33,6 +34,23 @@ export default function HomePage() {
       cta: 'Learn More',
     },
   ];
+
+  // Partners dynamic fetch
+  const [partners, setPartners] = useState<any[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(true);
+  const [partnersError, setPartnersError] = useState<string | null>(null);
+  useEffect(() => {
+    setPartnersLoading(true);
+    setPartnersError(null);
+    fetch('/api/admin/partners')
+      .then(res => res.json())
+      .then(data => {
+        if (data.partners) setPartners(data.partners);
+        else setPartners([]);
+      })
+      .catch(err => setPartnersError('Failed to load partners'))
+      .finally(() => setPartnersLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -222,56 +240,30 @@ export default function HomePage() {
             </p>
           </div>
           <div className="relative">
-            <div className="flex space-x-8 overflow-x-auto pb-4 scrollbar-hide">
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-[#0D5E42]/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-[#0D5E42] font-bold text-lg">CBN</span>
+            {partnersLoading ? (
+              <div className="flex items-center justify-center py-8 text-gray-400">Loading partners...</div>
+            ) : partnersError ? (
+              <div className="flex items-center justify-center py-8 text-red-500">{partnersError}</div>
+            ) : partners.length === 0 ? (
+              <div className="flex items-center justify-center py-8 text-gray-400">No partners found.</div>
+            ) : (
+              <div className="flex space-x-8 overflow-x-auto pb-4 scrollbar-hide">
+                {partners.map((partner) => (
+                  <div key={partner.id} className="flex-shrink-0 w-48 h-40 bg-white rounded-lg shadow-md flex flex-col items-center justify-center p-3">
+                    <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-3 border border-gray-100 bg-gray-50 overflow-hidden">
+                      <img src={partner.logo} alt={partner.name} className="object-contain w-full h-full" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-700 mb-1">{partner.name}</p>
+                      {partner.website && (
+                        <a href={partner.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline block mb-1">{partner.website}</a>
+                      )}
+                      <p className="text-xs text-gray-500 truncate max-w-[12rem]">{partner.description || <span className="text-gray-300">—</span>}</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-gray-700">Central Bank of Nigeria</p>
-                </div>
+                ))}
               </div>
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-yellow-600 font-bold text-lg">NCC</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">Nigerian Cooperative Commission</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-[#0D5E42]/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-[#0D5E42] font-bold text-lg">BOI</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">Bank of Industry</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-yellow-600 font-bold text-lg">SMEDAN</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">SMEDAN</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-[#0D5E42]/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-[#0D5E42] font-bold text-lg">NIRSAL</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">NIRSAL Microfinance Bank</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 w-48 h-24 bg-white rounded-lg shadow-md flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-yellow-600 font-bold text-lg">NDIC</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">NDIC</p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </section>

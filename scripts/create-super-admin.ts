@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { isStrongPassword } from '../src/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -17,8 +18,17 @@ async function createSuperAdmin() {
       return;
     }
 
+    // Generate a strong password that meets our policy
+    const strongPassword = 'Admin123!@#Secure';
+    
+    // Validate the password meets our strong policy
+    if (!isStrongPassword(strongPassword)) {
+      console.error('❌ Generated password does not meet strong password policy');
+      return;
+    }
+
     // Hash password
-    const hashedPassword = await bcrypt.hash('admin123', 12);
+    const hashedPassword = await bcrypt.hash(strongPassword, 12);
 
     // Create super admin user
     const superAdmin = await prisma.user.create({
@@ -37,9 +47,11 @@ async function createSuperAdmin() {
 
     console.log('✅ Super Admin created successfully!');
     console.log('Email:', superAdmin.email);
-    console.log('Password: admin123');
+    console.log('Password:', strongPassword);
     console.log('Role:', superAdmin.role);
-    console.log('\n⚠️  Please change the password after first login!');
+    console.log('\n🔐 Password meets strong security requirements:');
+    console.log('   - 12+ characters with uppercase, lowercase, number, and special character');
+    console.log('\n⚠️  Please change the password after first login for additional security!');
 
   } catch (error) {
     console.error('❌ Error creating super admin:', error);

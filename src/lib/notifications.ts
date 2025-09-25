@@ -13,6 +13,94 @@ interface SMSNotification {
   message: string;
 }
 
+export function getWelcomeEmailHtml({ name, email, password, resetLink, role, dashboardUrl, virtualAccount, registrationPaid }: {
+  name: string;
+  email: string;
+  password?: string;
+  resetLink?: string;
+  role: string;
+  dashboardUrl: string;
+  virtualAccount?: { accountNumber: string; bankName: string; accountName: string };
+  registrationPaid?: boolean;
+}): string {
+  let roleDescription = '';
+  let dashboardUsage = '';
+  switch (role) {
+    case 'FINANCE':
+      roleDescription = 'You are a Finance user. You can view all system-wide financial records, inflows, outflows, and generate reports.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'APEX':
+      roleDescription = 'You are an Apex user. You can manage leaders, cooperatives, and oversee system operations.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'APEX_FUNDS':
+      roleDescription = 'You are an Apex-Funds user. You can view and manage all Apex-level administrative funds.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'NOGALSS_FUNDS':
+      roleDescription = 'You are a Nogalss-Funds user. You can view and manage all Nogalss-level administrative funds.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'COOPERATIVE':
+      roleDescription = 'You are a Cooperative admin. You can manage your organization, view savings, apply for loans, and oversee your members.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'LEADER':
+      roleDescription = 'You are a Leader. You can manage your cooperative, make savings, apply for loans, and oversee your members.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    case 'MEMBER':
+      roleDescription = 'You are a Member. You can make savings, apply for loans, and view your transaction history.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
+    default:
+      roleDescription = 'You have been granted access to the Nogalss platform.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+  }
+
+  let loginDetails = '';
+  if (password) {
+    loginDetails = `<li><b>Email:</b> ${email}</li><li><b>Password:</b> ${password}</li>`;
+  } else if (resetLink) {
+    loginDetails = `<li><b>Email:</b> ${email}</li><li><b>Password:</b> <a href="${resetLink}">Set your password</a></li>`;
+  }
+
+  let virtualAccountHtml = '';
+  if (virtualAccount) {
+    virtualAccountHtml = `
+      <h3>Your Virtual Account Details</h3>
+      <ul>
+        <li><b>Account Number:</b> ${virtualAccount.accountNumber}</li>
+        <li><b>Bank Name:</b> ${virtualAccount.bankName}</li>
+        <li><b>Account Name:</b> ${virtualAccount.accountName}</li>
+      </ul>
+    `;
+  }
+
+  let registrationHtml = '';
+  if (registrationPaid) {
+    registrationHtml = `<p style="color:green;"><b>Your registration fee payment was successful and your account is now active.</b></p>`;
+  }
+
+  return `
+    <div style="font-family: Arial, sans-serif; color: #222;">
+      <h2>Welcome to Nogalss, ${name}!</h2>
+      <p>We're excited to have you on board.</p>
+      <h3>Your Login Details</h3>
+      <ul>${loginDetails}</ul>
+      <h3>Your Role</h3>
+      <p>${roleDescription}</p>
+      <h3>How to Use Your Dashboard</h3>
+      <p>${dashboardUsage}</p>
+      ${virtualAccountHtml}
+      ${registrationHtml}
+      <p>If you have any questions, please contact support.</p>
+      <p>Best regards,<br/>Nogalss Team</p>
+    </div>
+  `;
+}
+
 export class NotificationService {
   // Email notifications
   static async sendEmail({ to, subject, html }: EmailNotification) {

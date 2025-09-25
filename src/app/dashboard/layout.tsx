@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -13,6 +13,7 @@ export default function DashboardLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [impersonationData, setImpersonationData] = useState<any>(null);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -21,6 +22,36 @@ export default function DashboardLayout({
       router.push('/auth/signin');
     }
   }, [session, status, router]);
+
+  useEffect(() => {
+    // Check for impersonation data in localStorage
+    const storedData = localStorage.getItem('impersonationData');
+    if (storedData) {
+      try {
+        setImpersonationData(JSON.parse(storedData));
+      } catch (error) {
+        console.error('Error parsing impersonation data:', error);
+        localStorage.removeItem('impersonationData');
+      }
+    }
+  }, []);
+
+  const stopImpersonation = async () => {
+    try {
+      await fetch('/api/admin/impersonate/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      localStorage.removeItem('impersonationData');
+      setImpersonationData(null);
+      router.push('/dashboard/super-admin');
+    } catch (error) {
+      console.error('Error stopping impersonation:', error);
+    }
+  };
 
   if (status === 'loading') {
     return (
@@ -39,6 +70,30 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Impersonation Banner */}
+      {impersonationData && (
+        <div className="bg-orange-100 border-b border-orange-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="text-sm font-medium text-orange-800">
+                  <strong>Impersonating:</strong> {impersonationData.firstName} {impersonationData.lastName} ({impersonationData.email}) - {impersonationData.role}
+                </span>
+              </div>
+              <button
+                onClick={stopImpersonation}
+                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-orange-800 bg-orange-200 hover:bg-orange-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              >
+                Stop Impersonation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -51,9 +106,9 @@ export default function DashboardLayout({
             
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                Welcome, {session.user?.name}
+                Welcome, {impersonationData ? `${impersonationData.firstName} ${impersonationData.lastName}` : session.user?.name}
               </span>
-              {(session.user as any)?.role === 'SUPER_ADMIN' && (
+              {(session.user as any)?.role === 'SUPER_ADMIN' && !impersonationData && (
                 <Link href="/dashboard/super-admin/profile" className="text-green-600 hover:text-green-500 text-sm">
                   Profile
                 </Link>

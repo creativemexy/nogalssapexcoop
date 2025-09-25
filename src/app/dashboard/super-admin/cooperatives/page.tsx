@@ -97,11 +97,11 @@ export default function CooperativesPage() {
       <div className="bg-white rounded-lg shadow p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-1/2">
-            <input
-              type="text"
-              placeholder="Search cooperatives..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+          <input
+            type="text"
+            placeholder="Search cooperatives..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             />
             <button 

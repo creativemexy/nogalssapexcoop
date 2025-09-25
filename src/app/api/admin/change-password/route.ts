@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { isStrongPassword, getPasswordPolicyMessage } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +33,11 @@ export async function POST(request: NextRequest) {
     
     if (!isCurrentPasswordValid) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
+    }
+
+    // Enforce strong password policy
+    if (!isStrongPassword(newPassword)) {
+      return NextResponse.json({ error: getPasswordPolicyMessage() }, { status: 400 });
     }
 
     // Hash new password

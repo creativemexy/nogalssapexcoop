@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { sendMail } from '@/lib/email';
+import { getWelcomeEmailHtml } from '@/lib/notifications';
+import { createLog } from '@/lib/logger';
+import { isStrongPassword, getPasswordPolicyMessage } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +33,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
     }
 
+    // Enforce strong password policy
+    if (!isStrongPassword(password)) {
+      return NextResponse.json({ error: getPasswordPolicyMessage() }, { status: 400 });
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -45,6 +54,28 @@ export async function POST(request: NextRequest) {
         isActive: true
       }
     });
+
+    // Log action
+    await createLog({ action: `Created Finance user: ${email}`, user: session.user });
+
+    // Send welcome email
+    try {
+      const dashboardUrl = 'https://nogalssapexcoop.org/dashboard/finance';
+      const html = getWelcomeEmailHtml({
+        name: user.firstName,
+        email: user.email,
+        password,
+        role: 'FINANCE',
+        dashboardUrl,
+      });
+      await sendMail({
+        to: user.email,
+        subject: 'Welcome to Nogalss – Finance User Account Created',
+        html,
+      });
+    } catch (err) {
+      console.error('Failed to send finance user welcome email:', err);
+    }
 
     return NextResponse.json({ 
       message: 'Finance user created successfully',

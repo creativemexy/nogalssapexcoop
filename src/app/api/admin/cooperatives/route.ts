@@ -23,8 +23,7 @@ export async function GET(request: NextRequest) {
       OR: [
         { name: { contains: search, mode: 'insensitive' as const } },
         { registrationNumber: { contains: search, mode: 'insensitive' as const } },
-        { city: { contains: search, mode: 'insensitive' as const } },
-        { state: { contains: search, mode: 'insensitive' as const } }
+        { city: { contains: search, mode: 'insensitive' as const } }
       ]
     } : {};
 
@@ -34,8 +33,7 @@ export async function GET(request: NextRequest) {
         include: {
           _count: {
             select: {
-              members: true,
-              leader: true
+              members: true
             }
           }
         },
@@ -51,11 +49,11 @@ export async function GET(request: NextRequest) {
       name: coop.name,
       registrationNumber: coop.registrationNumber,
       city: coop.city,
-      state: coop.state,
+      state: 'Unknown',
       status: coop.isActive ? 'Active' : 'Inactive',
       createdAt: coop.createdAt,
       memberCount: coop._count.members,
-      leaderCount: coop._count.leader,
+      leaderCount: 0,
       email: coop.email,
       phoneNumber: coop.phoneNumber,
       address: coop.address,

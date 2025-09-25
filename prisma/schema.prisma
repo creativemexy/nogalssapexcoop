@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,6 +5,262 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  firstName     String
+  lastName      String
+  phoneNumber   String?
+  dateOfBirth   DateTime?
+  address       String?
+  profileImage  String?
+  role          UserRole       @default(MEMBER)
+  isActive      Boolean        @default(true)
+  isVerified    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  cooperativeId String?
+  businessId    String?
+  title         String?
+  apex          Apex?
+  contributions Contribution[]
+  leader        Leader?
+  loans         Loan[]
+  payments      Payment[]
+  transactions  Transaction[]
+  business      Business?      @relation(fields: [businessId], references: [id])
+  cooperative   Cooperative?   @relation(fields: [cooperativeId], references: [id])
+
+  @@map("users")
+}
+
+model Cooperative {
+  id                 String         @id @default(cuid())
+  name               String
+  registrationNumber String         @unique
+  address            String
+  phoneNumber        String
+  email              String
+  description        String?
+  logo               String?
+  isActive           Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  bankAccountNumber  String
+  bankName           String
+  city               String
+  approved           Boolean?       @default(false)
+  approvedAt         DateTime?
+  approvedBy         String?
+  bankId             String?
+  lgaId              String?
+  stateId            String?
+  type               String?
+  contributions      Contribution[]
+  bank               Bank?          @relation(fields: [bankId], references: [id])
+  lga                Lga?           @relation(fields: [lgaId], references: [id])
+  state              State?         @relation(fields: [stateId], references: [id])
+  leader             Leader?
+  loans              Loan[]
+  payments           Payment[]
+  transactions       Transaction[]
+  members            User[]
+
+  @@map("cooperatives")
+}
+
+model Leader {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  cooperativeId     String      @unique
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  approved          Boolean?    @default(false)
+  approvedAt        DateTime?
+  endDate           DateTime?
+  role              String?
+  startDate         DateTime?
+  title             String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankName          String?
+  cooperative       Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("leaders")
+}
+
+model Apex {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  region    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("apex")
+}
+
+model Business {
+  id                 String        @id @default(cuid())
+  name               String
+  registrationNumber String        @unique
+  businessType       String
+  address            String
+  phoneNumber        String
+  email              String
+  description        String?
+  logo               String?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  payments           Payment[]
+  transactions       Transaction[]
+  users              User[]
+
+  @@map("businesses")
+}
+
+model Contribution {
+  id            String      @id @default(cuid())
+  userId        String
+  cooperativeId String
+  amount        Decimal
+  description   String?
+  date          DateTime    @default(now())
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("contributions")
+}
+
+model Loan {
+  id            String      @id @default(cuid())
+  userId        String
+  cooperativeId String
+  amount        Decimal
+  purpose       String
+  interestRate  Decimal
+  duration      Int
+  status        String      @default("PENDING")
+  approvedBy    String?
+  approvedAt    DateTime?
+  startDate     DateTime?
+  endDate       DateTime?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("loans")
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  userId        String
+  cooperativeId String?
+  businessId    String?
+  type          TransactionType
+  amount        Decimal
+  description   String?
+  reference     String          @unique
+  status        PaymentStatus   @default(PENDING)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  payment       Payment?
+  business      Business?       @relation(fields: [businessId], references: [id])
+  cooperative   Cooperative?    @relation(fields: [cooperativeId], references: [id])
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  transactionId      String        @unique
+  userId             String
+  cooperativeId      String?
+  businessId         String?
+  amount             Decimal
+  currency           String        @default("NGN")
+  paymentMethod      String        @default("PAYSTACK")
+  paystackReference  String?       @unique
+  paystackAccessCode String?
+  status             PaymentStatus @default(PENDING)
+  metadata           Json?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  business           Business?     @relation(fields: [businessId], references: [id])
+  cooperative        Cooperative?  @relation(fields: [cooperativeId], references: [id])
+  transaction        Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  userId    String
+  userEmail String
+  action    String
+  timestamp DateTime @default(now())
+
+  @@map("logs")
+}
+
+model Bank {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  cooperatives Cooperative[]
+
+  @@map("banks")
+}
+
+model State {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  cooperatives Cooperative[]
+  lgas         Lga[]
+
+  @@map("states")
+}
+
+model Lga {
+  id           String        @id @default(cuid())
+  name         String
+  stateId      String
+  cooperatives Cooperative[]
+  state        State         @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@map("lgas")
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Partner {
+  id          String   @id @default(cuid())
+  name        String
+  logo        String   // URL to logo image
+  website     String?  // Optional partner website
+  description String?  // Optional description
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum UserRole {
@@ -36,278 +289,3 @@ enum TransactionType {
   FEE
   INVESTMENT
 }
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  firstName     String
-  lastName      String
-  phoneNumber   String?
-  title         String?
-  dateOfBirth   DateTime?
-  address       String?
-  profileImage  String?
-  role          UserRole  @default(MEMBER)
-  isActive      Boolean   @default(true)
-  isVerified    Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  cooperative   Cooperative? @relation(fields: [cooperativeId], references: [id])
-  cooperativeId String?
-  
-  leader        Leader?
-  
-  apex          Apex?
-  
-  business      Business?    @relation(fields: [businessId], references: [id])
-  businessId    String?
-
-  // Financial relations
-  contributions Contribution[]
-  loans         Loan[]
-  transactions  Transaction[]
-  payments      Payment[]
-
-  @@map("users")
-}
-
-model Cooperative {
-  id                String    @id @default(cuid())
-  name              String
-  registrationNumber String    @unique
-  address           String
-  city              String
-  phoneNumber       String
-  email             String
-  bankName          String
-  bankAccountNumber String
-  description       String?
-  logo              String?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Foreign Keys
-  bankId            String?
-  stateId           String?
-  lgaId             String?
-
-  // Relations
-  bank              Bank?     @relation(fields: [bankId], references: [id])
-  state             State?    @relation(fields: [stateId], references: [id])
-  lga               Lga?      @relation(fields: [lgaId], references: [id])
-  leader            Leader?
-  members           User[]
-  contributions     Contribution[]
-  loans             Loan[]
-  transactions      Transaction[]
-  payments          Payment[]
-
-  type        String?
-  approved    Boolean?  @default(false)
-  approvedAt  DateTime?
-  approvedBy  String?
-
-  @@map("cooperatives")
-}
-
-model Leader {
-  id                 String    @id @default(cuid())
-  userId             String    @unique
-  cooperativeId      String    @unique
-  title              String?
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  // Relations
-  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative        Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
-
-  // Bank details
-  bankName           String?
-  bankAccountNumber  String?
-  bankAccountName    String?
-
-  role               String?
-  startDate          DateTime?
-  endDate            DateTime?
-  approved           Boolean?   @default(false)
-  approvedAt         DateTime?
-
-  @@map("leaders")
-}
-
-model Apex {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  region        String
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("apex")
-}
-
-model Business {
-  id            String    @id @default(cuid())
-  name          String
-  registrationNumber String @unique
-  businessType  String
-  address       String
-  phoneNumber   String
-  email         String
-  description   String?
-  logo          String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  users         User[]
-  transactions  Transaction[]
-  payments      Payment[]
-
-  @@map("businesses")
-}
-
-model Contribution {
-  id            String    @id @default(cuid())
-  userId        String
-  cooperativeId String
-  amount        Decimal
-  description   String?
-  date          DateTime  @default(now())
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
-
-  @@map("contributions")
-}
-
-model Loan {
-  id            String    @id @default(cuid())
-  userId        String
-  cooperativeId String
-  amount        Decimal
-  purpose       String
-  interestRate  Decimal
-  duration      Int // in months
-  status        String @default("PENDING") // PENDING, APPROVED, REJECTED, ACTIVE, COMPLETED
-  approvedBy    String?
-  approvedAt    DateTime?
-  startDate     DateTime?
-  endDate       DateTime?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
-
-  @@map("loans")
-}
-
-model Transaction {
-  id            String    @id @default(cuid())
-  userId        String
-  cooperativeId String?
-  businessId    String?
-  type          TransactionType
-  amount        Decimal
-  description   String?
-  reference     String    @unique
-  status        PaymentStatus @default(PENDING)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative   Cooperative? @relation(fields: [cooperativeId], references: [id])
-  business      Business?    @relation(fields: [businessId], references: [id])
-  payment       Payment?
-
-  @@map("transactions")
-}
-
-model Payment {
-  id            String    @id @default(cuid())
-  transactionId String    @unique
-  userId        String
-  cooperativeId String?
-  businessId    String?
-  amount        Decimal
-  currency      String    @default("NGN")
-  paymentMethod String    @default("PAYSTACK")
-  paystackReference String? @unique
-  paystackAccessCode String?
-  status        PaymentStatus @default(PENDING)
-  metadata      Json?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative   Cooperative? @relation(fields: [cooperativeId], references: [id])
-  business      Business?    @relation(fields: [businessId], references: [id])
-
-  @@map("payments")
-}
-
-model Log {
-  id        String   @id @default(cuid())
-  userId    String
-  userEmail String
-  action    String
-  timestamp DateTime @default(now())
-
-  @@map("logs")
-}
-
-model Bank {
-  id    String @id @default(cuid())
-  name  String @unique
-  cooperatives Cooperative[]
-  
-  @@map("banks")
-}
-
-model State {
-  id    String @id @default(cuid())
-  name  String @unique
-  lgas  Lga[]
-  cooperatives Cooperative[]
-
-  @@map("states")
-}
-
-model Lga {
-  id      String @id @default(cuid())
-  name    String
-  stateId String
-  state   State  @relation(fields: [stateId], references: [id], onDelete: Cascade)
-  cooperatives Cooperative[]
-
-  @@map("lgas")
-}
-
-model Setting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
-} 

@@ -54,7 +54,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt"
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         // Use type assertion to extend user with custom properties
         const customUser = user as typeof user & {
@@ -70,6 +70,13 @@ export const authOptions: NextAuthOptions = {
         token.apexId = customUser.apexId;
         token.businessId = customUser.businessId;
       }
+      
+      // Handle impersonation updates
+      if (trigger === 'update' && token.impersonating) {
+        // When impersonating, we'll update the token with the target user's data
+        // This will be handled by the impersonation API
+      }
+      
       return token;
     },
     async session({ session, token }) {
@@ -83,6 +90,11 @@ export const authOptions: NextAuthOptions = {
           leaderId?: string | null;
           apexId?: string | null;
           businessId?: string | null;
+          impersonating?: boolean;
+          originalAdmin?: {
+            id: string;
+            email: string;
+          };
         }).id = token.sub as string;
 
         (session.user as typeof session.user & { role?: string }).role = token.role as string | undefined;
@@ -90,6 +102,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as typeof session.user & { leaderId?: string | null }).leaderId = token.leaderId as string | null | undefined;
         (session.user as typeof session.user & { apexId?: string | null }).apexId = token.apexId as string | null | undefined;
         (session.user as typeof session.user & { businessId?: string | null }).businessId = token.businessId as string | null | undefined;
+        (session.user as typeof session.user & { impersonating?: boolean }).impersonating = token.impersonating as boolean | undefined;
+        (session.user as typeof session.user & { originalAdmin?: any }).originalAdmin = token.originalAdmin as any;
       }
       return session;
     }
@@ -98,4 +112,4 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
     error: "/auth/error",
   }
-}; 
+};
