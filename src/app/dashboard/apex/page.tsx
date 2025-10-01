@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import RegistrationFeeCard from '@/components/RegistrationFeeCard';
+import { useSocket } from '@/hooks/useSocket';
 
 interface ApexDashboardStats {
   totalUsers: number;
@@ -19,13 +20,14 @@ export default function ApexDashboard() {
   const [stats, setStats] = useState<ApexDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const socket = useSocket();
 
   useEffect(() => {
     const fetchApexStats = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/admin/dashboard-stats');
+        const res = await fetch('/api/apex/dashboard-stats');
         if (!res.ok) throw new Error('Failed to fetch dashboard stats');
         const data = await res.json();
         setStats(data);
@@ -37,6 +39,18 @@ export default function ApexDashboard() {
     };
     fetchApexStats();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleUpdate = () => {
+      // TODO: Call your data refresh function here
+      // fetchDashboardStats();
+    };
+    socket.on('dashboard:update', handleUpdate);
+    return () => {
+      socket.off('dashboard:update', handleUpdate);
+    };
+  }, [socket]);
 
   if (loading) {
     return (
@@ -74,6 +88,8 @@ export default function ApexDashboard() {
         <ActionCard title="View Cooperatives" description="Monitor all cooperatives" href="/dashboard/apex/cooperatives" />
         <ActionCard title="Approve Loans" description="Review and approve loan applications" href="/dashboard/apex/loans" />
         <ActionCard title="Generate Reports" description="Create and view reports" href="/dashboard/apex/reports" />
+        <ActionCard title="Manage Events" description="Create, edit, and manage events" href="/dashboard/apex/events" />
+        <ActionCard title="Registration Fee" description="Set and manage registration fees" href="/dashboard/apex/settings/registration-fee" />
       </div>
 
       {/*

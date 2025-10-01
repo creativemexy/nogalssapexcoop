@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import RegistrationFeeCard from '@/components/RegistrationFeeCard';
+import { useSocket } from '@/hooks/useSocket';
 
 export default function LeaderDashboard() {
     const { data: session } = useSession();
@@ -12,12 +13,35 @@ export default function LeaderDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const socket = useSocket();
+    useEffect(() => {
+        if (!socket) return;
+        const handleUpdate = () => {
+            // TODO: Call your data refresh function here
+            // fetchDashboardStats();
+        };
+        socket.on('dashboard:update', handleUpdate);
+        return () => {
+            socket.off('dashboard:update', handleUpdate);
+        };
+    }, [socket]);
+
     useEffect(() => {
         const fetchStats = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch('/api/leader/dashboard-stats');
+                // Check for impersonation data
+                const impersonationData = localStorage.getItem('impersonationData');
+                const headers: Record<string, string> = {};
+                
+                if (impersonationData) {
+                    headers['x-impersonation-data'] = impersonationData;
+                }
+                
+                const res = await fetch('/api/leader/dashboard-stats', {
+                    headers
+                });
                 if (!res.ok) throw new Error('Failed to fetch stats');
                 const data = await res.json();
                 setStats(data);
@@ -51,11 +75,40 @@ export default function LeaderDashboard() {
                         <StatCard title="Total Contributions" value={stats.totalContributions} color="yellow" isCurrency />
                         <StatCard title="Pending Loans" value={stats.pendingLoans} color="green" />
                     </div>
-                    {/* Quick Actions */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <ActionCard title="Manage Members" description="View and manage all co-operative members" href="/dashboard/leader/members" />
-                        <ActionCard title="View Contributions" description="See all member contributions" href="/dashboard/leader/contributions" />
-                        <ActionCard title="Approve Loans" description="Review and approve loan applications" href="/dashboard/leader/loans" />
+                    {/* Leader's Personal Section */}
+                    <div className="bg-white rounded-lg shadow p-6 mb-8">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Your Personal Account</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-green-50 rounded-lg p-4">
+                                <h3 className="text-lg font-semibold text-green-800 mb-2">Your Allocations</h3>
+                                <p className="text-green-700">View your 20% share of registration fees from your cooperative members</p>
+                                <Link href="/dashboard/leader/allocations" className="inline-block mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                    View Allocations
+                                </Link>
+                            </div>
+                            <div className="bg-blue-50 rounded-lg p-4">
+                                <h3 className="text-lg font-semibold text-blue-800 mb-2">Personal Services</h3>
+                                <p className="text-blue-700">Make contributions and apply for loans as a cooperative member</p>
+                                <div className="mt-3 space-x-2">
+                                    <Link href="/dashboard/leader/personal/contribute" className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        Make Contribution
+                                    </Link>
+                                    <Link href="/dashboard/leader/personal/apply-loan" className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                        Apply for Loan
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Management Actions */}
+                    <div className="bg-white rounded-lg shadow p-6 mb-8">
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Cooperative Management</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <ActionCard title="Manage Members" description="View and manage all co-operative members" href="/dashboard/leader/members" />
+                            <ActionCard title="View Contributions" description="See all member contributions" href="/dashboard/leader/contributions" />
+                            <ActionCard title="Approve Loans" description="Review and approve loan applications" href="/dashboard/leader/loans" />
+                        </div>
                     </div>
                 </>
             )}

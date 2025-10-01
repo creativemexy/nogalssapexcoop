@@ -192,10 +192,11 @@ export default function ApexLeadersPage() {
           className="border border-gray-300 rounded-md px-3 py-2 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#0D5E42]"
         />
         <button
-          className="ml-4 bg-[#0D5E42] text-white px-6 py-2 rounded hover:bg-[#0A4A35]"
-          onClick={() => setShowModal(true)}
+          className="ml-4 bg-gray-400 text-white px-6 py-2 rounded cursor-not-allowed opacity-50"
+          disabled
+          title="Add New Leader feature is temporarily disabled"
         >
-          + Add New Leader
+          + Add New Leader (Disabled)
         </button>
       </div>
       <div className="bg-white rounded-lg shadow overflow-x-auto">

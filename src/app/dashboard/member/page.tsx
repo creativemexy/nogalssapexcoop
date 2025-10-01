@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useSocket } from '@/hooks/useSocket';
 
 export default function MemberDashboard() {
     const { data: session } = useSession();
@@ -30,6 +31,19 @@ export default function MemberDashboard() {
         };
         fetchSavings();
     }, []);
+
+    const socket = useSocket();
+    useEffect(() => {
+        if (!socket) return;
+        const handleUpdate = () => {
+            // TODO: Call your data refresh function here
+            // fetchDashboardStats();
+        };
+        socket.on('dashboard:update', handleUpdate);
+        return () => {
+            socket.off('dashboard:update', handleUpdate);
+        };
+    }, [socket]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

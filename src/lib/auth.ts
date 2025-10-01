@@ -1,11 +1,9 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -14,96 +12,65 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null;
           }
-        });
 
-        if (!user || !user.password) {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email
+            }
+          });
+
+          if (!user || !user.password) {
+            return null;
+          }
+
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!isPasswordValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`,
+            role: user.role,
+            cooperativeId: user.cooperativeId,
+            businessId: user.businessId,
+          };
+        } catch (error) {
+          console.error('Authorization error:', error);
           return null;
         }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: `${user.firstName} ${user.lastName}`,
-          role: user.role,
-          cooperativeId: user.cooperativeId ?? null,
-          leaderId: (user as any).leaderId ?? null,
-          apexId: (user as any).apexId ?? null,
-          businessId: user.businessId ?? null,
-        };
       }
     })
   ],
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
-        // Use type assertion to extend user with custom properties
-        const customUser = user as typeof user & {
-          role?: string;
-          cooperativeId?: string | null;
-          leaderId?: string | null;
-          apexId?: string | null;
-          businessId?: string | null;
-        };
-        token.role = customUser.role;
-        token.cooperativeId = customUser.cooperativeId;
-        token.leaderId = customUser.leaderId;
-        token.apexId = customUser.apexId;
-        token.businessId = customUser.businessId;
+        token.role = (user as any).role;
+        token.id = user.id;
+        token.cooperativeId = (user as any).cooperativeId;
+        token.businessId = (user as any).businessId;
       }
-      
-      // Handle impersonation updates
-      if (trigger === 'update' && token.impersonating) {
-        // When impersonating, we'll update the token with the target user's data
-        // This will be handled by the impersonation API
-      }
-      
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        // TypeScript fix: add 'id' to session.user via type assertion
-        // TypeScript fix: add custom properties to session.user via type assertion
-        (session.user as typeof session.user & {
-          id?: string;
-          role?: string;
-          cooperativeId?: string | null;
-          leaderId?: string | null;
-          apexId?: string | null;
-          businessId?: string | null;
-          impersonating?: boolean;
-          originalAdmin?: {
-            id: string;
-            email: string;
-          };
-        }).id = token.sub as string;
-
-        (session.user as typeof session.user & { role?: string }).role = token.role as string | undefined;
-        (session.user as typeof session.user & { cooperativeId?: string | null }).cooperativeId = token.cooperativeId as string | null | undefined;
-        (session.user as typeof session.user & { leaderId?: string | null }).leaderId = token.leaderId as string | null | undefined;
-        (session.user as typeof session.user & { apexId?: string | null }).apexId = token.apexId as string | null | undefined;
-        (session.user as typeof session.user & { businessId?: string | null }).businessId = token.businessId as string | null | undefined;
-        (session.user as typeof session.user & { impersonating?: boolean }).impersonating = token.impersonating as boolean | undefined;
-        (session.user as typeof session.user & { originalAdmin?: any }).originalAdmin = token.originalAdmin as any;
+      if (token) {
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+        (session.user as any).cooperativeId = token.cooperativeId;
+        (session.user as any).businessId = token.businessId;
       }
       return session;
     }
@@ -111,5 +78,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
-  }
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development"
 };

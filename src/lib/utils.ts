@@ -3,19 +3,32 @@ import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
-} 
+}
 
-// Strong password validator: 12+ chars, upper, lower, digit, special
+// Strong password policy enforcement
 export function isStrongPassword(password: string): boolean {
-  if (typeof password !== 'string') return false;
-  if (password.length < 12) return false;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasDigit = /\d/.test(password);
-  const hasSpecial = /[^A-Za-z0-9]/.test(password);
-  return hasUppercase && hasLowercase && hasDigit && hasSpecial;
+  // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(password);
 }
 
 export function getPasswordPolicyMessage(): string {
-  return 'Password must be at least 12 characters and include uppercase, lowercase, number, and special character.';
+  return 'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.';
 }
+
+// TOTP 2FA utilities
+import { authenticator } from 'otplib';
+import qrcode from 'qrcode';
+
+export function generateTOTPSecret(userEmail: string, issuer = 'Nogalss Cooperative'): { secret: string, otpauthUrl: string } {
+  const secret = authenticator.generateSecret();
+  const otpauthUrl = authenticator.keyuri(userEmail, issuer, secret);
+  return { secret, otpauthUrl };
+}
+
+export async function generateTOTPQrDataUrl(otpauthUrl: string): Promise<string> {
+  return await qrcode.toDataURL(otpauthUrl);
+}
+
+export function verifyTOTPToken(secret: string, token: string): boolean {
+  return authenticator.check(token, secret);
+} 

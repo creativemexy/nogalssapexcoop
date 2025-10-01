@@ -151,10 +151,11 @@ export default function ApexLoansPage() {
           </select>
         </div>
         <button
-          className="ml-4 bg-[#0D5E42] text-white px-6 py-2 rounded hover:bg-[#0A4A35]"
-          onClick={() => {/* TODO: Add new loan */}}
+          className="ml-4 bg-gray-400 text-white px-6 py-2 rounded cursor-not-allowed opacity-50"
+          disabled
+          title="Add New Loan feature is temporarily disabled"
         >
-          + Add New Loan
+          + Add New Loan (Disabled)
         </button>
       </div>
 

@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendMail } from '@/lib/email';
-import { getWelcomeEmailHtml } from '@/lib/notifications';
+import { NotificationService, getWelcomeEmailHtml } from '@/lib/notifications';
 import { createLog } from '@/lib/logger';
 import { isStrongPassword, getPasswordPolicyMessage } from '@/lib/utils';
 
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Log action
     await createLog({ action: `Created Finance user: ${email}`, user: session.user });
 
-    // Send welcome email
+    // Send welcome email (logged via NotificationService)
     try {
       const dashboardUrl = 'https://nogalssapexcoop.org/dashboard/finance';
       const html = getWelcomeEmailHtml({
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
         role: 'FINANCE',
         dashboardUrl,
       });
-      await sendMail({
+      await NotificationService.sendEmail({
         to: user.email,
         subject: 'Welcome to Nogalss – Finance User Account Created',
         html,

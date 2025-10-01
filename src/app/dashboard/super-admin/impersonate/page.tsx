@@ -64,11 +64,16 @@ export default function ImpersonatePage() {
     try {
       setImpersonating(true);
       
+      // Get CSRF token for update-session
+      const csrfResponse = await fetch('/api/auth/csrf');
+      const { csrfToken } = await csrfResponse.json();
+
       // First, get the target user's session data
       const sessionResponse = await fetch('/api/admin/impersonate/update-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({ targetUserId: userId }),
       });
@@ -81,17 +86,19 @@ export default function ImpersonatePage() {
 
       const sessionData = await sessionResponse.json();
       
-      // Log the impersonation action
+      // Log the impersonation action (reuse the same CSRF token)
       const logResponse = await fetch('/api/admin/impersonate/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ targetUserId: userId, reason: 'Admin impersonation' }),
       });
 
       if (logResponse.ok) {
-        alert(`Impersonating ${sessionData.targetUser.email}. You will be redirected to their dashboard.`);
+        const userDisplayName = `${sessionData.targetUser.firstName} ${sessionData.targetUser.lastName}`;
+        alert(`Impersonating ${userDisplayName} (${sessionData.targetUser.email}). You will be redirected to their dashboard.`);
         
         // Store impersonation data in localStorage for session handling
         localStorage.setItem('impersonationData', JSON.stringify(sessionData.targetUser));

@@ -20,13 +20,18 @@ export default function DashboardPage() {
     const dashboardMap: Record<string, string> = {
       SUPER_ADMIN: '/dashboard/super-admin',
       APEX: '/dashboard/apex',
+      FINANCE: '/dashboard/finance',
+      APEX_FUNDS: '/dashboard/apex-funds',
+      NOGALSS_FUNDS: '/dashboard/nogalss-funds',
       LEADER: '/dashboard/leader',
       COOPERATIVE: '/dashboard/cooperative',
       MEMBER: '/dashboard/member',
       BUSINESS: '/dashboard/business',
     };
 
-    const redirectPath = dashboardMap[((session.user as any)?.role) as string];
+    const userRole = (session.user as any)?.role;
+    const redirectPath = dashboardMap[userRole as string];
+    
     if (redirectPath) {
       router.push(redirectPath);
     } else {
@@ -35,10 +40,10 @@ export default function DashboardPage() {
   }, [session, status, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Redirecting to your dashboard...</p>
+        <p className="mt-4 text-gray-900 dark:text-gray-100">Redirecting to your dashboard...</p>
       </div>
     </div>
   );

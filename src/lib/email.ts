@@ -1,34 +1,34 @@
 import nodemailer from 'nodemailer';
+import { getEmailConfig } from '@/lib/env';
 
-const smtpHost = process.env.SMTP_HOST || 'smtp.ethereal.email';
-const smtpPort = Number(process.env.SMTP_PORT) || 587;
-const smtpUser = process.env.SMTP_USER || 'testuser';
-const smtpPass = process.env.SMTP_PASS || 'testpass';
-const smtpFrom = process.env.SMTP_FROM || 'Nogalss <noreply@nogalss.test>';
-const smtpSecure = (process.env.SMTP_SECURE || '').toLowerCase() === 'true' || smtpPort === 465;
+// Get validated email configuration
+const emailConfig = getEmailConfig();
 
 const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
+  host: emailConfig.host,
+  port: emailConfig.port,
+  secure: emailConfig.secure,
   auth: {
-    user: smtpUser,
-    pass: smtpPass,
+    user: emailConfig.auth.user,
+    pass: emailConfig.auth.pass,
   },
 });
 
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
   try {
     const info = await transporter.sendMail({
-      from: smtpFrom,
+      from: emailConfig.from,
       to,
       subject,
       html,
     });
-    if (smtpHost === 'smtp.ethereal.email') {
+    
+    // Only show preview URL in development with test email service
+    if (process.env.NODE_ENV === 'development' && emailConfig.host.includes('ethereal')) {
       // eslint-disable-next-line no-console
       console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info));
     }
+    
     return info;
   } catch (error) {
     console.error('Email send error:', error);

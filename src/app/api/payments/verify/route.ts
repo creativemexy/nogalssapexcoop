@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { NotificationService } from '@/lib/notifications';
+import bcrypt from 'bcryptjs';
+import { sendMail } from '@/lib/email';
+import { getWelcomeEmailHtml } from '@/lib/notifications';
+import { createVirtualAccount } from '@/lib/paystack';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +28,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 });
     }
 
-    // Find the payment record
+    // Check if this is a registration payment by looking for pending registration
+    const pendingRegistration = await prisma.pendingRegistration.findFirst({
+      where: { reference: reference }
+    });
+
+    if (pendingRegistration) {
+      console.log('Found pending registration:', pendingRegistration.id);
+      // This is a registration payment, handle it differently
+      return await handleRegistrationPayment(reference, paystackData, pendingRegistration);
+    }
+
+    // Find the payment record for regular payments
     const payment = await prisma.payment.findUnique({
       where: { paystackReference: reference },
       include: { 
@@ -92,5 +107,335 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Payment verification error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Function to handle registration payments
+async function handleRegistrationPayment(reference: string, paystackData: any, pendingRegistration: any) {
+  try {
+    console.log('🚀 Processing registration payment for:', reference);
+    console.log('Paystack data status:', paystackData.data.status);
+    console.log('Pending registration ID:', pendingRegistration.id);
+    
+    if (paystackData.data.status !== 'success') {
+      console.log('❌ Payment not successful, status:', paystackData.data.status);
+      // Update pending registration as failed
+      await prisma.pendingRegistration.update({
+        where: { id: pendingRegistration.id },
+        data: { status: 'FAILED' }
+      });
+      
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Payment not successful`);
+    }
+
+    console.log('✅ Payment successful, parsing registration data...');
+    // Parse registration data
+    const registrationData = JSON.parse(pendingRegistration.data);
+    console.log('Registration type:', pendingRegistration.type);
+    console.log('Registration data parsed successfully');
+
+    // Handle different registration types
+    if (pendingRegistration.type === 'COOPERATIVE') {
+      return await handleCooperativeRegistration(reference, paystackData, registrationData, pendingRegistration);
+    } else if (pendingRegistration.type === 'MEMBER') {
+      return await handleMemberRegistration(reference, paystackData, registrationData, pendingRegistration);
+    } else {
+      throw new Error('Unknown registration type');
+    }
+  } catch (error) {
+    console.error('❌ Error in handleRegistrationPayment:', error);
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
+      data: { status: 'FAILED' }
+    });
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Registration processing failed`);
+  }
+}
+
+// Function to handle cooperative registration
+async function handleCooperativeRegistration(reference: string, paystackData: any, registrationData: any, pendingRegistration: any) {
+  try {
+    console.log('🏢 Processing cooperative registration...');
+    console.log('Cooperative data:', {
+      cooperativeName: registrationData.cooperativeName,
+      leaderEmail: registrationData.leaderEmail,
+      leaderFirstName: registrationData.leaderFirstName
+    });
+
+    // Hash password outside transaction to avoid timeout
+    console.log('🔐 Hashing password...');
+    const hashedPassword = await bcrypt.hash(registrationData.leaderPassword, 12);
+    console.log('✅ Password hashed');
+
+    // Create users and cooperative after successful payment
+    console.log('🔄 Starting database transaction...');
+    const result = await prisma.$transaction(async (tx) => {
+      console.log('📝 Creating cooperative...');
+      // Create Cooperative
+      const cooperative = await tx.cooperative.create({
+        data: {
+          name: registrationData.cooperativeName,
+          registrationNumber: registrationData.cooperativeRegNo,
+          bankName: registrationData.bankName,
+          bankAccountNumber: registrationData.bankAccountNumber,
+          bankAccountName: registrationData.bankAccountName,
+          address: registrationData.address,
+          city: registrationData.city,
+          phoneNumber: registrationData.phone,
+          email: registrationData.cooperativeEmail,
+        },
+      });
+      console.log('✅ Cooperative created:', cooperative.id);
+
+      // Create Cooperative User Account
+      console.log('👤 Creating cooperative user...');
+      const cooperativeUser = await tx.user.create({
+        data: {
+          firstName: registrationData.cooperativeName,
+          lastName: 'Organization',
+          email: registrationData.cooperativeEmail || `${registrationData.cooperativeName.toLowerCase().replace(/\s+/g, '')}@nogalss.org`,
+          password: hashedPassword,
+          role: 'COOPERATIVE',
+          cooperativeId: cooperative.id,
+          phoneNumber: registrationData.phone,
+        },
+      });
+      console.log('✅ Cooperative user created:', cooperativeUser.id);
+
+      // Create Leader User
+      console.log('👤 Creating leader user...');
+      const leaderUser = await tx.user.create({
+        data: {
+          firstName: registrationData.leaderFirstName,
+          lastName: registrationData.leaderLastName,
+          email: registrationData.leaderEmail,
+          password: hashedPassword,
+          role: 'LEADER',
+          cooperativeId: cooperative.id,
+          phoneNumber: registrationData.leaderPhone,
+        },
+      });
+      console.log('✅ Leader user created:', leaderUser.id);
+
+      // Create Leader record
+      await tx.leader.create({
+        data: {
+          userId: leaderUser.id,
+          cooperativeId: cooperative.id,
+          title: registrationData.leaderTitle,
+        },
+      });
+
+      // Record the successful payment
+      await tx.transaction.create({
+        data: {
+          amount: paystackData.data.amount,
+          type: 'FEE',
+          description: 'Cooperative registration fee payment',
+          status: 'SUCCESSFUL',
+          userId: leaderUser.id,
+          cooperativeId: cooperative.id,
+          reference: reference
+        }
+      });
+
+      return { cooperative, cooperativeUser, leaderUser };
+    }, {
+      timeout: 15000, // 15 seconds timeout
+    });
+
+    // Update pending registration status
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
+      data: { status: 'COMPLETED' }
+    });
+
+    // Send welcome emails
+    try {
+      const leaderDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/leader`;
+      const leaderHtml = getWelcomeEmailHtml({
+        name: result.leaderUser.firstName,
+        email: result.leaderUser.email,
+        password: '[Your chosen password]',
+        role: 'LEADER',
+        dashboardUrl: leaderDashboardUrl,
+        virtualAccount: undefined,
+        registrationPaid: true,
+      });
+      await sendMail({
+        to: result.leaderUser.email,
+        subject: 'Welcome to Nogalss – Leader Account Activated',
+        html: leaderHtml,
+      });
+
+      // Send email to cooperative
+      const cooperativeDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/cooperative`;
+      const cooperativeHtml = getWelcomeEmailHtml({
+        name: result.cooperativeUser.firstName,
+        email: result.cooperativeUser.email,
+        password: '[Your chosen password]',
+        role: 'COOPERATIVE',
+        dashboardUrl: cooperativeDashboardUrl,
+        virtualAccount: undefined,
+        registrationPaid: true,
+      });
+      await sendMail({
+        to: result.cooperativeUser.email,
+        subject: 'Welcome to Nogalss – Cooperative Account Activated',
+        html: cooperativeHtml,
+      });
+    } catch (emailError) {
+      console.error('Failed to send welcome emails:', emailError);
+    }
+
+    // Redirect to success page
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?cooperative=${result.cooperative.name}&reference=${reference}`);
+
+  } catch (error) {
+    console.error('❌ Registration payment processing error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    
+    // Update pending registration as failed
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
+      data: { status: 'FAILED' }
+    });
+    
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Registration processing failed: ${error.message}`);
+  }
+}
+
+// Function to handle member registration
+async function handleMemberRegistration(reference: string, paystackData: any, registrationData: any, pendingRegistration: any) {
+  try {
+    console.log('👤 Processing member registration...');
+    console.log('Member data:', {
+      firstName: registrationData.firstName,
+      lastName: registrationData.lastName,
+      email: registrationData.email,
+      cooperativeId: registrationData.cooperativeId
+    });
+
+    // Hash password outside transaction to avoid timeout
+    console.log('🔐 Hashing password...');
+    const hashedPassword = await bcrypt.hash(registrationData.password, 12);
+    console.log('✅ Password hashed');
+
+    // Create member user after successful payment
+    console.log('🔄 Starting database transaction...');
+    const result = await prisma.$transaction(async (tx) => {
+      console.log('👤 Creating member user...');
+      // Create Member User
+      const memberUser = await tx.user.create({
+        data: {
+          firstName: registrationData.firstName,
+          lastName: registrationData.lastName,
+          email: registrationData.email,
+          password: hashedPassword,
+          role: 'MEMBER',
+          cooperativeId: registrationData.cooperativeId,
+          phoneNumber: registrationData.emergencyPhone,
+          dateOfBirth: new Date(registrationData.dateOfBirth),
+          address: registrationData.address,
+        },
+      });
+      console.log('✅ Member user created:', memberUser.id);
+
+      // Record the successful payment
+      await tx.transaction.create({
+        data: {
+          amount: paystackData.data.amount,
+          type: 'FEE',
+          description: 'Member registration fee payment',
+          status: 'SUCCESSFUL',
+          userId: memberUser.id,
+          cooperativeId: registrationData.cooperativeId,
+          reference: reference
+        }
+      });
+
+      // Create virtual account for member
+      console.log('🏦 Creating virtual account for member...');
+      try {
+        const virtualAccount = await createVirtualAccount({
+          userId: memberUser.id,
+          accountType: 'MEMBER',
+          accountName: `${registrationData.firstName} ${registrationData.lastName}`,
+          email: registrationData.email,
+          phoneNumber: registrationData.emergencyPhone || ''
+        });
+
+        await tx.virtualAccount.create({
+          data: {
+            userId: memberUser.id,
+            accountType: 'MEMBER',
+            accountName: virtualAccount.accountName,
+            accountNumber: virtualAccount.accountNumber,
+            bankName: virtualAccount.bankName,
+            bankCode: 'wema-bank', // Default bank code
+            customerCode: virtualAccount.customerCode,
+            isActive: true
+          }
+        });
+        console.log('✅ Virtual account created for member');
+      } catch (vaError) {
+        console.error('Failed to create virtual account for member:', vaError);
+        // Continue without virtual account
+      }
+
+      return { memberUser };
+    }, { timeout: 15000 });
+
+    console.log('✅ Member registration completed successfully');
+
+    // Update pending registration as completed
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
+      data: { status: 'COMPLETED' }
+    });
+
+    // Send welcome email to member
+    try {
+      const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/member`;
+      const html = getWelcomeEmailHtml({
+        name: result.memberUser.firstName,
+        email: result.memberUser.email,
+        password: registrationData.password,
+        role: 'MEMBER',
+        dashboardUrl,
+        virtualAccount: {
+          accountNumber: 'Will be available in dashboard',
+          bankName: 'Virtual Account',
+          accountName: `${registrationData.firstName} ${registrationData.lastName}`
+        },
+        registrationPaid: true,
+      });
+      await sendMail({
+        to: result.memberUser.email,
+        subject: 'Welcome to Nogalss – Member Account Activated',
+        html,
+      });
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+    }
+
+    // Redirect to success page
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?member=${result.memberUser.firstName}&reference=${reference}`);
+
+  } catch (error) {
+    console.error('❌ Member registration processing error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    
+    // Update pending registration as failed
+    await prisma.pendingRegistration.update({
+      where: { id: pendingRegistration.id },
+      data: { status: 'FAILED' }
+    });
+    
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Member registration processing failed: ${error.message}`);
   }
 } 

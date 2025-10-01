@@ -10,11 +10,13 @@ export default function RegistrationFeeCard({ canEdit = false, showTitle = true 
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/settings/registration-fee')
+    fetch('/api/public/registration-fee')
       .then(res => res.json())
       .then(data => {
-        setFee(data.fee);
-        setInputFee(data.fee?.toString() ?? '');
+        // Convert from kobo to naira
+        const feeInNaira = data.registrationFee ? data.registrationFee / 100 : 0;
+        setFee(feeInNaira);
+        setInputFee(feeInNaira.toString());
       })
       .catch(() => setError('Failed to fetch registration fee'))
       .finally(() => setLoading(false));
@@ -26,13 +28,13 @@ export default function RegistrationFeeCard({ canEdit = false, showTitle = true 
     setSuccess(null);
     try {
       const res = await fetch('/api/settings/registration-fee', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fee: Number(inputFee) }),
+        body: JSON.stringify({ registrationFee: Number(inputFee) * 100 }), // Convert naira to kobo
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update fee');
-      setFee(data.fee);
+      setFee(data.registrationFee / 100); // Convert from kobo to naira
       setSuccess('Registration fee updated!');
     } catch (err: any) {
       setError(err.message);
@@ -42,7 +44,7 @@ export default function RegistrationFeeCard({ canEdit = false, showTitle = true 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500 max-w-md mx-auto mb-8">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6 border-l-4 border-green-500 max-w-md mx-auto mb-8">
       {showTitle && <h2 className="text-lg font-bold text-green-700 mb-2">Registration Fee</h2>}
       {loading ? (
         <div className="text-gray-500">Loading...</div>

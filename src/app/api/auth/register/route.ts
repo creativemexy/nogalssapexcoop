@@ -6,6 +6,8 @@ import { createLog } from '@/lib/logger';
 import { sendMail, getPasswordResetLink } from '@/lib/email';
 import { getWelcomeEmailHtml } from '@/lib/notifications';
 import { isStrongPassword, getPasswordPolicyMessage } from '@/lib/utils';
+import { createVirtualAccount } from '@/lib/paystack';
+
 
 // Dummy password reset token generator for demonstration
 async function createPasswordResetToken(email: string) {
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
 
         if (registrationType === 'COOPERATIVE') {
             const { 
-                cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, 
+                cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone, cooperativeEmail,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
                 leaderPhone, leaderTitle
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
 
             // Validate input for all required fields
             const requiredFields = {
-                cooperativeName, cooperativeRegNo, bankName, bankAccountNumber,
+                cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
                 leaderPhone, leaderTitle
@@ -49,122 +51,218 @@ export async function POST(req: NextRequest) {
             if (existingCooperative) {
                 return NextResponse.json({ error: 'A co-operative with this registration number already exists.' }, { status: 409 });
             }
-            // Use a transaction to ensure both cooperative and leader are created, or neither
-            const result = await prisma.$transaction(async (tx) => {
-                // Create Cooperative
-                const cooperative = await tx.cooperative.create({
-                    data: {
-                        name: cooperativeName,
-                        registrationNumber: cooperativeRegNo,
-                        bankName,
-                        bankAccountNumber,
-                        address,
-                        city,
-                        lga,
-                        state,
-                        phoneNumber: phone,
-                        email: cooperativeEmail || leaderEmail,
-                    },
-                });
-                // Enforce strong password policy for leader
-                if (!isStrongPassword(leaderPassword)) {
-                    throw new Error(getPasswordPolicyMessage());
+            // Get registration fee from system settings
+            const registrationFeeSetting = await prisma.systemSettings.findFirst({
+                where: { 
+                    category: 'payment',
+                    key: 'registration_fee' 
                 }
-                const hashedPassword = await bcrypt.hash(leaderPassword, 12);
-                // Create Leader User
-                const leaderUser = await tx.user.create({
-                    data: {
-                        firstName: leaderFirstName,
-                        lastName: leaderLastName,
-                        email: leaderEmail,
-                        password: hashedPassword,
-                        role: UserRole.LEADER,
-                        cooperativeId: cooperative.id,
-                        phoneNumber: leaderPhone,
-                    },
-                });
-                // Create Leader record
-                await tx.leader.create({
-                    data: {
-                        userId: leaderUser.id,
-                        cooperativeId: cooperative.id,
-                        title: leaderTitle,
-                    },
-                });
-                return { cooperative, leaderUser };
+            });
+            const defaultFee = 50000; // ₦500.00 in kobo
+            const registrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+
+            // Store registration data temporarily (don't create users yet)
+            const registrationData = {
+                cooperativeName,
+                cooperativeRegNo,
+                bankName,
+                bankAccountNumber,
+                bankAccountName,
+                address,
+                city,
+                phone,
+                cooperativeEmail: cooperativeEmail || leaderEmail,
+                leaderFirstName,
+                leaderLastName,
+                leaderEmail,
+                leaderPassword,
+                leaderPhone,
+                leaderTitle
+            };
+
+            // Store in a temporary table or use a different approach
+            // For now, we'll create a pending registration record
+            const pendingRegistration = await prisma.pendingRegistration.create({
+                data: {
+                    type: 'COOPERATIVE',
+                    data: JSON.stringify(registrationData),
+                    reference: `REG_${Date.now()}`,
+                    status: 'PENDING'
+                }
+            });
+            
+            console.log('Created pending registration:', {
+                id: pendingRegistration.id,
+                reference: pendingRegistration.reference,
+                type: pendingRegistration.type,
+                status: pendingRegistration.status
             });
 
-            // Send welcome email to leader
-            try {
-                const dashboardUrl = 'https://nogalssapexcoop.org/dashboard/leader';
-                const html = getWelcomeEmailHtml({
-                  name: result.leaderUser.firstName,
-                  email: result.leaderUser.email,
-                  password: leaderPassword,
-                  role: 'LEADER',
-                  dashboardUrl,
-                  virtualAccount: undefined,
-                  registrationPaid: true,
+            // Create Paystack payment session for registration fee
+            const paystackPayload = {
+                email: leaderEmail,
+                amount: registrationFee,
+                currency: 'NGN',
+                reference: pendingRegistration.reference,
+                callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
+                metadata: {
+                    pendingRegistrationId: pendingRegistration.id,
+                    cooperativeName: cooperativeName,
+                    leaderEmail: leaderEmail,
+                    registrationType: 'COOPERATIVE'
+                }
+            };
+            
+            console.log('Initializing Paystack payment with payload:', JSON.stringify(paystackPayload, null, 2));
+            
+            const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(paystackPayload)
+            });
+
+            console.log('Paystack response status:', paystackResponse.status);
+            
+            if (!paystackResponse.ok) {
+                const errorText = await paystackResponse.text();
+                console.log('Paystack initialization failed:', errorText);
+                // Clean up pending registration if payment fails
+                await prisma.pendingRegistration.delete({
+                    where: { id: pendingRegistration.id }
                 });
-                await sendMail({
-                  to: result.leaderUser.email,
-                  subject: 'Welcome to Nogalss – Leader Account Created',
-                  html,
-                });
-            } catch (err) {
-                console.error('Failed to send leader welcome email:', err);
+                throw new Error('Failed to initialize payment with Paystack');
             }
 
-            return NextResponse.json({ message: `Co-operative '${result.cooperative.name}' and leader account created successfully. You can now sign in.` }, { status: 201 });
+            const paymentData = await paystackResponse.json();
+            console.log('Paystack payment data:', JSON.stringify(paymentData, null, 2));
+
+            return NextResponse.json({ 
+              message: 'Registration initiated. Please complete payment to activate your accounts.',
+              payment: {
+                authorizationUrl: paymentData.data.authorization_url,
+                reference: paymentData.data.reference,
+                amount: registrationFee,
+                amountFormatted: `₦${(registrationFee / 100).toLocaleString()}`
+              },
+              instructions: {
+                payment: 'Complete payment to activate your accounts and virtual accounts',
+                virtualAccounts: 'Virtual accounts will be created after successful payment',
+                login: 'You will receive login credentials after payment completion'
+              }
+            }, { status: 201 });
 
         } else if (registrationType === 'MEMBER') {
-            const { firstName, lastName, email, password, cooperativeCode } = body;
-            // Validate input
-            if (!firstName || !lastName || !email || !password || !cooperativeCode) {
-                return NextResponse.json({ error: 'All fields are required for member registration.' }, { status: 400 });
+            const { firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, emergencyContact, emergencyPhone, savingAmount, savingFrequency } = body;
+            
+            // Validate input for all required fields
+            const requiredFields = {
+                firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, emergencyContact, emergencyPhone, savingAmount, savingFrequency
+            };
+
+            for (const [key, value] of Object.entries(requiredFields)) {
+                if (!value) {
+                    return NextResponse.json({ error: `Field '${key}' is required.` }, { status: 400 });
+                }
             }
+
             // Check if co-operative exists
             const cooperative = await prisma.cooperative.findUnique({ where: { registrationNumber: cooperativeCode } });
             if (!cooperative) {
                 return NextResponse.json({ error: 'Invalid Co-operative Code. Please check the code and try again.' }, { status: 404 });
             }
+
+            // Check if member email is already in use
+            const existingUser = await prisma.user.findUnique({ where: { email } });
+            if (existingUser) {
+                return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
+            }
+
             // Enforce strong password policy for member
             if (!isStrongPassword(password)) {
                 return NextResponse.json({ error: getPasswordPolicyMessage() }, { status: 400 });
             }
-            const hashedPassword = await bcrypt.hash(password, 12);
-            // Create Member User
-            const memberUser = await prisma.user.create({
-                data: {
-                    firstName,
-                    lastName,
-                    email,
-                    password: hashedPassword,
-                    role: UserRole.MEMBER,
-                    cooperativeId: cooperative.id,
-                },
+
+            // Get registration fee from system settings
+            const registrationFeeSetting = await prisma.systemSettings.findFirst({
+                where: { 
+                    category: 'payment',
+                    key: 'registration_fee' 
+                }
             });
-            // Send welcome email to member
-            try {
-                const dashboardUrl = 'https://yourdomain.com/dashboard/member';
-                const html = getWelcomeEmailHtml({
-                  name: memberUser.firstName,
-                  email: memberUser.email,
-                  password,
-                  role: 'MEMBER',
-                  dashboardUrl,
-                  virtualAccount: undefined,
-                  registrationPaid: true,
-                });
-                await sendMail({
-                  to: memberUser.email,
-                  subject: 'Welcome to Nogalss – Member Account Created',
-                  html,
-                });
-            } catch (err) {
-                console.error('Failed to send member welcome email:', err);
+            const defaultFee = 50000; // ₦500.00 in kobo
+            const registrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+
+            // Store registration data temporarily (don't create user yet)
+            const registrationData = {
+                firstName,
+                lastName,
+                email,
+                password,
+                cooperativeCode,
+                nin,
+                dateOfBirth,
+                occupation,
+                address,
+                city,
+                lga,
+                state,
+                emergencyContact,
+                emergencyPhone,
+                savingAmount,
+                savingFrequency,
+                cooperativeId: cooperative.id
+            };
+
+            // Create pending registration
+            const pendingRegistration = await prisma.pendingRegistration.create({
+                data: {
+                    type: 'MEMBER',
+                    data: JSON.stringify(registrationData),
+                    status: 'PENDING',
+                    reference: `REG_${Date.now()}`
+                }
+            });
+
+            // Initialize Paystack payment
+            const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    amount: registrationFee,
+                    reference: `REG_${Date.now()}`,
+                    callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
+                    metadata: {
+                        pendingRegistrationId: pendingRegistration.id,
+                        registrationType: 'MEMBER'
+                    }
+                })
+            });
+
+            if (!paystackResponse.ok) {
+                throw new Error('Failed to initialize Paystack payment');
             }
-            return NextResponse.json({ message: 'Member account created successfully. You can now sign in.' }, { status: 201 });
+
+            const paymentData = await paystackResponse.json();
+
+            return NextResponse.json({
+                message: 'Member registration initiated. Please complete payment to finish registration.',
+                payment: {
+                    authorizationUrl: paymentData.data.authorization_url,
+                    reference: paymentData.data.reference
+                },
+                accounts: {
+                    member: 'Member account will be created after successful payment'
+                },
+                virtualAccounts: 'Virtual account will be created after successful payment',
+                login: 'You will receive login credentials after payment completion'
+            }, { status: 201 });
         } else {
             return NextResponse.json({ error: 'Invalid registration type.' }, { status: 400 });
         }

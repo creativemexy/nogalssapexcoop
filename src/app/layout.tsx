@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import SessionProvider from '@/components/providers/SessionProvider'
-
-const inter = Inter({ subsets: ['latin'] })
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'NOGALSS National Apex Cooperative Society Ltd',
@@ -26,10 +24,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+      <body className="font-sans bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <ThemeProvider>
+          <SessionProvider>
+            {children}
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -12,7 +12,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -26,7 +26,7 @@ export default function Navbar() {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 isActive('/') 
                   ? 'text-[#0D5E42]' 
-                  : 'text-gray-700 hover:text-[#0D5E42]'
+                  : 'text-gray-900 dark:text-gray-100 hover:text-[#0D5E42]'
               }`}
             >
               Home
@@ -36,7 +36,7 @@ export default function Navbar() {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 isActive('/about') 
                   ? 'text-[#0D5E42]' 
-                  : 'text-gray-700 hover:text-[#0D5E42]'
+                  : 'text-gray-900 dark:text-gray-100 hover:text-[#0D5E42]'
               }`}
             >
               About
@@ -46,7 +46,7 @@ export default function Navbar() {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 isActive('/events') 
                   ? 'text-[#0D5E42]' 
-                  : 'text-gray-700 hover:text-[#0D5E42]'
+                  : 'text-gray-900 dark:text-gray-100 hover:text-[#0D5E42]'
               }`}
             >
               Events

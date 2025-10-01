@@ -2,71 +2,58 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Event {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string;
+  time: string | null;
+  location: string | null;
+  image: string | null;
+  category: string | null;
+  attendees: number | null;
+  isPublished: boolean;
+  createdAt: string;
+  creator: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
 
 export default function EventsPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
 
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: 'Annual Cooperative Summit 2024',
-      date: '2024-07-15',
-      time: '9:00 AM - 5:00 PM',
-      location: 'Lagos Convention Centre',
-      description: 'Join us for our annual summit where we discuss the future of cooperatives in Nigeria and share best practices.',
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80',
-      category: 'Summit',
-      attendees: 500
-    },
-    {
-      id: 2,
-      title: 'Digital Transformation Workshop',
-      date: '2024-07-22',
-      time: '10:00 AM - 3:00 PM',
-      location: 'Abuja Business Hub',
-      description: 'Learn about the latest digital tools and technologies for cooperative management and member engagement.',
-      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
-      category: 'Workshop',
-      attendees: 150
-    },
-    {
-      id: 3,
-      title: 'Financial Literacy Training',
-      date: '2024-08-05',
-      time: '2:00 PM - 6:00 PM',
-      location: 'Port Harcourt Chamber of Commerce',
-      description: 'Empower your members with essential financial literacy skills for better cooperative management.',
-      image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80',
-      category: 'Training',
-      attendees: 200
-    }
-  ];
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
-  const pastEvents = [
-    {
-      id: 4,
-      title: 'Cooperative Leadership Conference',
-      date: '2024-06-10',
-      time: '9:00 AM - 5:00 PM',
-      location: 'Kano State University',
-      description: 'A successful conference that brought together cooperative leaders from across Northern Nigeria.',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-      category: 'Conference',
-      attendees: 300
-    },
-    {
-      id: 5,
-      title: 'Youth Cooperative Initiative Launch',
-      date: '2024-05-20',
-      time: '3:00 PM - 7:00 PM',
-      location: 'Youth Development Centre, Enugu',
-      description: 'Launch of our youth-focused cooperative initiative to engage young entrepreneurs.',
-      image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
-      category: 'Launch',
-      attendees: 250
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/events?published=true');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setEvents(data.events || []);
+      } else {
+        setError(data.error || 'Failed to fetch events');
+      }
+    } catch (err) {
+      setError('Network error - unable to fetch events');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -77,6 +64,47 @@ export default function EventsPage() {
       day: 'numeric'
     });
   };
+
+  const isUpcoming = (dateString: string) => {
+    return new Date(dateString) >= new Date();
+  };
+
+  const handleEventClick = (event: Event) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+
+  const upcomingEvents = events.filter(event => isUpcoming(event.date));
+  const pastEvents = events.filter(event => !isUpcoming(event.date));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D5E42] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading events...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Events</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchEvents}
+            className="bg-[#0D5E42] text-white px-4 py-2 rounded-lg hover:bg-[#0A4A35] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -154,21 +182,58 @@ export default function EventsPage() {
       {/* Events Grid */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
-              <div key={event.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+          {(() => {
+            const currentEvents = activeTab === 'upcoming' ? upcomingEvents : pastEvents;
+            
+            if (currentEvents.length === 0) {
+              return (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-6">📅</div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    {activeTab === 'upcoming' ? 'No Upcoming Events' : 'No Past Events'}
+                  </h3>
+                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                    {activeTab === 'upcoming' 
+                      ? 'We\'re working on exciting new events. Check back soon for updates!'
+                      : 'No past events to display at the moment.'
+                    }
+                  </p>
+                  {activeTab === 'upcoming' && (
+                    <div className="flex justify-center space-x-4">
+                      <Link href="/about" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                        Learn More About Us
+                      </Link>
+                      <Link href="/contact" className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                        Contact Us
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {currentEvents.map((event) => (
+              <div 
+                key={event.id} 
+                onClick={() => handleEventClick(event)}
+                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+              >
                 <div className="relative h-48">
                   <Image
-                    src={event.image}
+                    src={event.image || '/placeholder-event.jpg'}
                     alt={event.title}
                     fill
                     className="object-cover"
                   />
-                  <div className="absolute top-4 left-4">
-                    <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      {event.category}
-                    </span>
-                  </div>
+                  {event.category && (
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        {event.category}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
@@ -178,24 +243,32 @@ export default function EventsPage() {
                     </svg>
                     {formatDate(event.date)}
                   </div>
-                  <div className="flex items-center text-gray-600 mb-3">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {event.time}
-                  </div>
-                  <div className="flex items-center text-gray-600 mb-4">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    {event.location}
-                  </div>
-                  <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
+                  {event.time && (
+                    <div className="flex items-center text-gray-600 mb-3">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {event.time}
+                    </div>
+                  )}
+                  {event.location && (
+                    <div className="flex items-center text-gray-600 mb-3">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {event.location}
+                    </div>
+                  )}
+                  {event.description && (
+                    <p className="text-gray-600 mb-4 line-clamp-3">{event.description}</p>
+                  )}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">
-                      {event.attendees} attendees
-                    </span>
+                    {event.attendees && (
+                      <span className="text-sm text-gray-500">
+                        {event.attendees} attendees
+                      </span>
+                    )}
                     {activeTab === 'upcoming' && (
                       <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
                         Register Now
@@ -205,7 +278,9 @@ export default function EventsPage() {
                 </div>
               </div>
             ))}
-          </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 
@@ -236,7 +311,7 @@ export default function EventsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold text-green-400 mb-4">Nogalss</h3>
+              <h3 className="text-xl font-bold text-green-400 mb-4">NOGALSS</h3>
               <p className="text-gray-300">
                 Empowering cooperatives with modern management solutions.
               </p>
@@ -267,7 +342,7 @@ export default function EventsPage() {
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
-            <p>&copy; 2024 Nogalss National Apex Cooperative Society Ltd. All rights reserved.</p>
+            <p>&copy; 2024 NOGALSS National Apex Cooperative Society Ltd. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -295,6 +370,138 @@ export default function EventsPage() {
           <svg className="w-7 h-7 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.26-1.64A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.19-1.24-6.19-3.48-8.52zM12 22c-1.85 0-3.68-.5-5.26-1.44l-.38-.22-3.72.98.99-3.62-.25-.37A9.94 9.94 0 012 12c0-5.52 4.48-10 10-10s10 4.48 10 10-4.48 10-10 10zm5.2-7.8c-.28-.14-1.65-.81-1.9-.9-.25-.09-.43-.14-.61.14-.18.28-.7.9-.86 1.08-.16.18-.32.2-.6.07-.28-.14-1.18-.44-2.25-1.41-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.34.42-.51.14-.17.18-.29.28-.48.09-.19.05-.36-.02-.5-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47-.16-.01-.35-.01-.54-.01-.19 0-.5.07-.76.34-.26.27-1 1-1 2.43 0 1.43 1.03 2.81 1.18 3.01.15.2 2.03 3.1 4.93 4.23.69.3 1.23.48 1.65.61.69.22 1.32.19 1.82.12.56-.08 1.65-.67 1.88-1.32.23-.65.23-1.21.16-1.32-.07-.11-.25-.18-.53-.32z"/></svg>
         </span>
       </div>
+
+      {/* Event Details Modal */}
+      {showEventModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="relative">
+              {/* Event Image */}
+              <div className="relative h-64 md:h-80">
+                <Image
+                  src={selectedEvent.image || '/placeholder-event.jpg'}
+                  alt={selectedEvent.title}
+                  fill
+                  className="object-cover rounded-t-lg"
+                />
+                <div className="absolute top-4 right-4">
+                  <button
+                    onClick={() => setShowEventModal(false)}
+                    className="bg-white bg-opacity-90 text-gray-600 hover:text-gray-800 p-2 rounded-full transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {selectedEvent.category && (
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      {selectedEvent.category}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Event Content */}
+              <div className="p-6 md:p-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">{selectedEvent.title}</h1>
+                
+                {/* Event Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="flex items-center text-gray-600">
+                    <svg className="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <p className="font-medium text-gray-900">Date</p>
+                      <p>{formatDate(selectedEvent.date)}</p>
+                    </div>
+                  </div>
+
+                  {selectedEvent.time && (
+                    <div className="flex items-center text-gray-600">
+                      <svg className="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-gray-900">Time</p>
+                        <p>{selectedEvent.time}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.location && (
+                    <div className="flex items-center text-gray-600">
+                      <svg className="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-gray-900">Location</p>
+                        <p>{selectedEvent.location}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.attendees && (
+                    <div className="flex items-center text-gray-600">
+                      <svg className="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-gray-900">Expected Attendees</p>
+                        <p>{selectedEvent.attendees} people</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                {selectedEvent.description && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">About This Event</h3>
+                    <p className="text-gray-600 leading-relaxed">{selectedEvent.description}</p>
+                  </div>
+                )}
+
+                {/* Event Organizer */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Event Organizer</h3>
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-green-600 font-semibold">
+                        {selectedEvent.creator.firstName.charAt(0)}{selectedEvent.creator.lastName.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {selectedEvent.creator.firstName} {selectedEvent.creator.lastName}
+                      </p>
+                      <p className="text-sm text-gray-600">{selectedEvent.creator.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                  {isUpcoming(selectedEvent.date) && (
+                    <button className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium">
+                      Register for Event
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setShowEventModal(false)}
+                    className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

@@ -20,6 +20,8 @@ model User {
   role          UserRole       @default(MEMBER)
   isActive      Boolean        @default(true)
   isVerified    Boolean        @default(false)
+  twoFactorEnabled Boolean     @default(false)
+  twoFactorSecret  String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   cooperativeId String?
@@ -33,6 +35,9 @@ model User {
   transactions  Transaction[]
   business      Business?      @relation(fields: [businessId], references: [id])
   cooperative   Cooperative?   @relation(fields: [cooperativeId], references: [id])
+  sessions      UserSession[]
+  events        Event[]
+  virtualAccount VirtualAccount?
 
   @@map("users")
 }
@@ -50,6 +55,7 @@ model Cooperative {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   bankAccountNumber  String
+  bankAccountName    String
   bankName           String
   city               String
   approved           Boolean?       @default(false)
@@ -263,6 +269,73 @@ model Partner {
   updatedAt   DateTime @updatedAt
 }
 
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String   @unique
+  ipAddress String?
+  userAgent String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model EmergencyAlert {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  severity  String   // e.g., 'CRITICAL', 'WARNING'
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String   // userId of the super admin
+}
+
+model SystemSettings {
+  id                String   @id @default(cuid())
+  category          String   // 'general', 'branding', 'payment', 'notification', 'security', 'privacy'
+  key               String   // Setting key
+  value             String   // Setting value (JSON string for complex data)
+  description       String?  // Human-readable description
+  isActive          Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+  updatedBy         String   // userId of the admin who updated
+  
+  @@unique([category, key])
+  @@map("system_settings")
+}
+
+model NotificationLog {
+  id            String            @id @default(cuid())
+  type          NotificationType  // 'EMAIL' or 'SMS'
+  recipient     String            // email address or phone number
+  subject       String?           // email subject (null for SMS)
+  message       String            // message content
+  status        NotificationStatus @default(PENDING) // 'PENDING', 'SENT', 'FAILED'
+  provider      String?           // 'resend', 'sms_provider', etc.
+  providerId    String?           // external provider message ID
+  cost          Float?            // cost in Naira (for SMS)
+  errorMessage  String?           // error details if failed
+  metadata      Json?             // additional data (user info, etc.)
+  sentAt        DateTime?         // when notification was sent
+  createdAt     DateTime          @default(now())
+  
+  @@map("notification_logs")
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 enum UserRole {
   SUPER_ADMIN
   APEX
@@ -288,4 +361,53 @@ enum TransactionType {
   WITHDRAWAL
   FEE
   INVESTMENT
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  time        String?
+  location    String?
+  image       String?
+  category    String?
+  attendees   Int?        @default(0)
+  isPublished Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  createdBy   String
+  creator     User        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("events")
+}
+
+model VirtualAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  accountType   String   // 'MEMBER', 'LEADER', 'COOPERATIVE'
+  accountName   String
+  accountNumber String
+  bankName      String
+  bankCode      String
+  customerCode  String   @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("virtual_accounts")
+}
+
+model PendingRegistration {
+  id        String   @id @default(cuid())
+  type      String   // 'COOPERATIVE', 'MEMBER'
+  data      String   // JSON string of registration data
+  reference String   @unique
+  status    String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pending_registrations")
 }
