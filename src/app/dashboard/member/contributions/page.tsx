@@ -12,7 +12,7 @@ interface Contribution {
   cooperative: {
     id: string;
     name: string;
-    code: string;
+    registrationNumber: string;
   };
 }
 
@@ -82,7 +82,7 @@ export default function MemberContributionsPage() {
   const filteredContributions = contributions.filter(contribution => {
     const matchesSearch = 
       contribution.cooperative.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contribution.cooperative.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contribution.cooperative.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contribution.description.toLowerCase().includes(searchTerm.toLowerCase());
     
     const contributionDate = new Date(contribution.createdAt);
@@ -240,7 +240,7 @@ export default function MemberContributionsPage() {
               id="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by cooperative name, code, or description..."
+              placeholder="Search by cooperative name, registration number, or description..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
             />
           </div>
@@ -318,7 +318,7 @@ export default function MemberContributionsPage() {
                           <div className="text-sm font-medium text-gray-900">
                             {contribution.cooperative.name}
                           </div>
-                          <div className="text-sm text-gray-500">{contribution.cooperative.code}</div>
+                          <div className="text-sm text-gray-500">{contribution.cooperative.registrationNumber}</div>
                         </div>
                       </div>
                     </td>
