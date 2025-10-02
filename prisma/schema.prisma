@@ -39,6 +39,7 @@ model User {
   events        Event[]
   virtualAccount VirtualAccount?
   pendingContributions PendingContribution[]
+  withdrawals Withdrawal[]
 
   @@map("users")
 }
@@ -427,4 +428,22 @@ model PendingContribution {
   cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
 
   @@map("pending_contributions")
+}
+
+model Withdrawal {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Decimal
+  reason      String
+  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PROCESSED'
+  requestedAt DateTime @default(now())
+  processedAt DateTime?
+  processedBy String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("withdrawals")
 }
