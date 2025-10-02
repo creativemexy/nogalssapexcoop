@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
         registrationNumber: user.cooperative.registrationNumber,
         address: user.cooperative.address,
         city: user.cooperative.city
-      }
+      },
+      memberAmount: 1000 // Default amount - you can adjust this or get from user profile
     });
 
   } catch (error) {

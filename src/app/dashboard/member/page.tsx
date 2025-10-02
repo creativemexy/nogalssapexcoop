@@ -14,6 +14,7 @@ export default function MemberDashboard() {
     const [loading, setLoading] = useState(true);
     const [cooperatives, setCooperatives] = useState<any[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [memberAmount, setMemberAmount] = useState<number>(0);
 
     useEffect(() => {
         const fetchVirtualAccount = async () => {
@@ -49,6 +50,8 @@ export default function MemberDashboard() {
                 const data = await response.json();
                 if (data.cooperative) {
                     setCooperatives([data.cooperative]);
+                    // Set default amount from member's registration (you can adjust this logic)
+                    setMemberAmount(data.memberAmount || 1000); // Default to 1000 if not specified
                 }
             } catch (error) {
                 console.error('Error fetching user cooperative:', error);
@@ -57,23 +60,23 @@ export default function MemberDashboard() {
         fetchUserCooperative();
     }, []);
 
-    const handleContributionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
+    const handleDirectContribution = async () => {
+        if (cooperatives.length === 0) {
+            alert('No cooperative associated with your account');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
-            const formData = new FormData(e.currentTarget);
-            const amount = parseFloat(formData.get('amount') as string);
-            const cooperativeId = formData.get('cooperativeId') as string;
-
             const response = await fetch('/api/member/contribute', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    amount,
-                    cooperativeId
+                    amount: memberAmount,
+                    cooperativeId: cooperatives[0].id
                 }),
             });
 
@@ -118,12 +121,18 @@ export default function MemberDashboard() {
                 
                 <div className="mt-6 mb-8">
                     <button
-                        onClick={() => document.getElementById('contribution-form')?.scrollIntoView({ behavior: 'smooth' })}
-                        className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl"
+                        onClick={handleDirectContribution}
+                        disabled={isSubmitting || cooperatives.length === 0}
+                        className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        💰 Make a Contribution
+                        {isSubmitting ? 'Processing...' : '💰 Make a Contribution'}
                     </button>
-                    <p className="mt-2 text-sm text-gray-500">Click to make a contribution to your cooperative</p>
+                    <p className="mt-2 text-sm text-gray-500">
+                        {cooperatives.length === 0 
+                            ? 'No cooperative associated with your account' 
+                            : 'Click to make a contribution using your registered amount'
+                        }
+                    </p>
                 </div>
                 {virtualAccount ? (
                     <div className="mt-8 p-6 rounded-lg border border-green-200 bg-green-50">
@@ -197,58 +206,6 @@ export default function MemberDashboard() {
                                 )}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-                <div id="contribution-form" className="mt-8">
-                    <h2 className="text-xl font-bold text-green-700 mb-4">Make a Contribution</h2>
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <form onSubmit={handleContributionSubmit} className="space-y-4">
-                            <div>
-                                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Contribution Amount (₦)
-                                </label>
-                                <input
-                                    type="number"
-                                    id="amount"
-                                    name="amount"
-                                    min="100"
-                                    step="100"
-                                    required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    placeholder="Enter amount"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="cooperative" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Cooperative
-                                </label>
-                                {cooperatives.length > 0 ? (
-                                    <select
-                                        id="cooperative"
-                                        name="cooperativeId"
-                                        required
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                    >
-                                        {cooperatives.map((coop) => (
-                                            <option key={coop.id} value={coop.id}>
-                                                {coop.name} ({coop.registrationNumber})
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500">
-                                        No cooperative associated with your account
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || cooperatives.length === 0}
-                                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isSubmitting ? 'Processing...' : cooperatives.length === 0 ? 'No Cooperative Available' : 'Pay with Paystack'}
-                            </button>
-                        </form>
                     </div>
                 </div>
                 <div className="mt-6 flex flex-wrap gap-4">
