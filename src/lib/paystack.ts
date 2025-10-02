@@ -25,21 +25,31 @@ export async function createVirtualAccount({ userId, accountType, accountName, e
     const customerData = await customerResponse.json();
 
     // Create dedicated account for the customer
+    const dedicatedAccountPayload = {
+      customer: customerData.data.customer_code,
+      preferred_bank: 'wema-bank' // Default bank
+    };
+
+    // Only add split_code if it exists
+    if (process.env.PAYSTACK_SPLIT_CODE) {
+      dedicatedAccountPayload.split_code = process.env.PAYSTACK_SPLIT_CODE;
+    }
+
+    console.log('Creating dedicated account with payload:', JSON.stringify(dedicatedAccountPayload, null, 2));
+
     const dedicatedAccountResponse = await fetch('https://api.paystack.co/dedicated_account', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        customer: customerData.data.customer_code,
-        preferred_bank: 'wema-bank', // Default bank
-        split_code: process.env.PAYSTACK_SPLIT_CODE // If you have a split code
-      })
+      body: JSON.stringify(dedicatedAccountPayload)
     });
 
     if (!dedicatedAccountResponse.ok) {
-      throw new Error('Failed to create dedicated account');
+      const errorData = await dedicatedAccountResponse.json();
+      console.error('Paystack dedicated account error:', errorData);
+      throw new Error(`Failed to create dedicated account: ${errorData.message || 'Unknown error'}`);
     }
 
     const dedicatedAccountData = await dedicatedAccountResponse.json();
