@@ -35,17 +35,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cooperative ID is required' }, { status: 400 });
     }
 
-    // Verify user is a member of the cooperative
-    const membership = await prisma.user.findFirst({
-      where: {
-        id: userId,
-        cooperativeId: cooperativeId
-      }
+    // Get user information to check their cooperative membership
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { cooperative: true }
     });
 
-    if (!membership) {
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if user is a member and if they're trying to contribute to their own cooperative
+    if (!user.cooperativeId || user.cooperativeId !== cooperativeId) {
       return NextResponse.json({ 
-        error: 'You are not a member of this cooperative' 
+        error: 'You can only contribute to your own cooperative',
+        message: `You are a member of ${user.cooperative?.name || 'your cooperative'}. Please select your cooperative to make a contribution.`
       }, { status: 403 });
     }
 

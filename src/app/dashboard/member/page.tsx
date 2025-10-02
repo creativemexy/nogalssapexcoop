@@ -43,16 +43,18 @@ export default function MemberDashboard() {
     }, []);
 
     useEffect(() => {
-        const fetchCooperatives = async () => {
+        const fetchUserCooperative = async () => {
             try {
-                const response = await fetch('/api/public/cooperatives');
+                const response = await fetch('/api/member/cooperative');
                 const data = await response.json();
-                setCooperatives(data.cooperatives || []);
+                if (data.cooperative) {
+                    setCooperatives([data.cooperative]);
+                }
             } catch (error) {
-                console.error('Error fetching cooperatives:', error);
+                console.error('Error fetching user cooperative:', error);
             }
         };
-        fetchCooperatives();
+        fetchUserCooperative();
     }, []);
 
     const handleContributionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -211,26 +213,31 @@ export default function MemberDashboard() {
                                 <label htmlFor="cooperative" className="block text-sm font-medium text-gray-700 mb-2">
                                     Cooperative
                                 </label>
-                                <select
-                                    id="cooperative"
-                                    name="cooperativeId"
-                                    required
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                >
-                                    <option value="">Select your cooperative</option>
-                                    {cooperatives.map((coop) => (
-                                        <option key={coop.id} value={coop.id}>
-                                            {coop.name} ({coop.registrationNumber})
-                                        </option>
-                                    ))}
-                                </select>
+                                {cooperatives.length > 0 ? (
+                                    <select
+                                        id="cooperative"
+                                        name="cooperativeId"
+                                        required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    >
+                                        {cooperatives.map((coop) => (
+                                            <option key={coop.id} value={coop.id}>
+                                                {coop.name} ({coop.registrationNumber})
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500">
+                                        No cooperative associated with your account
+                                    </div>
+                                )}
                             </div>
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || cooperatives.length === 0}
                                 className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isSubmitting ? 'Processing...' : 'Pay with Paystack'}
+                                {isSubmitting ? 'Processing...' : cooperatives.length === 0 ? 'No Cooperative Available' : 'Pay with Paystack'}
                             </button>
                         </form>
                     </div>
