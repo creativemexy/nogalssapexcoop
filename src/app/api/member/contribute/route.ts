@@ -68,19 +68,19 @@ export async function POST(request: NextRequest) {
     // Generate unique reference
     const reference = `CONTRIB_${userId}_${Date.now()}`;
 
-    // Initialize Paystack payment
-    const paymentData = {
-      email: session.user.email || '',
-      amount: amountInKobo,
-      reference: reference,
-      callback_url: `${process.env.NEXTAUTH_URL}/payments/success?type=contribution`,
-      metadata: {
-        userId: userId,
-        cooperativeId: cooperativeId,
-        type: 'contribution',
-        amount: amount
-      }
-    };
+            // Initialize Paystack payment
+            const paymentData = {
+              email: session.user.email || '',
+              amount: amountInKobo,
+              reference: reference,
+              callback_url: `${process.env.NEXTAUTH_URL}/dashboard/member?type=contribution&reference=${reference}`,
+              metadata: {
+                userId: userId,
+                cooperativeId: cooperativeId,
+                type: 'contribution',
+                amount: amount
+              }
+            };
 
     console.log('🚀 Initializing contribution payment:', paymentData);
 

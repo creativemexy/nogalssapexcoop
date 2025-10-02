@@ -43,6 +43,40 @@ export default function MemberDashboard() {
         fetchContributions();
     }, []);
 
+    // Check for payment verification on page load
+    useEffect(() => {
+        const verifyPayment = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reference = urlParams.get('reference');
+            const type = urlParams.get('type');
+            
+            if (reference && type === 'contribution') {
+                try {
+                    console.log('🔍 Verifying contribution payment:', reference);
+                    const response = await fetch(`/api/payments/verify?reference=${reference}`);
+                    
+                    if (response.ok) {
+                        console.log('✅ Payment verification successful');
+                        // Refresh contributions after successful verification
+                        const res = await fetch('/api/member/contributions');
+                        const data = await res.json();
+                        setSavings(data.stats?.totalAmount || 0);
+                        setTransactions(data.contributions || []);
+                        
+                        // Clean up URL parameters
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    } else {
+                        console.error('❌ Payment verification failed');
+                    }
+                } catch (error) {
+                    console.error('Error verifying payment:', error);
+                }
+            }
+        };
+
+        verifyPayment();
+    }, []);
+
     useEffect(() => {
         const fetchUserCooperative = async () => {
             try {
