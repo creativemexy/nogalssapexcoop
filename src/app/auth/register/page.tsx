@@ -473,7 +473,17 @@ export default function RegisterPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Date of Birth</label>
-                            <input type="date" name="dateOfBirth" value={formData.dateOfBirth || ''} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
+                            <input 
+                                type="date" 
+                                name="dateOfBirth" 
+                                value={formData.dateOfBirth || ''} 
+                                onChange={handleChange} 
+                                required 
+                                max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
+                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                disabled={ninLocked} 
+                            />
+                            <p className="text-xs text-gray-600 mt-1">Minimum age: 16 years</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Occupation</label>
