@@ -12,6 +12,8 @@ export default function MemberDashboard() {
     const [savings, setSavings] = useState<number>(0);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [cooperatives, setCooperatives] = useState<any[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const fetchVirtualAccount = async () => {
@@ -39,6 +41,55 @@ export default function MemberDashboard() {
         };
         fetchSavings();
     }, []);
+
+    useEffect(() => {
+        const fetchCooperatives = async () => {
+            try {
+                const response = await fetch('/api/public/cooperatives');
+                const data = await response.json();
+                setCooperatives(data.cooperatives || []);
+            } catch (error) {
+                console.error('Error fetching cooperatives:', error);
+            }
+        };
+        fetchCooperatives();
+    }, []);
+
+    const handleContributionSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+
+        try {
+            const formData = new FormData(e.currentTarget);
+            const amount = parseFloat(formData.get('amount') as string);
+            const cooperativeId = formData.get('cooperativeId') as string;
+
+            const response = await fetch('/api/member/contribute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount,
+                    cooperativeId
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.paymentUrl) {
+                // Redirect to Paystack payment page
+                window.location.href = data.paymentUrl;
+            } else {
+                alert(data.error || 'Failed to initialize payment');
+            }
+        } catch (error) {
+            console.error('Error submitting contribution:', error);
+            alert('An error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const socket = useSocket();
     useEffect(() => {
@@ -135,6 +186,53 @@ export default function MemberDashboard() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+                <div className="mt-8">
+                    <h2 className="text-xl font-bold text-green-700 mb-4">Make a Contribution</h2>
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                        <form onSubmit={handleContributionSubmit} className="space-y-4">
+                            <div>
+                                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Contribution Amount (₦)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="amount"
+                                    name="amount"
+                                    min="100"
+                                    step="100"
+                                    required
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="Enter amount"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="cooperative" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Cooperative
+                                </label>
+                                <select
+                                    id="cooperative"
+                                    name="cooperativeId"
+                                    required
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                >
+                                    <option value="">Select your cooperative</option>
+                                    {cooperatives.map((coop) => (
+                                        <option key={coop.id} value={coop.id}>
+                                            {coop.name} ({coop.registrationNumber})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmitting ? 'Processing...' : 'Pay with Paystack'}
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <div className="mt-6">

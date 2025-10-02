@@ -49,6 +49,17 @@ export async function GET(request: NextRequest) {
       return await handleRegistrationPayment(paymentReference, paystackData, pendingRegistration);
     }
 
+    // Check if this is a contribution payment
+    const pendingContribution = await prisma.pendingContribution.findFirst({
+      where: { reference: paymentReference }
+    });
+
+    if (pendingContribution) {
+      console.log('Found pending contribution:', pendingContribution.id);
+      // This is a contribution payment, handle it differently
+      return await handleContributionPayment(paymentReference, paystackData, pendingContribution);
+    }
+
     // Find the payment record for regular payments
     const payment = await prisma.payment.findUnique({
       where: { paystackReference: paymentReference },
@@ -157,6 +168,16 @@ export async function POST(request: NextRequest) {
     if (pendingRegistration) {
       console.log('Found pending registration via webhook:', pendingRegistration.id);
       return await handleRegistrationPayment(reference, paystackData, pendingRegistration);
+    }
+
+    // Check if this is a contribution payment
+    const pendingContribution = await prisma.pendingContribution.findFirst({
+      where: { reference: reference }
+    });
+
+    if (pendingContribution) {
+      console.log('Found pending contribution via webhook:', pendingContribution.id);
+      return await handleContributionPayment(reference, paystackData, pendingContribution);
     }
 
     // Handle regular payment webhook
@@ -523,5 +544,107 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
     });
     
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Member registration processing failed: ${error.message}`);
+  }
+}
+
+// Function to handle contribution payments
+async function handleContributionPayment(reference: string, paystackData: any, pendingContribution: any) {
+  try {
+    console.log('💰 Processing contribution payment for:', reference);
+    console.log('Paystack data status:', paystackData.data.status);
+    console.log('Pending contribution ID:', pendingContribution.id);
+    
+    if (paystackData.data.status !== 'success') {
+      console.log('❌ Payment not successful, status:', paystackData.data.status);
+      // Update pending contribution as failed
+      await prisma.pendingContribution.update({
+        where: { id: pendingContribution.id },
+        data: { status: 'FAILED' }
+      });
+      
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/failed?message=Contribution payment not successful`);
+    }
+
+    console.log('✅ Contribution payment successful, processing...');
+
+    // Process the contribution payment
+    const result = await prisma.$transaction(async (tx) => {
+      // Create contribution record
+      const contribution = await tx.contribution.create({
+        data: {
+          userId: pendingContribution.userId,
+          cooperativeId: pendingContribution.cooperativeId,
+          amount: pendingContribution.amount,
+          description: 'Member contribution via Paystack'
+        }
+      });
+
+      // Create transaction record
+      const transaction = await tx.transaction.create({
+        data: {
+          userId: pendingContribution.userId,
+          cooperativeId: pendingContribution.cooperativeId,
+          type: 'CONTRIBUTION',
+          amount: pendingContribution.amount,
+          description: 'Member contribution payment',
+          status: 'SUCCESSFUL',
+          reference: reference
+        }
+      });
+
+      // Update pending contribution status
+      await tx.pendingContribution.update({
+        where: { id: pendingContribution.id },
+        data: { status: 'COMPLETED' }
+      });
+
+      return { contribution, transaction };
+    });
+
+    console.log('✅ Contribution processed successfully');
+
+    // Send notification to user
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: pendingContribution.userId }
+      });
+
+      if (user) {
+        // Send email notification
+        await NotificationService.sendPaymentConfirmationEmail(
+          user.email,
+          `${user.firstName} ${user.lastName}`,
+          Number(pendingContribution.amount) / 100, // Convert from kobo to naira
+          reference,
+          'CONTRIBUTION'
+        );
+
+        // Send SMS notification if phone number exists
+        if (user.phoneNumber) {
+          await NotificationService.sendPaymentConfirmationSMS(
+            user.phoneNumber,
+            Number(pendingContribution.amount) / 100,
+            reference
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('Notification error:', notificationError);
+      // Don't fail the payment verification if notifications fail
+    }
+
+    // Redirect to success page
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/success?type=contribution&reference=${reference}`);
+
+  } catch (error) {
+    console.error('❌ Contribution payment processing error:', error);
+    
+    // Update pending contribution as failed
+    await prisma.pendingContribution.update({
+      where: { id: pendingContribution.id },
+      data: { status: 'FAILED' }
+    });
+    
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/failed?message=Contribution processing failed: ${error.message}`);
   }
 } 

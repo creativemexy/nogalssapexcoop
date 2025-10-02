@@ -38,6 +38,7 @@ model User {
   sessions      UserSession[]
   events        Event[]
   virtualAccount VirtualAccount?
+  pendingContributions PendingContribution[]
 
   @@map("users")
 }
@@ -74,6 +75,7 @@ model Cooperative {
   payments           Payment[]
   transactions       Transaction[]
   members            User[]
+  pendingContributions PendingContribution[]
 
   @@map("cooperatives")
 }
@@ -410,4 +412,19 @@ model PendingRegistration {
   updatedAt DateTime @updatedAt
 
   @@map("pending_registrations")
+}
+
+model PendingContribution {
+  id            String   @id @default(cuid())
+  userId        String
+  cooperativeId String
+  amount        Decimal
+  reference     String   @unique
+  status        String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+
+  @@map("pending_contributions")
 }
