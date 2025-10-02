@@ -580,37 +580,6 @@ export default function RegisterPage() {
                     </div>
                 );
             case 4:
-            case 3:
-                return (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium">Organization</label>
-                            <select
-                                name="cooperativeCode"
-                                value={formData.cooperativeCode}
-                                onChange={e => {
-                                    setFormData({
-                                        ...formData,
-                                        cooperativeCode: e.target.value,
-                                        cooperativeName: cooperatives.find(c => c.code === e.target.value)?.name || '',
-                                    });
-                                }}
-                                required
-                                className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
-                            >
-                                <option value="">Select an Organization</option>
-                                {cooperatives.map(c => (
-                                    <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex justify-between pt-4">
-                            <button type="button" onClick={() => setMemberStep(2)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
-                            <button type="button" onClick={() => setMemberStep(4)} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Next</button>
-                        </div>
-                    </div>
-                );
-            case 4:
                 return (
                     <div className="space-y-4">
                         <div>
