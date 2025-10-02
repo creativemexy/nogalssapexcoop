@@ -80,13 +80,16 @@ export async function POST(req: NextRequest) {
                 leaderTitle
             };
 
+            // Generate a single reference for both pending registration and Paystack
+            const reference = `REG_${Date.now()}`;
+
             // Store in a temporary table or use a different approach
             // For now, we'll create a pending registration record
             const pendingRegistration = await prisma.pendingRegistration.create({
                 data: {
                     type: 'COOPERATIVE',
                     data: JSON.stringify(registrationData),
-                    reference: `REG_${Date.now()}`,
+                    reference: reference,
                     status: 'PENDING'
                 }
             });
@@ -103,7 +106,7 @@ export async function POST(req: NextRequest) {
                 email: leaderEmail,
                 amount: registrationFee,
                 currency: 'NGN',
-                reference: pendingRegistration.reference,
+                reference: reference,
                 callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
                 metadata: {
                     pendingRegistrationId: pendingRegistration.id,
@@ -216,13 +219,16 @@ export async function POST(req: NextRequest) {
                 cooperativeId: cooperative.id
             };
 
+            // Generate a single reference for both pending registration and Paystack
+            const reference = `REG_${Date.now()}`;
+
             // Create pending registration
             const pendingRegistration = await prisma.pendingRegistration.create({
                 data: {
                     type: 'MEMBER',
                     data: JSON.stringify(registrationData),
                     status: 'PENDING',
-                    reference: `REG_${Date.now()}`
+                    reference: reference
                 }
             });
 
@@ -236,7 +242,7 @@ export async function POST(req: NextRequest) {
                 body: JSON.stringify({
                     email: email,
                     amount: registrationFee,
-                    reference: `REG_${Date.now()}`,
+                    reference: reference,
                     callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
                     metadata: {
                         pendingRegistrationId: pendingRegistration.id,
