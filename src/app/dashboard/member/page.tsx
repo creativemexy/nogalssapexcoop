@@ -14,10 +14,18 @@ export default function MemberDashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const va = localStorage.getItem('virtualAccountInfo');
-            if (va) setVirtualAccount(JSON.parse(va));
-        }
+        const fetchVirtualAccount = async () => {
+            try {
+                const response = await fetch('/api/member/virtual-account');
+                const data = await response.json();
+                if (data.virtualAccount) {
+                    setVirtualAccount(data.virtualAccount);
+                }
+            } catch (error) {
+                console.error('Error fetching virtual account:', error);
+            }
+        };
+        fetchVirtualAccount();
     }, []);
 
     useEffect(() => {
@@ -54,13 +62,13 @@ export default function MemberDashboard() {
             <div className="bg-white rounded-lg shadow p-8">
                 <p className="text-gray-600">Welcome, {session?.user?.name}.</p>
                 <p className="mt-4 text-gray-600">This is your personal dashboard. Here you can view your contributions, apply for loans, and see your transaction history.</p>
-                {virtualAccount && (
+                {virtualAccount ? (
                     <div className="mt-8 p-6 rounded-lg border border-green-200 bg-green-50">
                         <h2 className="text-lg font-bold text-green-700 mb-2">Your Virtual Account</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <span className="block text-xs text-gray-500">Bank Name</span>
-                                <span className="font-semibold text-green-800">{virtualAccount.bank?.name || virtualAccount.bank}</span>
+                                <span className="font-semibold text-green-800">{virtualAccount.bankName}</span>
                             </div>
                             <div>
                                 <span className="block text-xs text-gray-500">Account Number</span>
@@ -71,6 +79,19 @@ export default function MemberDashboard() {
                                 <span className="font-semibold text-green-800">{virtualAccount.accountName}</span>
                             </div>
                         </div>
+                        <div className="mt-4 p-3 bg-green-100 rounded">
+                            <p className="text-sm text-green-700">
+                                <strong>Note:</strong> Use this virtual account number to make contributions to your cooperative. 
+                                All deposits to this account will be automatically credited to your cooperative account.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-8 p-6 rounded-lg border border-yellow-200 bg-yellow-50">
+                        <h2 className="text-lg font-bold text-yellow-700 mb-2">Virtual Account</h2>
+                        <p className="text-yellow-700">
+                            Your virtual account is being set up. Please check back later or contact support if this persists.
+                        </p>
                     </div>
                 )}
                 <div className="mt-8">
