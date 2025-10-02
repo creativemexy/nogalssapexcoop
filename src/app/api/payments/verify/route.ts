@@ -56,6 +56,14 @@ export async function GET(request: NextRequest) {
 
     if (pendingContribution) {
       console.log('Found pending contribution:', pendingContribution.id);
+      console.log('Pending contribution status:', pendingContribution.status);
+      
+      // Check if contribution has already been processed
+      if (pendingContribution.status === 'COMPLETED') {
+        console.log('✅ Contribution already processed, redirecting to success');
+        return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/success?type=contribution&reference=${paymentReference}`);
+      }
+      
       // This is a contribution payment, handle it differently
       return await handleContributionPayment(paymentReference, paystackData, pendingContribution);
     }
@@ -177,6 +185,14 @@ export async function POST(request: NextRequest) {
 
     if (pendingContribution) {
       console.log('Found pending contribution via webhook:', pendingContribution.id);
+      console.log('Pending contribution status:', pendingContribution.status);
+      
+      // Check if contribution has already been processed
+      if (pendingContribution.status === 'COMPLETED') {
+        console.log('✅ Contribution already processed via webhook');
+        return NextResponse.json({ success: true, message: 'Contribution already processed' });
+      }
+      
       return await handleContributionPayment(reference, paystackData, pendingContribution);
     }
 
