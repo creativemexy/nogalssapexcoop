@@ -1,5 +1,40 @@
 // Paystack utility functions
 
+// Function to initialize payment via Paystack
+export async function initializePayment(paymentData: {
+  email: string;
+  amount: number;
+  reference: string;
+  callback_url: string;
+  metadata?: any;
+}) {
+  try {
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(paymentData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Paystack API error: ${errorData.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    return {
+      status: data.status,
+      message: data.message,
+      data: data.data
+    };
+  } catch (error) {
+    console.error('Error initializing payment:', error);
+    throw error;
+  }
+}
+
 // Function to create virtual account via Paystack
 export async function createVirtualAccount({ userId, accountType, accountName, email, phoneNumber }) {
   try {
