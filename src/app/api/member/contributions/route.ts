@@ -8,6 +8,19 @@ export async function GET(request: NextRequest) {
     // Check database connection first
     const isConnected = await checkDatabaseConnection();
     if (!isConnected) {
+      // In development, return empty data instead of error
+      if (process.env.NODE_ENV === 'development') {
+        return NextResponse.json({
+          contributions: [],
+          stats: {
+            totalContributions: 0,
+            totalAmount: 0,
+            averageAmount: 0,
+            thisMonthContributions: 0,
+            thisMonthAmount: 0
+          }
+        });
+      }
       return NextResponse.json({ error: 'Database connection failed' }, { status: 503 });
     }
 

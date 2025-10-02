@@ -32,6 +32,11 @@ export async function checkDatabaseConnection() {
     return true
   } catch (error) {
     console.error('Database connection failed:', error)
+    // In development, return false but don't crash the app
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Database connection failed in development mode. Some features may not work.')
+      return false
+    }
     return false
   }
 }
