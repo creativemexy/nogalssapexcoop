@@ -115,6 +115,16 @@ export default function MemberDashboard() {
             <div className="bg-white rounded-lg shadow p-8">
                 <p className="text-gray-600">Welcome, {session?.user?.name}.</p>
                 <p className="mt-4 text-gray-600">This is your personal dashboard. Here you can view your contributions, apply for loans, and see your transaction history.</p>
+                
+                <div className="mt-6 mb-8">
+                    <button
+                        onClick={() => document.getElementById('contribution-form')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl"
+                    >
+                        💰 Make a Contribution
+                    </button>
+                    <p className="mt-2 text-sm text-gray-500">Click to make a contribution to your cooperative</p>
+                </div>
                 {virtualAccount ? (
                     <div className="mt-8 p-6 rounded-lg border border-green-200 bg-green-50">
                         <h2 className="text-lg font-bold text-green-700 mb-2">Your Virtual Account</h2>
@@ -189,7 +199,7 @@ export default function MemberDashboard() {
                         </table>
                     </div>
                 </div>
-                <div className="mt-8">
+                <div id="contribution-form" className="mt-8">
                     <h2 className="text-xl font-bold text-green-700 mb-4">Make a Contribution</h2>
                     <div className="bg-gray-50 p-6 rounded-lg">
                         <form onSubmit={handleContributionSubmit} className="space-y-4">
@@ -241,11 +251,17 @@ export default function MemberDashboard() {
                         </form>
                     </div>
                 </div>
-                <div className="mt-6">
-                    <Link href="/dashboard/member/contributions" className="text-green-600 hover:text-green-500 mr-4">
-                        My Contributions
+                <div className="mt-6 flex flex-wrap gap-4">
+                    <button
+                        onClick={() => document.getElementById('contribution-form')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                        Make Contribution
+                    </button>
+                    <Link href="/dashboard/member/contributions" className="text-green-600 hover:text-green-500 px-4 py-2 border border-green-600 rounded-lg hover:bg-green-50 transition-colors">
+                        View All Contributions
                     </Link>
-                    <Link href="/dashboard/member/loans" className="text-green-600 hover:text-green-500">
+                    <Link href="/dashboard/member/loans" className="text-green-600 hover:text-green-500 px-4 py-2 border border-green-600 rounded-lg hover:bg-green-50 transition-colors">
                         My Loans
                     </Link>
                 </div>
