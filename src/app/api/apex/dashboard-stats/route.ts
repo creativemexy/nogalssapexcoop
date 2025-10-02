@@ -41,8 +41,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const totalContributions = Number(totalContributionsResult._sum.amount || 0);
-    const totalLoans = Number(totalLoansResult._sum.amount || 0);
+    // Convert amounts from kobo to naira for display
+    const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
+    const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
 
     return NextResponse.json({
       totalUsers,
