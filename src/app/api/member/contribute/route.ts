@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma, checkDatabaseConnection } from '@/lib/database';
 import { initializePayment } from '@/lib/paystack';
+import { calculateTransactionFees } from '@/lib/fee-calculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,8 +63,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cooperative not found' }, { status: 404 });
     }
 
-    // Convert amount to kobo (Paystack uses kobo)
-    const amountInKobo = Math.round(amount * 100);
+    // Calculate transaction fees using the utility function
+    const feeCalculation = calculateTransactionFees(amount);
+    
+    console.log('💰 Fee calculation:', {
+      baseAmount: feeCalculation.baseAmount,
+      fee: feeCalculation.fee,
+      totalAmount: feeCalculation.totalAmount
+    });
+
+    // Convert total amount (including fees) to kobo (Paystack uses kobo)
+    const amountInKobo = Math.round(feeCalculation.totalAmount * 100);
 
     // Generate unique reference
     const reference = `CONTRIB_${userId}_${Date.now()}`;
@@ -78,7 +88,9 @@ export async function POST(request: NextRequest) {
                 userId: userId,
                 cooperativeId: cooperativeId,
                 type: 'contribution',
-                amount: amount
+                baseAmount: feeCalculation.baseAmount,
+                fee: feeCalculation.fee,
+                totalAmount: feeCalculation.totalAmount
               }
             };
 
@@ -94,16 +106,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Store pending contribution
-    await prisma.pendingContribution.create({
-      data: {
-        userId: userId,
-        cooperativeId: cooperativeId,
-        amount: amountInKobo,
-        reference: reference,
-        status: 'PENDING'
-      }
-    });
+            // Store pending contribution with fee details
+            await prisma.pendingContribution.create({
+              data: {
+                userId: userId,
+                cooperativeId: cooperativeId,
+                amount: Math.round(feeCalculation.baseAmount * 100), // Store base amount in kobo
+                reference: reference,
+                status: 'PENDING'
+              }
+            });
 
     console.log('✅ Contribution payment initialized successfully');
 

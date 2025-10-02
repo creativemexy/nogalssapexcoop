@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { calculateTransactionFees, formatFeeBreakdown, FeeCalculation } from '@/lib/fee-calculator';
 
 export default function MemberDashboard() {
     const { data: session } = useSession();
@@ -15,6 +16,8 @@ export default function MemberDashboard() {
     const [cooperatives, setCooperatives] = useState<any[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [memberAmount, setMemberAmount] = useState<number>(0);
+    const [showFeePreview, setShowFeePreview] = useState(false);
+    const [feeCalculation, setFeeCalculation] = useState<FeeCalculation | null>(null);
 
     useEffect(() => {
         const fetchVirtualAccount = async () => {
@@ -93,6 +96,17 @@ export default function MemberDashboard() {
         };
         fetchUserCooperative();
     }, []);
+
+    const showFeePreviewModal = () => {
+        if (memberAmount <= 0) {
+            alert('Please set a valid contribution amount first');
+            return;
+        }
+        
+        const calculation = calculateTransactionFees(memberAmount);
+        setFeeCalculation(calculation);
+        setShowFeePreview(true);
+    };
 
     const handleDirectContribution = async () => {
         if (cooperatives.length === 0) {
@@ -232,28 +246,21 @@ export default function MemberDashboard() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Make Contribution Button */}
-                        <button
-                            onClick={handleDirectContribution}
-                            disabled={isSubmitting || cooperatives.length === 0}
-                            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    </svg>
-                                    💰 Make a Contribution
-                                </>
-                            )}
-                        </button>
+                        <div className="space-y-2">
+                            <button
+                                onClick={showFeePreviewModal}
+                                disabled={isSubmitting || cooperatives.length === 0}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center w-full"
+                            >
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                💰 Make a Contribution
+                            </button>
+                            <p className="text-xs text-gray-500 text-center">
+                                Amount: ₦{memberAmount.toLocaleString()} • Click to see fees
+                            </p>
+                        </div>
 
                         {/* Withdrawal Button */}
                         <Link 
@@ -292,6 +299,63 @@ export default function MemberDashboard() {
                     </Link>
                 </div>
             </div>
+
+            {/* Fee Preview Modal */}
+            {showFeePreview && feeCalculation && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaction Fee Breakdown</h3>
+                        
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Base Amount:</span>
+                                <span className="font-medium">₦{feeCalculation.baseAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Transaction Fee:</span>
+                                <span className="font-medium">₦{feeCalculation.fee.toLocaleString()}</span>
+                            </div>
+                            {feeCalculation.isFeeWaived && (
+                                <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+                                    ✓ ₦100 fee waived for amounts under ₦2,500
+                                </div>
+                            )}
+                            {feeCalculation.isFeeCapped && (
+                                <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                                    ℹ Fee capped at ₦2,000 maximum
+                                </div>
+                            )}
+                            <hr />
+                            <div className="flex justify-between text-lg font-semibold">
+                                <span>Total Amount:</span>
+                                <span className="text-green-600">₦{feeCalculation.totalAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="text-sm text-gray-500 text-center">
+                                Effective fee rate: {feeCalculation.feePercentage}%
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowFeePreview(false)}
+                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowFeePreview(false);
+                                    handleDirectContribution();
+                                }}
+                                disabled={isSubmitting}
+                                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            >
+                                {isSubmitting ? 'Processing...' : 'Proceed with Payment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 } 

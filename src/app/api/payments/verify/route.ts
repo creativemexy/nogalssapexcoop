@@ -585,12 +585,12 @@ async function handleContributionPayment(reference: string, paystackData: any, p
 
     // Process the contribution payment
     const result = await prisma.$transaction(async (tx) => {
-      // Create contribution record
+      // Create contribution record (using base amount, not including fees)
       const contribution = await tx.contribution.create({
         data: {
           userId: pendingContribution.userId,
           cooperativeId: pendingContribution.cooperativeId,
-          amount: pendingContribution.amount,
+          amount: pendingContribution.amount, // This is the base amount without fees
           description: 'Member contribution via Paystack'
         }
       });
