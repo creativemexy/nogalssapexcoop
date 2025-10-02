@@ -472,6 +472,18 @@ export default function RegisterPage() {
                             </div>
                         </div>
                         <div>
+                            <label className="block text-sm font-medium">Email Address *</label>
+                            <input 
+                                type="email" 
+                                name="email" 
+                                value={formData.email} 
+                                onChange={handleChange} 
+                                required 
+                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                            />
+                            <p className="text-xs text-gray-600 mt-1">This will be used for login and notifications</p>
+                        </div>
+                        <div>
                             <label className="block text-sm font-medium">Date of Birth</label>
                             <input 
                                 type="date" 
