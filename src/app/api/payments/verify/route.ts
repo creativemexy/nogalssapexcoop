@@ -8,15 +8,25 @@ import { createVirtualAccount } from '@/lib/paystack';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 Payment verification GET request received');
     const { searchParams } = new URL(request.url);
     const reference = searchParams.get('reference');
+    const trxref = searchParams.get('trxref');
+    
+    console.log('📋 URL parameters:', { reference, trxref, searchParams: Object.fromEntries(searchParams) });
 
-    if (!reference) {
+    // Use trxref if reference is not available (Paystack sometimes sends trxref)
+    const paymentReference = reference || trxref;
+
+    if (!paymentReference) {
+      console.log('❌ No reference or trxref provided');
       return NextResponse.json({ error: 'Reference is required' }, { status: 400 });
     }
+    
+    console.log('✅ Using payment reference:', paymentReference);
 
     // Verify payment with Paystack
-    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${paymentReference}`, {
       headers: {
         'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
       },
@@ -30,18 +40,18 @@ export async function GET(request: NextRequest) {
 
     // Check if this is a registration payment by looking for pending registration
     const pendingRegistration = await prisma.pendingRegistration.findFirst({
-      where: { reference: reference }
+      where: { reference: paymentReference }
     });
 
     if (pendingRegistration) {
       console.log('Found pending registration:', pendingRegistration.id);
       // This is a registration payment, handle it differently
-      return await handleRegistrationPayment(reference, paystackData, pendingRegistration);
+      return await handleRegistrationPayment(paymentReference, paystackData, pendingRegistration);
     }
 
     // Find the payment record for regular payments
     const payment = await prisma.payment.findUnique({
-      where: { paystackReference: reference },
+      where: { paystackReference: paymentReference },
       include: { 
         transaction: true,
         user: true
@@ -106,6 +116,82 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Payment verification error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('🔍 Payment verification POST request received (webhook)');
+    const body = await request.json();
+    console.log('📋 Webhook body:', body);
+    
+    // Handle webhook from Paystack
+    const reference = body.data?.reference;
+    if (!reference) {
+      console.log('❌ No reference in webhook body');
+      return NextResponse.json({ error: 'Reference is required' }, { status: 400 });
+    }
+    
+    console.log('✅ Processing webhook for reference:', reference);
+    
+    // Verify payment with Paystack
+    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      },
+    });
+
+    const paystackData = await paystackResponse.json();
+
+    if (!paystackResponse.ok) {
+      console.log('❌ Paystack verification failed:', paystackData);
+      return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 });
+    }
+
+    // Check if this is a registration payment
+    const pendingRegistration = await prisma.pendingRegistration.findFirst({
+      where: { reference: reference }
+    });
+
+    if (pendingRegistration) {
+      console.log('Found pending registration via webhook:', pendingRegistration.id);
+      return await handleRegistrationPayment(reference, paystackData, pendingRegistration);
+    }
+
+    // Handle regular payment webhook
+    const payment = await prisma.payment.findUnique({
+      where: { paystackReference: reference },
+      include: { 
+        transaction: true,
+        user: true
+      }
+    });
+
+    if (!payment) {
+      console.log('❌ Payment not found for reference:', reference);
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    // Update payment status
+    const status = paystackData.data.status === 'success' ? 'SUCCESSFUL' : 'FAILED';
+    
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: { status }
+      }),
+      prisma.transaction.update({
+        where: { id: payment.transaction.id },
+        data: { status }
+      })
+    ]);
+
+    console.log('✅ Payment status updated to:', status);
+    return NextResponse.json({ success: true, status });
+
+  } catch (error) {
+    console.error('❌ Error in POST payment verification:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
