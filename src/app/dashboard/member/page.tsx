@@ -153,21 +153,6 @@ export default function MemberDashboard() {
                 <p className="text-gray-600">Welcome, {session?.user?.name}.</p>
                 <p className="mt-4 text-gray-600">This is your personal dashboard. Here you can view your contributions, apply for loans, and see your transaction history.</p>
                 
-                <div className="mt-6 mb-8">
-                    <button
-                        onClick={handleDirectContribution}
-                        disabled={isSubmitting || cooperatives.length === 0}
-                        className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSubmitting ? 'Processing...' : '💰 Make a Contribution'}
-                    </button>
-                    <p className="mt-2 text-sm text-gray-500">
-                        {cooperatives.length === 0 
-                            ? 'No cooperative associated with your account' 
-                            : 'Click to make a contribution using your registered amount'
-                        }
-                    </p>
-                </div>
                 {virtualAccount ? (
                     <div className="mt-8 p-6 rounded-lg border border-green-200 bg-green-50">
                         <h2 className="text-lg font-bold text-green-700 mb-2">Your Virtual Account</h2>
