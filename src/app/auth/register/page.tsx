@@ -591,6 +591,32 @@ export default function RegisterPage() {
                             </div>
                             <div></div>
                         </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium">Emergency Contact Name *</label>
+                                <input 
+                                    type="text" 
+                                    name="emergencyContact" 
+                                    value={formData.emergencyContact} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Name of emergency contact person</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium">Emergency Contact Phone *</label>
+                                <input 
+                                    type="tel" 
+                                    name="emergencyPhone" 
+                                    value={formData.emergencyPhone} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Phone number of emergency contact</p>
+                            </div>
+                        </div>
                         <div className="flex justify-start pt-4">
                             <button type="button" onClick={() => setMemberStep(1)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
                         </div>
