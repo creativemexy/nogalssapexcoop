@@ -579,7 +579,7 @@ async function handleContributionPayment(reference: string, paystackData: any, p
         }
       });
 
-      // Create transaction record
+      // Create transaction record with unique reference
       const transaction = await tx.transaction.create({
         data: {
           userId: pendingContribution.userId,
@@ -588,7 +588,7 @@ async function handleContributionPayment(reference: string, paystackData: any, p
           amount: pendingContribution.amount,
           description: 'Member contribution payment',
           status: 'SUCCESSFUL',
-          reference: reference
+          reference: `${reference}_TXN`
         }
       });
 

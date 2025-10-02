@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
       )
     ]) as any[];
 
-    // Calculate stats
+    // Calculate stats (convert from kobo to naira)
     const totalContributions = contributions.length;
-    const totalAmount = contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0);
+    const totalAmount = contributions.reduce((sum, contrib) => sum + Number(contrib.amount) / 100, 0);
     const averageAmount = totalContributions > 0 ? totalAmount / totalContributions : 0;
     
     // This month's contributions
@@ -73,12 +73,12 @@ export async function GET(request: NextRequest) {
     const thisMonthContributions = contributions.filter(contrib => 
       new Date(contrib.createdAt) >= startOfMonth
     );
-    const thisMonthAmount = thisMonthContributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0);
+    const thisMonthAmount = thisMonthContributions.reduce((sum, contrib) => sum + Number(contrib.amount) / 100, 0);
 
-    // Format contribution data
+    // Format contribution data (convert from kobo to naira)
     const formattedContributions = contributions.map(contribution => ({
       id: contribution.id,
-      amount: Number(contribution.amount),
+      amount: Number(contribution.amount) / 100,
       description: contribution.description,
       createdAt: contribution.createdAt.toISOString(),
       cooperative: {
