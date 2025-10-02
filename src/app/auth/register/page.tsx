@@ -473,7 +473,7 @@ export default function RegisterPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Date of Birth</label>
-                            <input type="text" name="dateOfBirth" value={formData.dateOfBirth || ''} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
+                            <input type="date" name="dateOfBirth" value={formData.dateOfBirth || ''} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Occupation</label>
@@ -506,9 +506,8 @@ export default function RegisterPage() {
                             </div>
                             <div></div>
                         </div>
-                        <div className="flex justify-between pt-4">
+                        <div className="flex justify-start pt-4">
                             <button type="button" onClick={() => setMemberStep(1)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
-                            <button type="button" onClick={() => setMemberStep(3)} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Next</button>
                         </div>
                     </div>
                 );
