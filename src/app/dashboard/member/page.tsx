@@ -31,15 +31,15 @@ export default function MemberDashboard() {
     }, []);
 
     useEffect(() => {
-        const fetchSavings = async () => {
+        const fetchContributions = async () => {
             setLoading(true);
-            const res = await fetch('/api/member/savings');
+            const res = await fetch('/api/member/contributions');
             const data = await res.json();
-            setSavings(data.totalSavings);
-            setTransactions(data.transactions);
+            setSavings(data.stats?.totalAmount || 0);
+            setTransactions(data.contributions || []);
             setLoading(false);
         };
-        fetchSavings();
+        fetchContributions();
     }, []);
 
     useEffect(() => {
@@ -148,41 +148,40 @@ export default function MemberDashboard() {
                     </div>
                 )}
                 <div className="mt-8">
-                    <h2 className="text-xl font-bold text-green-700 mb-2">Total Savings</h2>
+                    <h2 className="text-xl font-bold text-green-700 mb-2">Total Contributions</h2>
                     {loading ? (
                         <div className="text-gray-500">Loading...</div>
                     ) : (
                         <div className="text-3xl font-bold text-green-700 mb-4">₦{savings.toLocaleString()}</div>
                     )}
-                    <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-2">Transaction History</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-2">Contribution History</h3>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-green-50">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Date</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Amount</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Status</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Reference</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Cooperative</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-green-700 uppercase">Description</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
                                 {transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-4 text-center text-gray-400">No transactions found.</td>
+                                        <td colSpan={4} className="px-4 py-4 text-center text-gray-400">No contributions found.</td>
                                     </tr>
                                 ) : (
-                                    transactions.map(tx => (
-                                        <tr key={tx.reference}>
-                                            <td className="px-4 py-2 whitespace-nowrap">{new Date(tx.date).toLocaleDateString()}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap">₦{tx.amount.toLocaleString()}</td>
+                                    transactions.map(contrib => (
+                                        <tr key={contrib.id}>
+                                            <td className="px-4 py-2 whitespace-nowrap">{new Date(contrib.createdAt).toLocaleDateString()}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap">₦{contrib.amount.toLocaleString()}</td>
                                             <td className="px-4 py-2 whitespace-nowrap">
-                                                {tx.status === 'SUCCESSFUL' ? (
-                                                    <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">Successful</span>
-                                                ) : (
-                                                    <span className="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-700 rounded">{tx.status}</span>
-                                                )}
+                                                <div className="text-sm">
+                                                    <div className="font-medium">{contrib.cooperative.name}</div>
+                                                    <div className="text-gray-500">{contrib.cooperative.registrationNumber}</div>
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-2 whitespace-nowrap">{tx.reference}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap">{contrib.description || 'Contribution'}</td>
                                         </tr>
                                     ))
                                 )}
