@@ -114,12 +114,10 @@ export async function POST(request: NextRequest) {
         amount,
         purpose,
         duration: parseInt(duration),
-        collateral: collateral || null,
-        repaymentPlan,
+        interestRate: 0, // Default interest rate
         status: 'PENDING',
         userId: user.id,
         cooperativeId: user.cooperativeId,
-        dueDate
       }
     });
 

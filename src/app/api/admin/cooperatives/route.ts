@@ -95,11 +95,12 @@ export async function POST(request: NextRequest) {
       phoneNumber, 
       email, 
       bankName, 
-      bankAccountNumber 
+      bankAccountNumber,
+      bankAccountName
     } = body;
 
     // Validate required fields
-    if (!name || !registrationNumber || !address || !city || !state || !phoneNumber || !email || !bankName || !bankAccountNumber) {
+    if (!name || !registrationNumber || !address || !city || !state || !phoneNumber || !email || !bankName || !bankAccountNumber || !bankAccountName) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
 
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         email,
         bankName,
         bankAccountNumber,
+        bankAccountName,
         isActive: true
       }
     });

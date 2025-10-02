@@ -243,18 +243,12 @@ export async function GET(request: NextRequest) {
       await tx.transaction.create({
         data: {
           amount: verificationData.data.amount,
-          type: 'REGISTRATION_FEE',
+          type: 'FEE',
           description: 'Cooperative registration fee payment',
           status: 'SUCCESSFUL',
           userId: leaderUser.id,
           cooperativeId: cooperative.id,
-          paymentMethod: 'PAYSTACK',
-          reference: reference,
-          metadata: {
-            paystackReference: reference,
-            paymentId: verificationData.data.id,
-            registrationType: 'COOPERATIVE'
-          }
+          reference: reference
         }
       });
 

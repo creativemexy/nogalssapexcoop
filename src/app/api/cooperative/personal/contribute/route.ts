@@ -53,11 +53,6 @@ export async function POST(request: NextRequest) {
         status: 'PENDING',
         userId: user.id,
         cooperativeId: user.cooperativeId,
-        paymentMethod,
-        metadata: {
-          contributionType: 'COOPERATIVE_PERSONAL',
-          paymentMethod
-        }
       }
     });
 
