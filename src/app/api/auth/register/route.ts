@@ -59,7 +59,22 @@ export async function POST(req: NextRequest) {
                 }
             });
             const defaultFee = 50000; // ₦500.00 in kobo
-            const registrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            
+            // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
+            const baseAmount = baseRegistrationFee / 100; // Convert to naira
+            let transactionFee = 0;
+            
+            if (baseAmount >= 2500) {
+                // Calculate 1.5% + NGN 100
+                const percentageFee = baseAmount * 0.015; // 1.5%
+                const fixedFee = 100; // NGN 100
+                transactionFee = Math.min(percentageFee + fixedFee, 2000); // Cap at NGN 2,000
+            }
+            // If baseAmount < 2500, transactionFee remains 0 (waived)
+            
+            const totalAmount = baseAmount + transactionFee;
+            const registrationFee = Math.round(totalAmount * 100); // Convert back to kobo
 
             // Store registration data temporarily (don't create users yet)
             const registrationData = {
@@ -148,7 +163,12 @@ export async function POST(req: NextRequest) {
                 authorizationUrl: paymentData.data.authorization_url,
                 reference: paymentData.data.reference,
                 amount: registrationFee,
-                amountFormatted: `₦${(registrationFee / 100).toLocaleString()}`
+                amountFormatted: `₦${(registrationFee / 100).toLocaleString()}`,
+                feeBreakdown: {
+                  baseAmount: `₦${baseAmount.toLocaleString()}`,
+                  transactionFee: `₦${transactionFee.toLocaleString()}`,
+                  totalAmount: `₦${totalAmount.toLocaleString()}`
+                }
               },
               instructions: {
                 payment: 'Complete payment to activate your accounts and virtual accounts',
@@ -196,7 +216,22 @@ export async function POST(req: NextRequest) {
                 }
             });
             const defaultFee = 50000; // ₦500.00 in kobo
-            const registrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            
+            // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
+            const baseAmount = baseRegistrationFee / 100; // Convert to naira
+            let transactionFee = 0;
+            
+            if (baseAmount >= 2500) {
+                // Calculate 1.5% + NGN 100
+                const percentageFee = baseAmount * 0.015; // 1.5%
+                const fixedFee = 100; // NGN 100
+                transactionFee = Math.min(percentageFee + fixedFee, 2000); // Cap at NGN 2,000
+            }
+            // If baseAmount < 2500, transactionFee remains 0 (waived)
+            
+            const totalAmount = baseAmount + transactionFee;
+            const registrationFee = Math.round(totalAmount * 100); // Convert back to kobo
 
             // Store registration data temporarily (don't create user yet)
             const registrationData = {
@@ -261,7 +296,14 @@ export async function POST(req: NextRequest) {
                 message: 'Member registration initiated. Please complete payment to finish registration.',
                 payment: {
                     authorizationUrl: paymentData.data.authorization_url,
-                    reference: paymentData.data.reference
+                    reference: paymentData.data.reference,
+                    amount: registrationFee,
+                    amountFormatted: `₦${(registrationFee / 100).toLocaleString()}`,
+                    feeBreakdown: {
+                        baseAmount: `₦${baseAmount.toLocaleString()}`,
+                        transactionFee: `₦${transactionFee.toLocaleString()}`,
+                        totalAmount: `₦${totalAmount.toLocaleString()}`
+                    }
                 },
                 accounts: {
                     member: 'Member account will be created after successful payment'
