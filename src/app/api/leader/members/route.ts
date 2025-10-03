@@ -77,13 +77,14 @@ export async function GET(request: NextRequest) {
     const activeMembers = members.filter(m => m.isActive).length;
     const verifiedMembers = members.filter(m => m.isVerified).length;
     
+    // Convert amounts from kobo to naira
     const totalContributions = members.reduce((sum, member) => 
       sum + member.contributions.reduce((memberSum, contrib) => memberSum + Number(contrib.amount), 0), 0
-    );
+    ) / 100;
     
     const totalLoans = members.reduce((sum, member) => 
       sum + member.loans.reduce((memberSum, loan) => memberSum + Number(loan.amount), 0), 0
-    );
+    ) / 100;
     
     const pendingLoans = members.reduce((sum, member) => 
       sum + member.loans.filter(loan => loan.status === 'PENDING').length, 0
@@ -100,11 +101,11 @@ export async function GET(request: NextRequest) {
       isVerified: member.isVerified,
       createdAt: member.createdAt.toISOString(),
       contributions: {
-        totalAmount: member.contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0),
+        totalAmount: member.contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0) / 100, // Convert from kobo to naira
         count: member.contributions.length
       },
       loans: {
-        totalAmount: member.loans.reduce((sum, loan) => sum + Number(loan.amount), 0),
+        totalAmount: member.loans.reduce((sum, loan) => sum + Number(loan.amount), 0) / 100, // Convert from kobo to naira
         count: member.loans.length,
         pendingCount: member.loans.filter(loan => loan.status === 'PENDING').length
       }
