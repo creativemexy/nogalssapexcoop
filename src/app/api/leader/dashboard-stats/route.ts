@@ -61,7 +61,9 @@ export async function GET(request: NextRequest) {
       }),
       prisma.loan.count({ where: { cooperativeId, status: 'PENDING' } }),
     ]);
-    const totalContributions = totalContributionsResult._sum.amount || 0;
+    // Convert amounts from kobo to naira for display
+    const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
+    
     return NextResponse.json({
       totalMembers,
       totalContributions,
