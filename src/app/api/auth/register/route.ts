@@ -65,11 +65,11 @@ export async function POST(req: NextRequest) {
             const registrationData = {
                 cooperativeName,
                 cooperativeRegNo,
-                bankName,
-                bankAccountNumber,
+                        bankName,
+                        bankAccountNumber,
                 bankAccountName,
-                address,
-                city,
+                        address,
+                        city,
                 phone,
                 cooperativeEmail: cooperativeEmail || leaderEmail,
                 leaderFirstName,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
             // Create Paystack payment session for registration fee
             const paystackPayload = {
-                email: leaderEmail,
+                        email: leaderEmail,
                 amount: registrationFee,
                 currency: 'NGN',
                 reference: reference,
@@ -200,9 +200,9 @@ export async function POST(req: NextRequest) {
 
             // Store registration data temporarily (don't create user yet)
             const registrationData = {
-                firstName,
-                lastName,
-                email,
+                    firstName,
+                    lastName,
+                    email,
                 password,
                 cooperativeCode,
                 nin,

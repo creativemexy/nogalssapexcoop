@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const totalRegistrationFees = Number(registrationFees._sum.amount || 0);
+    // Convert amounts from kobo to naira for display
+    const totalRegistrationFees = Number(registrationFees._sum.amount || 0) / 100;
     const totalTransactions = registrationFees._count.id || 0;
     
     // Calculate Apex Fund's 40% allocation
@@ -61,9 +62,9 @@ export async function GET(request: NextRequest) {
       const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 0);
       
       const monthFees = await prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: {
-          status: 'SUCCESSFUL',
+      _sum: { amount: true },
+      where: {
+        status: 'SUCCESSFUL',
           reference: { startsWith: 'REG_' },
           amount: { gt: 0 },
           createdAt: {
@@ -73,7 +74,8 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      const monthTotal = Number(monthFees._sum.amount || 0);
+      // Convert monthly amounts from kobo to naira
+      const monthTotal = Number(monthFees._sum.amount || 0) / 100;
       const monthApexAllocation = monthTotal * 0.4;
       
       monthlyData.push({
@@ -94,13 +96,13 @@ export async function GET(request: NextRequest) {
       // Recent activity
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
-        amount: Number(tx.amount),
+        amount: Number(tx.amount) / 100, // Convert from kobo to naira
         payer: `${tx.user.firstName} ${tx.user.lastName}`,
         email: tx.user.email,
         reference: tx.reference,
         createdAt: tx.createdAt,
         description: tx.description,
-        apexAllocation: Number(tx.amount) * 0.4, // 40% of this transaction
+        apexAllocation: (Number(tx.amount) / 100) * 0.4, // 40% of this transaction (in naira)
       })),
       
       // Monthly breakdown

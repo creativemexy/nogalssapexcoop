@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
     const authResult = requireAuthFromSessionWithRoles(session.user, ['SUPER_ADMIN', 'APEX']);
     if ('error' in authResult) {
@@ -93,4 +93,4 @@ export async function PUT(request: NextRequest) {
     console.error('Error updating registration fee:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+} 
