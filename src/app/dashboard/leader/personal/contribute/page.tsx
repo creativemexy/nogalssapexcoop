@@ -103,52 +103,6 @@ export default function LeaderContributePage() {
     }
   };
 
-  const handleContribution = async () => {
-    if (!amount || amount < 1000) {
-      setError('Minimum contribution amount is ₦1,000');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      // Check for impersonation data
-      const impersonationData = localStorage.getItem('impersonationData');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      
-      if (impersonationData) {
-        headers['x-impersonation-data'] = impersonationData;
-      }
-
-      const response = await fetch('/api/leader/personal/contribute', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          amount: amount,
-          description: description || `Leader contribution of ₦${amount.toLocaleString()}`
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess('Contribution submitted successfully!');
-        setDescription('');
-        setAmount(5000); // Reset to default
-        fetchData(); // Refresh data
-      } else {
-        setError(data.error || 'Failed to submit contribution');
-      }
-    } catch (err) {
-      setError('Network error - unable to submit contribution');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const calculateFees = (amount: number) => {
     const baseAmount = amount;
@@ -405,19 +359,11 @@ export default function LeaderContributePage() {
               />
             </div>
 
-            <div className="flex space-x-3">
-              <button
-                onClick={handleContribution}
-                disabled={submitting || !amount || amount < 1000}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Processing...' : 'Record Contribution'}
-              </button>
-              
+            <div className="flex justify-center">
               <button
                 onClick={showFeePreviewModal}
                 disabled={submitting || !amount || amount < 1000}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {submitting ? 'Processing...' : 'Pay with Paystack'}
               </button>
