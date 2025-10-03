@@ -52,6 +52,27 @@ export default function HomePage() {
       .finally(() => setPartnersLoading(false));
   }, []);
 
+  // Events dynamic fetch
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  useEffect(() => {
+    setEventsLoading(true);
+    setEventsError(null);
+    fetch('/api/public/events?limit=3')
+      .then(res => res.json())
+      .then(data => {
+        if (data.events) setEvents(data.events);
+        else setEvents([]);
+      })
+      .catch(err => {
+        console.error('Error fetching events:', err);
+        setEventsError('Failed to load events');
+        setEvents([]);
+      })
+      .finally(() => setEventsLoading(false));
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -151,80 +172,84 @@ export default function HomePage() {
               Join us for inspiring events that strengthen the cooperative movement
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <div className="relative h-48">
-                <img 
-                  src="https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80" 
-                  alt="Annual Summit" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-[#0D5E42] text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Summit
-                  </span>
+          {eventsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg animate-pulse">
+                  <div className="h-48 bg-gray-300"></div>
+                  <div className="p-6">
+                    <div className="h-6 bg-gray-300 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-300 rounded mb-4"></div>
+                    <div className="h-4 bg-gray-300 rounded mb-4"></div>
+                    <div className="h-10 bg-gray-300 rounded"></div>
+                  </div>
                 </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Annual Cooperative Summit 2024</h3>
-                <p className="text-gray-600 mb-4">July 15, 2024 • Lagos Convention Centre</p>
-                <p className="text-gray-600 mb-4">Join us for our annual summit where we discuss the future of cooperatives in Nigeria.</p>
-                <Link href="/events">
-                  <button className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition">
-                    Learn More
-                  </button>
-                </Link>
-              </div>
+              ))}
             </div>
-            <div className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <div className="relative h-48">
-                <img 
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80" 
-                  alt="Digital Workshop" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Workshop
-                  </span>
+          ) : eventsError ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-4">{eventsError}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition"
+              >
+                Retry
+              </button>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-4">No upcoming events at the moment.</p>
+              <Link href="/events">
+                <button className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition">
+                  View All Events
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {events.map((event) => (
+                <div key={event.id} className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="relative h-48">
+                    <img 
+                      src={event.image || "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80"} 
+                      alt={event.title} 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-[#0D5E42] text-white px-3 py-1 rounded-full text-sm font-medium">
+                        {event.category || 'Event'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
+                    <p className="text-gray-600 mb-4">
+                      {new Date(event.date).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                      {event.time && ` • ${event.time}`}
+                      {event.location && ` • ${event.location}`}
+                    </p>
+                    <p className="text-gray-600 mb-4">
+                      {event.description || 'Join us for this exciting event.'}
+                    </p>
+                    {event.attendees && event.attendees > 0 && (
+                      <p className="text-sm text-gray-500 mb-4">
+                        {event.attendees} attendees
+                      </p>
+                    )}
+                    <Link href="/events">
+                      <button className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition">
+                        Learn More
+                      </button>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Digital Transformation Workshop</h3>
-                <p className="text-gray-600 mb-4">July 22, 2024 • Abuja Business Hub</p>
-                <p className="text-gray-600 mb-4">Learn about the latest digital tools for cooperative management.</p>
-                <Link href="/events">
-                  <button className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition">
-                    Learn More
-                  </button>
-                </Link>
-              </div>
+              ))}
             </div>
-            <div className="bg-gray-50 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <div className="relative h-48">
-                <img 
-                  src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80" 
-                  alt="Training" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-[#0D5E42] text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Training
-                  </span>
-                </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Financial Literacy Training</h3>
-                <p className="text-gray-600 mb-4">August 5, 2024 • Port Harcourt</p>
-                <p className="text-gray-600 mb-4">Empower your members with essential financial literacy skills.</p>
-                <Link href="/events">
-                  <button className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition">
-                    Learn More
-                  </button>
-                </Link>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
