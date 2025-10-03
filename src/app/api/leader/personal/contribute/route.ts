@@ -6,8 +6,7 @@ import { z } from 'zod';
 
 const contributeSchema = z.object({
   amount: z.number().min(1000, 'Minimum contribution amount is ₦1,000'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  paymentMethod: z.enum(['PAYSTACK', 'BANK_TRANSFER'])
+  description: z.string().min(10, 'Description must be at least 10 characters')
 });
 
 export async function POST(request: NextRequest) {
@@ -57,17 +56,18 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { amount, description, paymentMethod } = validationResult.data;
+    const { amount, description } = validationResult.data;
+
+    // Convert amount from naira to kobo for database storage
+    const amountInKobo = Math.round(amount * 100);
 
     // Create contribution record
     const contribution = await prisma.contribution.create({
       data: {
-        amount,
+        amount: amountInKobo,
         description,
         userId: targetUserId,
-        cooperativeId: leader.cooperativeId,
-        paymentMethod,
-        status: 'PENDING'
+        cooperativeId: leader.cooperativeId
       }
     });
 
@@ -76,9 +76,8 @@ export async function POST(request: NextRequest) {
       message: 'Contribution submitted successfully',
       contribution: {
         id: contribution.id,
-        amount: contribution.amount,
+        amount: Number(contribution.amount) / 100, // Convert from kobo to naira for display
         description: contribution.description,
-        status: contribution.status,
         createdAt: contribution.createdAt
       }
     });
