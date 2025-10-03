@@ -108,32 +108,32 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // Calculate totals
-    const totalAdminFees = Number(adminFees._sum.amount || 0);
-    const totalContributions = Number(contributions._sum.amount || 0);
-    const totalLoans = Number(loans._sum.amount || 0);
-    const totalWithdrawals = Number(withdrawals._sum.amount || 0);
-    const totalLoanRepayments = Number(loanRepayments._sum.amount || 0);
+    // Calculate totals (convert from kobo to naira)
+    const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
+    const totalContributions = Number(contributions._sum.amount || 0) / 100;
+    const totalLoans = Number(loans._sum.amount || 0) / 100;
+    const totalWithdrawals = Number(withdrawals._sum.amount || 0) / 100;
+    const totalLoanRepayments = Number(loanRepayments._sum.amount || 0) / 100;
 
     // Calculate net balance
     const totalInflow = totalAdminFees + totalContributions + totalLoanRepayments;
     const totalOutflow = totalLoans + totalWithdrawals;
     const netBalance = totalInflow - totalOutflow;
 
-    // Format recent transactions
+    // Format recent transactions (convert from kobo to naira)
     const formattedTransactions = recentTransactions.map(t => ({
       id: t.id,
       type: t.type,
-      amount: Number(t.amount),
+      amount: Number(t.amount) / 100,
       description: t.description,
       date: t.createdAt.toISOString(),
       user: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown User'
     }));
 
-    // Format monthly stats
+    // Format monthly stats (convert from kobo to naira)
     const monthlyBreakdown = monthlyStats.map(stat => ({
       month: stat.createdAt.toISOString().substring(0, 7),
-      amount: Number(stat._sum.amount || 0),
+      amount: Number(stat._sum.amount || 0) / 100,
       count: stat._count.id
     }));
 
