@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const totalRegistrationFees = Number(registrationFees._sum.amount || 0);
+    // Convert amounts from kobo to naira for display
+    const totalRegistrationFees = Number(registrationFees._sum.amount || 0) / 100;
     const totalTransactions = registrationFees._count.id || 0;
     
     // Calculate Nogalss Fund's 20% allocation
@@ -73,7 +74,8 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      const monthTotal = Number(monthFees._sum.amount || 0);
+      // Convert monthly amounts from kobo to naira
+      const monthTotal = Number(monthFees._sum.amount || 0) / 100;
       const monthNogalssAllocation = monthTotal * 0.2;
       
       monthlyData.push({
@@ -94,13 +96,13 @@ export async function GET(request: NextRequest) {
       // Recent activity
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
-        amount: Number(tx.amount),
+        amount: Number(tx.amount) / 100, // Convert from kobo to naira
         payer: `${tx.user.firstName} ${tx.user.lastName}`,
         email: tx.user.email,
         reference: tx.reference,
         createdAt: tx.createdAt,
         description: tx.description,
-        nogalssAllocation: Number(tx.amount) * 0.2, // 20% of this transaction
+        nogalssAllocation: (Number(tx.amount) / 100) * 0.2, // 20% of this transaction (in naira)
       })),
       
       // Monthly breakdown
