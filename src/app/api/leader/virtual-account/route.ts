@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied. Leader role required.' }, { status: 403 });
     }
 
+    console.log('🔍 Fetching virtual account for user:', targetUserId);
+    
     const virtualAccount = await prisma.virtualAccount.findUnique({
       where: { userId: targetUserId },
       select: {
@@ -42,7 +44,10 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    console.log('📊 Virtual account result:', virtualAccount);
+
     if (!virtualAccount) {
+      console.log('❌ No virtual account found for leader:', targetUserId);
       return NextResponse.json({
         virtualAccount: null,
         message: 'No virtual account found for this leader'

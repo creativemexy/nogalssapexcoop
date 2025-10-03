@@ -92,7 +92,10 @@ export default function LeaderContributePage() {
       });
       if (virtualAccountResponse.ok) {
         const virtualAccountData = await virtualAccountResponse.json();
+        console.log('Virtual account data:', virtualAccountData);
         setVirtualAccount(virtualAccountData.virtualAccount);
+      } else {
+        console.error('Virtual account fetch failed:', virtualAccountResponse.status);
       }
 
     } catch (err) {
@@ -374,9 +377,9 @@ export default function LeaderContributePage() {
           </div>
 
           {/* Virtual Account Info */}
-          {virtualAccount && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Your Virtual Account</h3>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Your Virtual Account</h3>
+            {virtualAccount ? (
               <div className="space-y-2">
                 <div>
                   <span className="text-sm font-medium text-gray-600">Bank Name:</span>
@@ -390,12 +393,20 @@ export default function LeaderContributePage() {
                   <span className="text-sm font-medium text-gray-600">Account Name:</span>
                   <span className="ml-2 text-sm text-gray-900">{virtualAccount.accountName}</span>
                 </div>
+                <p className="mt-3 text-sm text-gray-600">
+                  You can make direct bank transfers to this account for contributions.
+                </p>
               </div>
-              <p className="mt-3 text-sm text-gray-600">
-                You can make direct bank transfers to this account for contributions.
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="text-center py-4">
+                <div className="text-gray-400 text-4xl mb-2">🏦</div>
+                <p className="text-sm text-gray-600 mb-2">No virtual account found</p>
+                <p className="text-xs text-gray-500">
+                  Virtual account may not have been created during registration.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
