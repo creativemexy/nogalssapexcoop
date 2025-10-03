@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const [
       totalMembers,
       totalContributions,
+      totalContributionsFromTable,
       totalLoans,
       activeLoans,
       pendingLoans,
@@ -44,12 +45,20 @@ export async function GET(request: NextRequest) {
         }
       }),
 
-      // Total contributions
+      // Total contributions from transactions
       prisma.transaction.aggregate({
         where: {
           user: { cooperativeId },
           type: 'CONTRIBUTION',
           status: 'SUCCESSFUL'
+        },
+        _sum: { amount: true }
+      }),
+
+      // Total contributions from contribution table (leader personal contributions)
+      prisma.contribution.aggregate({
+        where: {
+          cooperativeId
         },
         _sum: { amount: true }
       }),
@@ -171,13 +180,18 @@ export async function GET(request: NextRequest) {
     const [activeMembers, newMembersThisMonth, averageContributionResult] = memberStats;
     const averageContribution = averageContributionResult._avg.amount || 0;
 
+    // Calculate 20% allocation
+    const totalContributionsAmount = (Number(totalContributions._sum.amount || 0) + Number(totalContributionsFromTable._sum.amount || 0)) / 100;
+    const allocation20Percent = totalContributionsAmount * 0.2;
+
     const stats = {
       totalMembers,
-      totalContributions: Number(totalContributions._sum.amount || 0) / 100, // Convert from kobo to naira
+      totalContributions: totalContributionsAmount,
       totalLoans: Number(totalLoans._sum.amount || 0) / 100, // Convert from kobo to naira
       activeLoans,
       pendingLoans,
-      totalExpenses: Number(totalExpenses._sum.amount || 0) / 100, // Convert from kobo to naira
+      registrationFees: Number(totalExpenses._sum.amount || 0) / 100, // Convert from kobo to naira
+      allocation20Percent: Math.round(allocation20Percent),
       recentTransactions: formattedTransactions,
       memberStats: {
         activeMembers,

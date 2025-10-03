@@ -40,9 +40,14 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         transactions: {
           where: {
-            type: 'CONTRIBUTION',
-            status: 'SUCCESSFUL'
+            type: 'CONTRIBUTION'
           },
+          select: {
+            amount: true,
+            status: true
+          }
+        },
+        contributions: {
           select: {
             amount: true
           }
@@ -59,9 +64,21 @@ export async function GET(request: NextRequest) {
 
     // Calculate financial statistics for each member
     const membersWithStats = members.map(member => {
-      const totalContributions = member.transactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
-      const totalLoans = member.loans.reduce((sum, loan) => sum + Number(loan.amount), 0);
+      const successfulContributions = member.transactions.filter(transaction => transaction.status === 'SUCCESSFUL');
+      const transactionContributions = successfulContributions.reduce((sum, transaction) => sum + Number(transaction.amount), 0) / 100; // Convert from kobo to naira
+      const directContributions = member.contributions.reduce((sum, contribution) => sum + Number(contribution.amount), 0) / 100; // Convert from kobo to naira
+      const totalContributions = transactionContributions + directContributions;
+      const totalLoans = member.loans.reduce((sum, loan) => sum + Number(loan.amount), 0) / 100; // Convert from kobo to naira
       const activeLoans = member.loans.filter(loan => loan.status === 'ACTIVE').length;
+
+      // Debug logging for leader contributions
+      if (member.role === 'LEADER') {
+        console.log(`🔍 Leader ${member.firstName} ${member.lastName} transactions:`, member.transactions);
+        console.log(`🔍 Leader contributions:`, member.contributions);
+        console.log(`🔍 Transaction contributions: ₦${transactionContributions}`);
+        console.log(`🔍 Direct contributions: ₦${directContributions}`);
+        console.log(`🔍 Total contributions: ₦${totalContributions}`);
+      }
 
       return {
         id: member.id,
