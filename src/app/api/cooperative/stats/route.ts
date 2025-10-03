@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
     const formattedTransactions = recentTransactions.map(transaction => ({
       id: transaction.id,
       type: transaction.type,
-      amount: transaction.amount / 100, // Convert from kobo to naira
+      amount: Number(transaction.amount) / 100, // Convert from kobo to naira
       description: transaction.description || 'No description',
       date: transaction.createdAt.toISOString(),
       memberName: `${transaction.user.firstName} ${transaction.user.lastName}`

@@ -60,7 +60,7 @@ export async function createVirtualAccount({ userId, accountType, accountName, e
     const customerData = await customerResponse.json();
 
     // Create dedicated account for the customer
-    const dedicatedAccountPayload = {
+    const dedicatedAccountPayload: any = {
       customer: customerData.data.customer_code,
       preferred_bank: 'wema-bank' // Default bank
     };

@@ -2,9 +2,9 @@
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function RegistrationSuccessPage() {
+function RegistrationSuccessContent() {
   const searchParams = useSearchParams();
   const [cooperativeName, setCooperativeName] = useState('');
   const [reference, setReference] = useState('');
@@ -161,6 +161,14 @@ export default function RegistrationSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistrationSuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegistrationSuccessContent />
+    </Suspense>
   );
 }
 

@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
     const contributions = await prisma.contribution.findMany({
       where: {
         userId: targetUserId,
-        status: 'SUCCESSFUL',
         createdAt: {
           gte: sixMonthsAgo
         }

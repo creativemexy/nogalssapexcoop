@@ -53,18 +53,13 @@ export async function GET(request: NextRequest) {
         purpose: true,
         status: true,
         createdAt: true,
-        dueDate: true,
+        endDate: true,
         user: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
             email: true
-          }
-        },
-        payments: {
-          select: {
-            amount: true
           }
         }
       },
@@ -78,36 +73,21 @@ export async function GET(request: NextRequest) {
     const approvedLoans = loans.filter(loan => loan.status === 'APPROVED').length;
     const rejectedLoans = loans.filter(loan => loan.status === 'REJECTED').length;
     
-    const totalRepaid = loans.reduce((sum, loan) => 
-      sum + loan.payments.reduce((paymentSum, payment) => paymentSum + Number(payment.amount), 0), 0
-    );
-    const totalOutstanding = totalAmount - totalRepaid;
-
-    // Format loan data with payment information
-    const formattedLoans = loans.map(loan => {
-      const totalPaid = loan.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-      const remainingAmount = Number(loan.amount) - totalPaid;
-      
-      return {
-        id: loan.id,
-        amount: Number(loan.amount),
-        purpose: loan.purpose,
-        status: loan.status,
-        createdAt: loan.createdAt.toISOString(),
-        dueDate: loan.dueDate.toISOString(),
-        member: {
-          id: loan.user.id,
-          firstName: loan.user.firstName,
-          lastName: loan.user.lastName,
-          email: loan.user.email
-        },
-        payments: {
-          totalPaid,
-          remainingAmount,
-          paymentCount: loan.payments.length
-        }
-      };
-    });
+    // Format loan data
+    const formattedLoans = loans.map(loan => ({
+      id: loan.id,
+      amount: Number(loan.amount),
+      purpose: loan.purpose,
+      status: loan.status,
+      createdAt: loan.createdAt.toISOString(),
+      endDate: loan.endDate?.toISOString(),
+      member: {
+        id: loan.user.id,
+        firstName: loan.user.firstName,
+        lastName: loan.user.lastName,
+        email: loan.user.email
+      }
+    }));
 
     return NextResponse.json({
       loans: formattedLoans,
@@ -116,9 +96,7 @@ export async function GET(request: NextRequest) {
         totalAmount,
         pendingLoans,
         approvedLoans,
-        rejectedLoans,
-        totalRepaid,
-        totalOutstanding
+        rejectedLoans
       }
     });
 

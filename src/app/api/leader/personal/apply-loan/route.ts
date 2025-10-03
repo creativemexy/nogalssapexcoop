@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
     const contributions = await prisma.contribution.findMany({
       where: {
         userId: targetUserId,
-        status: 'SUCCESSFUL',
         createdAt: {
           gte: sixMonthsAgo
         }
@@ -127,13 +126,11 @@ export async function POST(request: NextRequest) {
       data: {
         amount,
         purpose,
+        interestRate: 0, // Default interest rate
         duration: parseInt(duration),
-        collateral: collateral || null,
-        repaymentPlan,
         status: 'PENDING',
         userId: targetUserId,
-        cooperativeId: leader.cooperativeId,
-        dueDate
+        cooperativeId: leader.cooperativeId
       }
     });
 
@@ -145,7 +142,7 @@ export async function POST(request: NextRequest) {
         amount: loan.amount,
         purpose: loan.purpose,
         status: loan.status,
-        dueDate: loan.dueDate,
+        endDate: loan.endDate,
         createdAt: loan.createdAt
       }
     });

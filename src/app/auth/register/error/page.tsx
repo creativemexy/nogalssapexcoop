@@ -2,9 +2,9 @@
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function RegistrationErrorPage() {
+function RegistrationErrorContent() {
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState('An error occurred during registration');
 
@@ -124,6 +124,14 @@ export default function RegistrationErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistrationErrorPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegistrationErrorContent />
+    </Suspense>
   );
 }
 

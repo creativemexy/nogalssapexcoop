@@ -91,14 +91,21 @@ export async function POST(request: NextRequest) {
     const validatedData = createEventSchema.parse(body);
     
     // Convert date string to Date object
-    const eventData = {
-      ...validatedData,
-      date: new Date(validatedData.date),
-      createdBy: (session.user as any).id,
-    };
+    const userId = (session.user as any).id;
     
     const event = await prisma.event.create({
-      data: eventData,
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        date: new Date(validatedData.date),
+        time: validatedData.time,
+        location: validatedData.location,
+        image: validatedData.image,
+        category: validatedData.category,
+        attendees: validatedData.attendees,
+        isPublished: validatedData.isPublished,
+        createdBy: userId,
+      },
       include: {
         creator: {
           select: {

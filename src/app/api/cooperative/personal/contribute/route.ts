@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No cooperative associated with user' }, { status: 400 });
     }
 
+    // Generate unique reference
+    const reference = `COOP_CONTRIB_${user.id}_${Date.now()}`;
+
     // Create contribution transaction
     const contribution = await prisma.transaction.create({
       data: {
@@ -53,6 +56,7 @@ export async function POST(request: NextRequest) {
         status: 'PENDING',
         userId: user.id,
         cooperativeId: user.cooperativeId,
+        reference: reference
       }
     });
 

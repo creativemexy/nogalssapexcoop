@@ -25,6 +25,16 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as any).id;
     const { amount, purpose, repaymentPeriod } = await request.json();
 
+    // Get user's cooperativeId
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { cooperativeId: true }
+    });
+
+    if (!user?.cooperativeId) {
+      return NextResponse.json({ error: 'User not associated with any cooperative' }, { status: 400 });
+    }
+
     // Validate input
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid loan amount' }, { status: 400 });
@@ -75,12 +85,12 @@ export async function POST(request: NextRequest) {
     const loan = await prisma.loan.create({
       data: {
         userId,
+        cooperativeId: user.cooperativeId,
         amount: Math.round(amount * 100), // Convert to kobo
         purpose: purpose.trim(),
-        repaymentPeriod: parseInt(repaymentPeriod),
+        duration: parseInt(repaymentPeriod),
         interestRate: 5, // 5% per annum
-        status: 'PENDING',
-        appliedAt: new Date()
+        status: 'PENDING'
       }
     });
 
