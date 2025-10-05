@@ -171,7 +171,7 @@ export default function CooperativeDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Registration Fees</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                ₦{(stats?.registrationFees || 0).toLocaleString()}
+                ₦0
               </p>
             </div>
           </div>
@@ -193,17 +193,17 @@ export default function CooperativeDashboard() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-300">Registration Fees</span>
-              <span className="font-semibold text-red-600">₦{(stats?.registrationFees || 0).toLocaleString()}</span>
+              <span className="font-semibold text-red-600">₦0</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-300">20% Allocation</span>
-              <span className="font-semibold text-green-600">₦{(stats?.allocation20Percent || 0).toLocaleString()}</span>
+              <span className="font-semibold text-green-600">₦0</span>
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-900 dark:text-gray-100 font-semibold">Net Position</span>
                 <span className="font-bold text-lg">
-                  ₦{((stats?.totalContributions || 0) - (stats?.totalLoans || 0) - (stats?.registrationFees || 0)).toLocaleString()}
+                  ₦{((stats?.totalContributions || 0) - (stats?.totalLoans || 0)).toLocaleString()}
                 </span>
               </div>
             </div>
