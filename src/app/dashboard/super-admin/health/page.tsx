@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import Link from 'next/link';
 
 interface SystemHealthMetrics {
   timestamp: string;
@@ -166,7 +167,12 @@ export default function SystemHealthDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">System Health Monitor</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">System Health Monitor</h1>
+          <Link href="/dashboard/super-admin" className="text-blue-600 hover:text-blue-500 text-sm">
+            &larr; Back to Dashboard
+          </Link>
+        </div>
         <div className="flex items-center space-x-4">
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(healthData.status)}`}>
             {healthData.status}
