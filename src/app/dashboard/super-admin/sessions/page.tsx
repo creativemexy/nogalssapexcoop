@@ -102,7 +102,7 @@ export default function SessionManagementPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Active Sessions</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.totalActiveSessions}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats?.totalActiveSessions || 0}</p>
                 </div>
               </div>
             </div>
@@ -116,7 +116,7 @@ export default function SessionManagementPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.totalUsers}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats?.totalUsers || 0}</p>
                 </div>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function SessionManagementPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Avg Sessions/User</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.averageSessionsPerUser.toFixed(1)}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{(stats?.averageSessionsPerUser || 0).toFixed(1)}</p>
                 </div>
               </div>
             </div>
