@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
       loans,
       // Withdrawals
       withdrawals,
+      // Expenses
+      expenses,
       // All transactions for the period
       allTransactions,
       // User activity stats
@@ -136,6 +138,15 @@ export async function GET(request: NextRequest) {
           createdAt: { gte: dateRange.start, lte: dateRange.end }
         }
       }),
+      // Expenses
+      prisma.expense.aggregate({
+        _sum: { amount: true },
+        _count: { id: true },
+        where: {
+          status: { in: ['APPROVED', 'PAID'] },
+          createdAt: { gte: dateRange.start, lte: dateRange.end }
+        }
+      }),
       // All transactions for detailed analysis
       prisma.transaction.findMany({
         where: {
@@ -174,10 +185,11 @@ export async function GET(request: NextRequest) {
     const totalLoanRepayments = Number(loanRepayments._sum.amount || 0) / 100;
     const totalLoans = Number(loans._sum.amount || 0) / 100;
     const totalWithdrawals = Number(withdrawals._sum.amount || 0) / 100;
+    const totalExpenses = Number(expenses._sum.amount || 0) / 100;
 
     // Calculate financial metrics
     const totalInflow = totalAdminFees + totalContributions + totalLoanRepayments;
-    const totalOutflow = totalLoans + totalWithdrawals;
+    const totalOutflow = totalLoans + totalWithdrawals + totalExpenses;
     const netBalance = totalInflow - totalOutflow;
 
     // Format transactions (convert from kobo to naira)
@@ -318,6 +330,11 @@ export async function GET(request: NextRequest) {
           amount: totalWithdrawals,
           count: withdrawals._count.id,
           percentage: totalOutflow > 0 ? (totalWithdrawals / totalOutflow) * 100 : 0
+        },
+        expenses: {
+          amount: totalExpenses,
+          count: expenses._count.id,
+          percentage: totalOutflow > 0 ? (totalExpenses / totalOutflow) * 100 : 0
         }
       },
       

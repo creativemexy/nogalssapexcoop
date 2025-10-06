@@ -40,6 +40,8 @@ model User {
   virtualAccount VirtualAccount?
   pendingContributions PendingContribution[]
   withdrawals Withdrawal[]
+  expensesCreated Expense[]
+  expensesApproved Expense[] @relation("ExpenseApprover")
 
   @@map("users")
 }
@@ -461,4 +463,27 @@ model ContactMessage {
   updatedAt DateTime @updatedAt
 
   @@map("contact_messages")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  amount      Decimal
+  category    String   // 'OFFICE_SUPPLIES', 'UTILITIES', 'TRAVEL', 'MARKETING', 'MAINTENANCE', 'OTHER'
+  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PAID'
+  receiptUrl  String?
+  createdBy   String
+  approvedBy  String?
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creator     User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  approver    User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+
+  @@map("expenses")
 }
