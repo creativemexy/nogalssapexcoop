@@ -168,23 +168,23 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // Calculate totals
-    const totalAdminFees = Number(adminFees._sum.amount || 0);
-    const totalContributions = Number(contributions._sum.amount || 0);
-    const totalLoanRepayments = Number(loanRepayments._sum.amount || 0);
-    const totalLoans = Number(loans._sum.amount || 0);
-    const totalWithdrawals = Number(withdrawals._sum.amount || 0);
+    // Calculate totals (convert from kobo to naira)
+    const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
+    const totalContributions = Number(contributions._sum.amount || 0) / 100;
+    const totalLoanRepayments = Number(loanRepayments._sum.amount || 0) / 100;
+    const totalLoans = Number(loans._sum.amount || 0) / 100;
+    const totalWithdrawals = Number(withdrawals._sum.amount || 0) / 100;
 
     // Calculate financial metrics
     const totalInflow = totalAdminFees + totalContributions + totalLoanRepayments;
     const totalOutflow = totalLoans + totalWithdrawals;
     const netBalance = totalInflow - totalOutflow;
 
-    // Format transactions
+    // Format transactions (convert from kobo to naira)
     const formattedTransactions = allTransactions.map(t => ({
       id: t.id,
       type: t.type,
-      amount: Number(t.amount),
+      amount: Number(t.amount) / 100,
       status: t.status,
       description: t.description,
       createdAt: t.createdAt.toISOString(),
@@ -195,10 +195,10 @@ export async function GET(request: NextRequest) {
       } : null
     }));
 
-    // Format trends data
+    // Format trends data (convert from kobo to naira)
     const trends = transactionTrends.map(trend => ({
       date: trend.createdAt.toISOString().split('T')[0],
-      amount: Number(trend._sum.amount || 0),
+      amount: Number(trend._sum.amount || 0) / 100,
       count: trend._count.id
     }));
 
@@ -266,8 +266,8 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const prevTotalInflow = Number(prevAdminFees._sum.amount || 0) + Number(prevContributions._sum.amount || 0);
-    const prevTotalOutflow = Number(prevLoans._sum.amount || 0) + Number(prevWithdrawals._sum.amount || 0);
+    const prevTotalInflow = (Number(prevAdminFees._sum.amount || 0) + Number(prevContributions._sum.amount || 0)) / 100;
+    const prevTotalOutflow = (Number(prevLoans._sum.amount || 0) + Number(prevWithdrawals._sum.amount || 0)) / 100;
     const prevNetBalance = prevTotalInflow - prevTotalOutflow;
 
     // Calculate growth percentages
@@ -326,7 +326,7 @@ export async function GET(request: NextRequest) {
         newUsers: userActivity,
         totalTransactions: allTransactions.length,
         averageTransactionAmount: allTransactions.length > 0 
-          ? allTransactions.reduce((sum, t) => sum + Number(t.amount), 0) / allTransactions.length 
+          ? (allTransactions.reduce((sum, t) => sum + Number(t.amount), 0) / allTransactions.length) / 100
           : 0
       },
       
