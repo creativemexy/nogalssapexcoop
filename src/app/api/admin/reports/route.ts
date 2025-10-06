@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
                 SELECT 
                     DATE_TRUNC('month', "createdAt") as month,
                     COUNT(*) as count
-                FROM "User" 
+                FROM "users" 
                 WHERE "createdAt" >= NOW() - INTERVAL '6 months'
                 GROUP BY DATE_TRUNC('month', "createdAt")
                 ORDER BY month DESC
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
                 SELECT 
                     DATE_TRUNC('month', "createdAt") as month,
                     COUNT(*) as count
-                FROM "Cooperative" 
+                FROM "cooperatives" 
                 WHERE "createdAt" >= NOW() - INTERVAL '6 months'
                 GROUP BY DATE_TRUNC('month', "createdAt")
                 ORDER BY month DESC
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
                 SELECT 
                     DATE_TRUNC('month', "createdAt") as month,
                     SUM(amount) as amount
-                FROM "Transaction" 
+                FROM "transactions" 
                 WHERE "createdAt" >= NOW() - INTERVAL '6 months'
                 AND status = 'SUCCESSFUL'
                 GROUP BY DATE_TRUNC('month', "createdAt")
