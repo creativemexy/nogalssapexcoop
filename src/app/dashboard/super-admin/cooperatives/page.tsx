@@ -88,6 +88,16 @@ export default function CooperativesPage() {
     }
   };
 
+  const handleViewCooperative = (cooperativeId: string) => {
+    // Navigate to cooperative details page
+    window.location.href = `/dashboard/super-admin/cooperatives/${cooperativeId}`;
+  };
+
+  const handleEditCooperative = (cooperativeId: string) => {
+    // Navigate to cooperative edit page
+    window.location.href = `/dashboard/super-admin/cooperatives/${cooperativeId}/edit`;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -174,8 +184,18 @@ export default function CooperativesPage() {
                       {new Date(coop.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-green-600 hover:underline mr-3">View</button>
-                      <button className="text-yellow-600 hover:underline">Edit</button>
+                      <button 
+                        onClick={() => handleViewCooperative(coop.id)}
+                        className="text-green-600 hover:underline mr-3"
+                      >
+                        View
+                      </button>
+                      <button 
+                        onClick={() => handleEditCooperative(coop.id)}
+                        className="text-yellow-600 hover:underline"
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
