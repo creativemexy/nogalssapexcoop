@@ -41,6 +41,11 @@ export async function GET(
               }
             }
           }
+        },
+        state: {
+          select: {
+            name: true
+          }
         }
       }
     });
@@ -59,7 +64,7 @@ export async function GET(
       name: cooperative.name,
       registrationNumber: cooperative.registrationNumber,
       city: cooperative.city,
-      state: cooperative.state,
+      state: cooperative.state?.name || 'N/A',
       status: cooperative.isActive ? 'Active' : 'Inactive',
       createdAt: cooperative.createdAt.toISOString(),
       memberCount,
