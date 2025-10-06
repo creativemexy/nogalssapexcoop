@@ -39,12 +39,29 @@ function SignInForm() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        // Handle specific 2FA errors
+        switch (result.error) {
+          case '2FA_REQUIRED':
+            setError('2FA code is required. Please enter your 6-digit authentication code.');
+            break;
+          case '2FA_INVALID':
+            setError('Invalid 2FA code. Please check your authenticator app and try again.');
+            break;
+          case '2FA_NOT_SETUP':
+            setError('2FA is not properly set up. Please contact your administrator.');
+            break;
+          case '2FA_REQUIRED_GLOBAL':
+            setError('2FA is required for all users. Please set up 2FA in your account settings.');
+            break;
+          default:
+            setError('Invalid email or password');
+        }
       } else {
         // Redirect to a generic dashboard first, then let the middleware handle role-based routing
         router.push('/dashboard');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
