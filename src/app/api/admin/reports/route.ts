@@ -90,53 +90,53 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 take: 10
             }),
-            // Recent transactions and contributions
-            Promise.all([
-                prisma.transaction.findMany({
-                    select: {
-                        amount: true,
-                        type: true,
-                        status: true,
-                        createdAt: true,
-                        user: {
-                            select: {
-                                firstName: true,
-                                lastName: true
-                            }
+            // Recent transactions
+            prisma.transaction.findMany({
+                select: {
+                    amount: true,
+                    type: true,
+                    status: true,
+                    createdAt: true,
+                    user: {
+                        select: {
+                            firstName: true,
+                            lastName: true
                         }
-                    },
-                    orderBy: { createdAt: 'desc' },
-                    take: 10
-                }),
-                prisma.contribution.findMany({
-                    select: {
-                        amount: true,
-                        type: true,
-                        status: true,
-                        createdAt: true,
-                        user: {
-                            select: {
-                                firstName: true,
-                                lastName: true
-                            }
-                        }
-                    },
-                    orderBy: { createdAt: 'desc' },
-                    take: 10
-                })
-            ]).then(([transactions, contributions]) => {
-                // Combine transactions and contributions
-                const combined = [
-                    ...transactions.map(tx => ({ ...tx, source: 'transaction' })),
-                    ...contributions.map(contrib => ({ ...contrib, source: 'contribution' }))
-                ];
-                
-                // Sort by creation date and take the most recent 10
-                return combined
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .slice(0, 10);
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 10
             })
         ]);
+
+        // Get contributions separately and combine with transactions
+        const contributions = await prisma.contribution.findMany({
+            select: {
+                amount: true,
+                type: true,
+                status: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        });
+
+        // Combine transactions and contributions
+        const combinedTransactions = [
+            ...recentTransactions.map(tx => ({ ...tx, source: 'transaction' })),
+            ...contributions.map(contrib => ({ ...contrib, source: 'contribution' }))
+        ];
+        
+        // Sort by creation date and take the most recent 10
+        const finalRecentTransactions = combinedTransactions
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 10);
 
         // Format the data for frontend
         const formattedUserRegistrations = (userRegistrations as any[]).map(item => ({
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
             transactionVolume: formattedTransactionVolume,
             loanPerformance: formattedLoanPerformance,
             recentUsers,
-            recentTransactions: recentTransactions.map(tx => ({
+            recentTransactions: finalRecentTransactions.map(tx => ({
                 ...tx,
                 amount: Number(tx.amount) / 100, // Convert from kobo to naira
                 type: tx.source === 'contribution' ? 'CONTRIBUTION' : tx.type,
@@ -183,6 +183,23 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(reportData);
     } catch (error) {
         console.error('Error fetching report data:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        
+        // Return fallback data on error
+        return NextResponse.json({
+            totalUsers: 0,
+            totalCooperatives: 0,
+            totalTransactions: 0,
+            totalLoans: 0,
+            activeLoans: 0,
+            pendingLoans: 0,
+            totalPayments: 0,
+            userRegistrations: [],
+            cooperativeRegistrations: [],
+            transactionVolume: [],
+            loanPerformance: [],
+            recentUsers: [],
+            recentTransactions: [],
+            error: 'Database connection issue - showing fallback data'
+        });
     }
 } 
