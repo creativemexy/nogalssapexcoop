@@ -11,27 +11,39 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get active sessions with user information
-    const activeSessions = await prisma.userSession.findMany({
-      where: {
-        isActive: true,
-        expiresAt: { gt: new Date() },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            role: true,
+    // Get session statistics
+    const [totalActiveSessions, totalUsers, allSessions] = await Promise.all([
+      prisma.userSession.count({
+        where: {
+          isActive: true,
+          expiresAt: { gt: new Date() },
+        },
+      }),
+      prisma.user.count(),
+      prisma.userSession.findMany({
+        where: {
+          isActive: true,
+          expiresAt: { gt: new Date() },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
-    const sessions = activeSessions.map(session => ({
+    // Calculate average sessions per user
+    const averageSessionsPerUser = totalUsers > 0 ? totalActiveSessions / totalUsers : 0;
+
+    const sessions = allSessions.map(session => ({
       id: session.id,
       userId: session.userId,
       user: session.user,
@@ -41,7 +53,12 @@ export async function GET(req: NextRequest) {
       expiresAt: session.expiresAt,
     }));
 
-    return NextResponse.json({ sessions });
+    return NextResponse.json({ 
+      sessions,
+      totalActiveSessions,
+      totalUsers,
+      averageSessionsPerUser
+    });
   } catch (error) {
     console.error('Error fetching sessions:', error);
     return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
