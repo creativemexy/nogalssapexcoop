@@ -113,8 +113,7 @@ export async function GET(request: NextRequest) {
         const contributions = await prisma.contribution.findMany({
             select: {
                 amount: true,
-                type: true,
-                status: true,
+                description: true,
                 createdAt: true,
                 user: {
                     select: {
@@ -130,7 +129,12 @@ export async function GET(request: NextRequest) {
         // Combine transactions and contributions
         const combinedTransactions = [
             ...recentTransactions.map(tx => ({ ...tx, source: 'transaction' })),
-            ...contributions.map(contrib => ({ ...contrib, source: 'contribution' }))
+            ...contributions.map(contrib => ({ 
+                ...contrib, 
+                source: 'contribution',
+                type: 'CONTRIBUTION',
+                status: 'SUCCESSFUL' // Contributions are always successful when saved
+            }))
         ];
         
         // Sort by creation date and take the most recent 10
