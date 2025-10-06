@@ -547,7 +547,7 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Emails</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {notificationStats.totals.emails}
+                    {notificationStats.totals?.emails || 0}
                   </p>
                 </div>
               </div>
@@ -563,7 +563,7 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total SMS</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {notificationStats.totals.sms}
+                    {notificationStats.totals?.sms || 0}
                   </p>
                 </div>
               </div>
@@ -579,7 +579,7 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Success Rate</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {notificationStats.successRates.emails.toFixed(1)}% / {notificationStats.successRates.sms.toFixed(1)}%
+                    {notificationStats.successRates?.emails?.toFixed(1) || '0.0'}% / {notificationStats.successRates?.sms?.toFixed(1) || '0.0'}%
                   </p>
                   <p className="text-xs text-gray-500">Email / SMS</p>
                 </div>
@@ -596,9 +596,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">SMS Cost</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{notificationStats.costs.totalSMSCost.toFixed(2)}
+                    ₦{(notificationStats.costs?.totalSMSCost || 0).toFixed(2)}
                   </p>
-                  <p className="text-xs text-gray-500">Avg: ₦{notificationStats.costs.averageSMSCost.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500">Avg: ₦{(notificationStats.costs?.averageSMSCost || 0).toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -619,7 +619,7 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {notificationStats.recent.map((notification) => (
+                  {notificationStats.recent?.map((notification) => (
                     <tr key={notification.id} className="border-b border-gray-100 dark:border-gray-800">
                       <td className="py-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -662,7 +662,7 @@ export default function SuperAdminDashboard() {
             </div>
             
             {/* Pagination Controls */}
-            {notificationStats.pagination && notificationStats.pagination.totalPages > 1 && (
+            {notificationStats.pagination && notificationStats.pagination.totalPages && notificationStats.pagination.totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {((notificationStats.pagination.page - 1) * notificationStats.pagination.limit) + 1} to {Math.min(notificationStats.pagination.page * notificationStats.pagination.limit, notificationStats.pagination.total)} of {notificationStats.pagination.total} notifications
