@@ -27,6 +27,7 @@ interface ReportData {
         type: string;
         status: string;
         createdAt: string;
+        source: string;
         user: {
             firstName: string;
             lastName: string;
@@ -391,7 +392,16 @@ export default function ReportsPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     {transaction.user.firstName} {transaction.user.lastName}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{transaction.type}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    <div className="flex items-center">
+                                                        <span>{transaction.type}</span>
+                                                        {transaction.source === 'contribution' && (
+                                                            <span className="ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                                Contribution
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                     ₦{transaction.amount.toLocaleString()}
                                                 </td>

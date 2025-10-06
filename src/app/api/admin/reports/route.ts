@@ -90,22 +90,51 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 take: 10
             }),
-            // Recent transactions
-            prisma.transaction.findMany({
-                select: {
-                    amount: true,
-                    type: true,
-                    status: true,
-                    createdAt: true,
-                    user: {
-                        select: {
-                            firstName: true,
-                            lastName: true
+            // Recent transactions and contributions
+            Promise.all([
+                prisma.transaction.findMany({
+                    select: {
+                        amount: true,
+                        type: true,
+                        status: true,
+                        createdAt: true,
+                        user: {
+                            select: {
+                                firstName: true,
+                                lastName: true
+                            }
                         }
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 10
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 10
+                }),
+                prisma.contribution.findMany({
+                    select: {
+                        amount: true,
+                        type: true,
+                        status: true,
+                        createdAt: true,
+                        user: {
+                            select: {
+                                firstName: true,
+                                lastName: true
+                            }
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 10
+                })
+            ]).then(([transactions, contributions]) => {
+                // Combine transactions and contributions
+                const combined = [
+                    ...transactions.map(tx => ({ ...tx, source: 'transaction' })),
+                    ...contributions.map(contrib => ({ ...contrib, source: 'contribution' }))
+                ];
+                
+                // Sort by creation date and take the most recent 10
+                return combined
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 10);
             })
         ]);
 
@@ -145,7 +174,9 @@ export async function GET(request: NextRequest) {
             recentUsers,
             recentTransactions: recentTransactions.map(tx => ({
                 ...tx,
-                amount: Number(tx.amount) / 100 // Convert from kobo to naira
+                amount: Number(tx.amount) / 100, // Convert from kobo to naira
+                type: tx.source === 'contribution' ? 'CONTRIBUTION' : tx.type,
+                source: tx.source
             }))
         };
 
