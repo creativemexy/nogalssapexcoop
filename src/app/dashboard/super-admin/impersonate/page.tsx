@@ -21,6 +21,19 @@ interface UserStats {
   roleCounts: Record<string, number>;
 }
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+interface UsersResponse {
+  users: User[];
+  total: number;
+  pagination: PaginationInfo;
+}
+
 export default function ImpersonatePage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -30,19 +43,43 @@ export default function ImpersonatePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [impersonating, setImpersonating] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (session?.user && (session.user as any).role === 'SUPER_ADMIN') {
-      fetchUsers();
+      fetchUsers(1);
       fetchStats();
     }
   }, [session]);
 
-  const fetchUsers = async () => {
+  // Refetch users when search term or role filter changes
+  useEffect(() => {
+    if (session?.user && (session.user as any).role === 'SUPER_ADMIN') {
+      fetchUsers(1);
+    }
+  }, [searchTerm, roleFilter]);
+
+  const fetchUsers = async (page: number = 1) => {
     try {
-      const response = await fetch('/api/admin/users');
-      const data = await response.json();
-      setUsers(data.users || []);
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        ...(searchTerm && { search: searchTerm }),
+        ...(roleFilter && { role: roleFilter }),
+      });
+      
+      const response = await fetch(`/api/admin/users?${params}`);
+      const data: UsersResponse = await response.json();
+      
+      if (response.ok) {
+        setUsers(data.users || []);
+        setPagination(data.pagination);
+        setCurrentPage(page);
+      } else {
+        console.error('Error fetching users:', data.error);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -142,13 +179,11 @@ export default function ImpersonatePage() {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = !roleFilter || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= (pagination?.pages || 1)) {
+      fetchUsers(page);
+    }
+  };
 
   const getRoleColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -312,7 +347,9 @@ export default function ImpersonatePage() {
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Users ({filteredUsers.length})</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Users {pagination ? `(${pagination.total} total)` : ''}
+          </h3>
         </div>
         
         {loading ? (
@@ -343,7 +380,7 @@ export default function ImpersonatePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -385,6 +422,71 @@ export default function ImpersonatePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination && pagination.pages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-700">
+                <span>
+                  Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                  {pagination.total} results
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          pageNum === pagination.page
+                            ? 'bg-green-600 text-white'
+                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.pages}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
