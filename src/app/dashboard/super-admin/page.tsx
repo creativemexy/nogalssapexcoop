@@ -399,9 +399,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Expenses</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{expenseStats.total.amount.toLocaleString()}
+                    ₦{(expenseStats.total?.amount || 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500">{expenseStats.total.count} expenses</p>
+                  <p className="text-xs text-gray-500">{expenseStats.total?.count || 0} expenses</p>
                 </div>
               </div>
             </div>
@@ -416,9 +416,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Pending</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{expenseStats.pending.amount.toLocaleString()}
+                    ₦{(expenseStats.pending?.amount || 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500">{expenseStats.pending.count} pending</p>
+                  <p className="text-xs text-gray-500">{expenseStats.pending?.count || 0} pending</p>
                 </div>
               </div>
             </div>
@@ -433,9 +433,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Approved</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{expenseStats.approved.amount.toLocaleString()}
+                    ₦{(expenseStats.approved?.amount || 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500">{expenseStats.approved.count} approved</p>
+                  <p className="text-xs text-gray-500">{expenseStats.approved?.count || 0} approved</p>
                 </div>
               </div>
             </div>
@@ -450,9 +450,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Paid</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{expenseStats.paid.amount.toLocaleString()}
+                    ₦{(expenseStats.paid?.amount || 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500">{expenseStats.paid.count} paid</p>
+                  <p className="text-xs text-gray-500">{expenseStats.paid?.count || 0} paid</p>
                 </div>
               </div>
             </div>
@@ -467,9 +467,9 @@ export default function SuperAdminDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Rejected</p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{expenseStats.rejected.amount.toLocaleString()}
+                    ₦{(expenseStats.rejected?.amount || 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500">{expenseStats.rejected.count} rejected</p>
+                  <p className="text-xs text-gray-500">{expenseStats.rejected?.count || 0} rejected</p>
                 </div>
               </div>
             </div>
@@ -491,7 +491,7 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {expenseStats.recent.map((expense) => (
+                  {expenseStats.recent?.map((expense) => (
                     <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-800">
                       <td className="py-2 text-gray-900 dark:text-gray-100">
                         {expense.title}
