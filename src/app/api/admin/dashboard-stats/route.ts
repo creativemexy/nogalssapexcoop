@@ -41,7 +41,12 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
       }),
       prisma.transaction.aggregate({
-        where: { type: 'FEE' },
+        where: { 
+          OR: [
+            { type: 'FEE' },
+            { reference: { startsWith: 'REG_' } }
+          ]
+        },
         _sum: { amount: true },
         _count: { id: true },
       }),
