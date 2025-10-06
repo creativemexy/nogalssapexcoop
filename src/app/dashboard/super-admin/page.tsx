@@ -787,6 +787,20 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         </Link>
+
+        <Link href="/dashboard/super-admin/git-update" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Git Update Manager</h3>
+              <p className="text-sm text-gray-600">Check for updates and deploy code changes</p>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   );
