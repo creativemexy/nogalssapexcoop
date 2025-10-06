@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Try to get comprehensive financial data with fallback
-    let adminFees, transactionContributions, directContributions, loans, withdrawals, loanRepayments, recentTransactions, monthlyStats, userStats;
+    let adminFees, transactionContributions, directContributions, loans, withdrawals, loanRepayments, recentTransactions, recentContributions, monthlyStats, userStats;
     
     try {
       [
@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
         loanRepayments,
         // Recent transactions
         recentTransactions,
+        // Recent contributions
+        recentContributions,
         // Monthly breakdown
         monthlyStats,
         // User counts
@@ -109,6 +111,19 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
+      // Recent contributions from Contribution table (leaders and cooperative members)
+      prisma.contribution.findMany({
+        where: {
+          isActive: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20, // Get recent contributions
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true }
+          }
+        }
+      }),
       // Monthly stats for the last 6 months
       prisma.transaction.groupBy({
         by: ['createdAt'],
@@ -139,6 +154,7 @@ export async function GET(request: NextRequest) {
       withdrawals = { _sum: { amount: 0 }, _count: { id: 0 } };
       loanRepayments = { _sum: { amount: 0 }, _count: { id: 0 } };
       recentTransactions = [];
+      recentContributions = [];
       monthlyStats = [];
       userStats = [];
     }
@@ -167,6 +183,22 @@ export async function GET(request: NextRequest) {
       user: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown User',
       status: t.status
     }));
+
+    // Format recent contributions (convert from kobo to naira)
+    const formattedContributions = recentContributions.map(c => ({
+      id: c.id,
+      type: 'CONTRIBUTION',
+      amount: Number(c.amount) / 100,
+      description: c.description || 'Direct Contribution',
+      date: c.createdAt.toISOString(),
+      user: c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown User',
+      status: 'SUCCESSFUL' // Contributions are always successful
+    }));
+
+    // Combine and sort all recent activity by date
+    const allRecentActivity = [...formattedTransactions, ...formattedContributions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 20); // Take the 20 most recent
 
     // Format monthly stats (convert from kobo to naira)
     const monthlyBreakdown = monthlyStats.map(stat => ({
@@ -209,13 +241,13 @@ export async function GET(request: NextRequest) {
         count: loanRepayments._count.id
       },
       
-      // Recent activity
-      recentTransactions: formattedTransactions,
+      // Recent activity (combined transactions and contributions)
+      recentTransactions: allRecentActivity,
       monthlyBreakdown,
       userBreakdown,
       
       // Database status
-      databaseStatus: recentTransactions.length > 0 ? 'connected' : 'fallback'
+      databaseStatus: allRecentActivity.length > 0 ? 'connected' : 'fallback'
     });
   } catch (error) {
     console.error('Finance dashboard stats error:', error);
