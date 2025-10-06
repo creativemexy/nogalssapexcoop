@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       totalContributionsResult,
       totalLoansResult,
       registrationFeesResult,
+      withdrawalResult,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.cooperative.count(),
@@ -50,6 +51,14 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
         _count: { id: true },
       }),
+      prisma.transaction.aggregate({
+        where: { 
+          type: 'WITHDRAWAL',
+          status: 'SUCCESSFUL'
+        },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
     ]);
 
     // Convert amounts from kobo to naira for display
@@ -57,6 +66,8 @@ export async function GET(request: NextRequest) {
     const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
     const totalAdministrativeFees = Number(registrationFeesResult._sum.amount || 0) / 100;
     const totalAdministrativeFeeTransactions = registrationFeesResult._count.id;
+    const totalWithdrawals = Number(withdrawalResult._sum.amount || 0) / 100;
+    const totalWithdrawalTransactions = withdrawalResult._count.id;
 
     return NextResponse.json({
       totalUsers,
@@ -69,6 +80,8 @@ export async function GET(request: NextRequest) {
       totalLoans,
       totalRegistrationFees: totalAdministrativeFees,
       totalRegistrations: totalAdministrativeFeeTransactions,
+      totalWithdrawals,
+      totalWithdrawalTransactions,
     });
 
   } catch (error) {
