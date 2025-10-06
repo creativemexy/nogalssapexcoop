@@ -90,11 +90,19 @@ export async function GET(request: NextRequest) {
           description: { contains: 'repayment' }
         }
       }),
-      // Recent transactions
+      // Recent transactions - fetch ALL transactions regardless of status
       prisma.transaction.findMany({
-        where: { status: 'SUCCESSFUL' },
+        where: {
+          // Include all transaction types and statuses for comprehensive view
+          OR: [
+            { status: 'SUCCESSFUL' },
+            { status: 'PENDING' },
+            { status: 'FAILED' },
+            { status: 'CANCELLED' }
+          ]
+        },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 20, // Increased from 10 to show more transactions
         include: {
           user: {
             select: { firstName: true, lastName: true, email: true }
@@ -156,7 +164,8 @@ export async function GET(request: NextRequest) {
       amount: Number(t.amount) / 100,
       description: t.description,
       date: t.createdAt.toISOString(),
-      user: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown User'
+      user: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown User',
+      status: t.status
     }));
 
     // Format monthly stats (convert from kobo to naira)
