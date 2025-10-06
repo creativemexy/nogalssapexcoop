@@ -80,6 +80,8 @@ export async function GET(request: NextRequest) {
       expenses,
       // All transactions for the period
       allTransactions,
+      // All contributions for the period
+      allContributions,
       // User activity stats
       userActivity,
       // Transaction trends
@@ -171,6 +173,19 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' }
       }),
+      // All contributions for detailed analysis
+      prisma.contribution.findMany({
+        where: {
+          isActive: true,
+          createdAt: { gte: dateRange.start, lte: dateRange.end }
+        },
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true, role: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
       // User activity (new registrations, active users)
       prisma.user.count({
         where: {
@@ -219,6 +234,25 @@ export async function GET(request: NextRequest) {
         role: t.user.role
       } : null
     }));
+
+    // Format contributions (convert from kobo to naira)
+    const formattedContributions = allContributions.map(c => ({
+      id: c.id,
+      type: 'CONTRIBUTION',
+      amount: Number(c.amount) / 100,
+      status: 'SUCCESSFUL', // Contributions are always successful
+      description: c.description || 'Direct Contribution',
+      createdAt: c.createdAt.toISOString(),
+      user: c.user ? {
+        name: `${c.user.firstName} ${c.user.lastName}`,
+        email: c.user.email,
+        role: c.user.role
+      } : null
+    }));
+
+    // Combine and sort all transactions and contributions by date
+    const allFormattedTransactions = [...formattedTransactions, ...formattedContributions]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     // Format trends data (convert from kobo to naira)
     const trends = transactionTrends.map(trend => ({
@@ -361,15 +395,15 @@ export async function GET(request: NextRequest) {
       // Activity metrics
       activity: {
         newUsers: userActivity,
-        totalTransactions: allTransactions.length,
-        averageTransactionAmount: allTransactions.length > 0 
-          ? (allTransactions.reduce((sum, t) => sum + Number(t.amount), 0) / allTransactions.length) / 100
+        totalTransactions: allFormattedTransactions.length,
+        averageTransactionAmount: allFormattedTransactions.length > 0 
+          ? allFormattedTransactions.reduce((sum, t) => sum + t.amount, 0) / allFormattedTransactions.length
           : 0
       },
       
       // Trends and analytics
       trends,
-      transactions: formattedTransactions,
+      transactions: allFormattedTransactions,
       
       // Previous period comparison
       comparison: {
