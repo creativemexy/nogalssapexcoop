@@ -44,15 +44,27 @@ export async function GET(request: NextRequest) {
 
     const pages = Math.max(1, Math.ceil(count / pageSize));
 
+    // Convert amounts from kobo to naira
+    const convertedRows = rows.map(row => ({
+      ...row,
+      amount: Number(row.amount) / 100,
+      apexFunds: Number(row.amount) * 0.4 / 100, // 40% of amount in naira
+      nogalssFunds: Number(row.amount) * 0.2 / 100, // 20% of amount in naira
+      cooperativeShare: Number(row.amount) * 0.2 / 100, // 20% of amount in naira
+      leaderShare: Number(row.amount) * 0.2 / 100, // 20% of amount in naira
+    }));
+
+    const totalAmountNaira = Number(totalsAgg._sum.amount || 0) / 100;
+
     return NextResponse.json({
-      rows,
+      rows: convertedRows,
       pagination: { page: pageNum, pages, count },
       totals: {
-        totalAmount: Number(totalsAgg._sum.amount || 0),
-        apexFunds: 0,
-        nogalssFunds: 0,
-        cooperativeShare: 0,
-        leaderShare: 0,
+        totalAmount: totalAmountNaira,
+        apexFunds: totalAmountNaira * 0.4, // 40% of total
+        nogalssFunds: totalAmountNaira * 0.2, // 20% of total
+        cooperativeShare: totalAmountNaira * 0.2, // 20% of total
+        leaderShare: totalAmountNaira * 0.2, // 20% of total
       }
     });
   } catch (error) {
