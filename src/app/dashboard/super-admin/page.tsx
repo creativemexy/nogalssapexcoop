@@ -396,6 +396,10 @@ export default function SuperAdminDashboard() {
                   {global2FAEnabled === null ? '...' : global2FAEnabled ? 'Enabled' : 'Disabled'}
                 </p>
                 <div className="mt-3 flex gap-2">
+                  <Link
+                    href="/dashboard/super-admin/2fa-setup"
+                    className="px-3 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+                  >Setup Your 2FA</Link>
                   <button
                     className="px-3 py-1 text-sm rounded bg-green-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={global2FAEnabled === null || global2FAEnabled === true}
