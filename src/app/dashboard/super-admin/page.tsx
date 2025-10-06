@@ -16,6 +16,23 @@ interface DashboardStats {
   totalLoans: number;
 }
 
+interface ExpenseStats {
+  total: { amount: number; count: number };
+  pending: { amount: number; count: number };
+  approved: { amount: number; count: number };
+  paid: { amount: number; count: number };
+  rejected: { amount: number; count: number };
+  recent: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    status: string;
+    category: string;
+    createdAt: string;
+    creator: { firstName: string; lastName: string; email: string };
+  }>;
+}
+
 interface NotificationStats {
   totals: {
     emails: number;
@@ -68,6 +85,7 @@ interface NotificationStats {
 export default function SuperAdminDashboard() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [expenseStats, setExpenseStats] = useState<ExpenseStats | null>(null);
   const [notificationStats, setNotificationStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [registrationFee, setRegistrationFee] = useState<number | null>(null);
@@ -89,6 +107,7 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchExpenseStats();
     fetchNotificationStats();
     fetchRegistrationFee();
     fetch2FAStatus();
@@ -103,6 +122,16 @@ export default function SuperAdminDashboard() {
       console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchExpenseStats = async () => {
+    try {
+      const response = await fetch('/api/admin/expense-stats');
+      const data = await response.json();
+      setExpenseStats(data);
+    } catch (error) {
+      console.error('Error fetching expense stats:', error);
     }
   };
 
@@ -352,6 +381,154 @@ export default function SuperAdminDashboard() {
             </div>
         </div>
       </div>
+
+      {/* Expense Statistics */}
+      {expenseStats && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Expense Management</h2>
+          
+          {/* Expense Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Expenses</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    ₦{expenseStats.total.amount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{expenseStats.total.count} expenses</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Pending</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    ₦{expenseStats.pending.amount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{expenseStats.pending.count} pending</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Approved</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    ₦{expenseStats.approved.amount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{expenseStats.approved.count} approved</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Paid</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    ₦{expenseStats.paid.amount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{expenseStats.paid.count} paid</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Rejected</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    ₦{expenseStats.rejected.amount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{expenseStats.rejected.count} rejected</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Expenses */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Expenses</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Title</th>
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Amount</th>
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Status</th>
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Category</th>
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Created By</th>
+                    <th className="text-left py-2 text-gray-600 dark:text-gray-300">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenseStats.recent.map((expense) => (
+                    <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="py-2 text-gray-900 dark:text-gray-100">
+                        {expense.title}
+                      </td>
+                      <td className="py-2 text-gray-900 dark:text-gray-100">
+                        ₦{expense.amount.toLocaleString()}
+                      </td>
+                      <td className="py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          expense.status === 'PENDING' 
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            : expense.status === 'APPROVED'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : expense.status === 'PAID'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
+                          {expense.status}
+                        </span>
+                      </td>
+                      <td className="py-2 text-gray-900 dark:text-gray-100">
+                        {expense.category.replace('_', ' ')}
+                      </td>
+                      <td className="py-2 text-gray-900 dark:text-gray-100">
+                        {expense.creator.firstName} {expense.creator.lastName}
+                      </td>
+                      <td className="py-2 text-gray-500 dark:text-gray-400">
+                        {new Date(expense.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Statistics */}
       {notificationStats && (
