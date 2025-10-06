@@ -310,11 +310,11 @@ export default function SuperAdminDashboard() {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Registration Fees</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Administrative Fees</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {loading ? '...' : `₦${(stats?.totalRegistrationFees || 0).toLocaleString()}`}
               </p>
-              <p className="text-xs text-gray-500">{stats?.totalRegistrations || 0} registrations</p>
+              <p className="text-xs text-gray-500">{stats?.totalRegistrations || 0} fees collected</p>
             </div>
           </div>
         </div>

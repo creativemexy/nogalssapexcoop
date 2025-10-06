@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
       }),
       prisma.transaction.aggregate({
-        where: { type: 'REGISTRATION_FEE' },
+        where: { type: 'FEE' },
         _sum: { amount: true },
         _count: { id: true },
       }),
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
     // Convert amounts from kobo to naira for display
     const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
     const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
-    const totalRegistrationFees = Number(registrationFeesResult._sum.amount || 0) / 100;
-    const totalRegistrations = registrationFeesResult._count.id;
+    const totalAdministrativeFees = Number(registrationFeesResult._sum.amount || 0) / 100;
+    const totalAdministrativeFeeTransactions = registrationFeesResult._count.id;
 
     return NextResponse.json({
       totalUsers,
@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       rejectedLoans,
       totalContributions,
       totalLoans,
-      totalRegistrationFees,
-      totalRegistrations,
+      totalRegistrationFees: totalAdministrativeFees,
+      totalRegistrations: totalAdministrativeFeeTransactions,
     });
 
   } catch (error) {
