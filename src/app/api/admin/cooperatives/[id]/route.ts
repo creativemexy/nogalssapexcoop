@@ -19,7 +19,7 @@ export async function GET(
     const cooperative = await prisma.cooperative.findUnique({
       where: { id: cooperativeId },
       include: {
-        users: {
+        members: {
           select: {
             id: true,
             firstName: true,
@@ -29,9 +29,17 @@ export async function GET(
             isActive: true
           }
         },
-        _count: {
+        leader: {
           select: {
-            users: true
+            id: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
           }
         }
       }
@@ -42,8 +50,8 @@ export async function GET(
     }
 
     // Calculate member and leader counts
-    const memberCount = cooperative.users.filter(user => user.role === 'MEMBER').length;
-    const leaderCount = cooperative.users.filter(user => user.role === 'LEADER').length;
+    const memberCount = cooperative.members.filter(user => user.role === 'MEMBER').length;
+    const leaderCount = cooperative.leader ? 1 : 0;
 
     // Format the response
     const formattedCooperative = {
@@ -61,7 +69,8 @@ export async function GET(
       address: cooperative.address,
       bankName: cooperative.bankName,
       bankAccountNumber: cooperative.bankAccountNumber,
-      users: cooperative.users
+      members: cooperative.members,
+      leader: cooperative.leader
     };
 
     return NextResponse.json({ cooperative: formattedCooperative });
