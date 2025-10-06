@@ -32,7 +32,9 @@ export default function EmergencyAlertBanner() {
       
       // Handle other errors
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error(`HTTP error! status: ${response.status}`);
+        setLoading(false);
+        return;
       }
       
       const data = await response.json();
