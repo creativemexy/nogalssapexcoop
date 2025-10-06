@@ -37,28 +37,98 @@ export async function GET(request: NextRequest) {
             prisma.payment.count()
         ]);
 
-        // Generate mock data for charts (in a real app, this would be actual data)
-        const userRegistrations = Array.from({ length: 6 }, (_, i) => ({
-            month: new Date(Date.now() - (5 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short' }),
-            count: Math.floor(Math.random() * 50) + 10
+        // Get real analytics data
+        const [userRegistrations, cooperativeRegistrations, transactionVolume, loanPerformance, recentUsers, recentTransactions] = await Promise.all([
+            // User registrations by month (last 6 months)
+            prisma.$queryRaw`
+                SELECT 
+                    DATE_TRUNC('month', "createdAt") as month,
+                    COUNT(*) as count
+                FROM "User" 
+                WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+                GROUP BY DATE_TRUNC('month', "createdAt")
+                ORDER BY month DESC
+                LIMIT 6
+            `,
+            // Cooperative registrations by month
+            prisma.$queryRaw`
+                SELECT 
+                    DATE_TRUNC('month', "createdAt") as month,
+                    COUNT(*) as count
+                FROM "Cooperative" 
+                WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+                GROUP BY DATE_TRUNC('month', "createdAt")
+                ORDER BY month DESC
+                LIMIT 6
+            `,
+            // Transaction volume by month
+            prisma.$queryRaw`
+                SELECT 
+                    DATE_TRUNC('month', "createdAt") as month,
+                    SUM(amount) as amount
+                FROM "Transaction" 
+                WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+                AND status = 'SUCCESSFUL'
+                GROUP BY DATE_TRUNC('month', "createdAt")
+                ORDER BY month DESC
+                LIMIT 6
+            `,
+            // Loan performance
+            prisma.loan.groupBy({
+                by: ['status'],
+                _count: { id: true }
+            }),
+            // Recent users
+            prisma.user.findMany({
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    role: true,
+                    createdAt: true
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 10
+            }),
+            // Recent transactions
+            prisma.transaction.findMany({
+                select: {
+                    amount: true,
+                    type: true,
+                    status: true,
+                    createdAt: true,
+                    user: {
+                        select: {
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 10
+            })
+        ]);
+
+        // Format the data for frontend
+        const formattedUserRegistrations = (userRegistrations as any[]).map(item => ({
+            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
+            count: Number(item.count)
         }));
 
-        const cooperativeRegistrations = Array.from({ length: 6 }, (_, i) => ({
-            month: new Date(Date.now() - (5 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short' }),
-            count: Math.floor(Math.random() * 10) + 1
+        const formattedCooperativeRegistrations = (cooperativeRegistrations as any[]).map(item => ({
+            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
+            count: Number(item.count)
         }));
 
-        const transactionVolume = Array.from({ length: 6 }, (_, i) => ({
-            month: new Date(Date.now() - (5 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short' }),
-            amount: Math.floor(Math.random() * 10000000) + 1000000
+        const formattedTransactionVolume = (transactionVolume as any[]).map(item => ({
+            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
+            amount: Number(item.amount) / 100 // Convert from kobo to naira
         }));
 
-        const loanPerformance = [
-            { status: 'Active', count: activeLoans },
-            { status: 'Pending', count: pendingLoans },
-            { status: 'Completed', count: Math.floor(totalLoans * 0.3) },
-            { status: 'Defaulted', count: Math.floor(totalLoans * 0.05) }
-        ];
+        const formattedLoanPerformance = loanPerformance.map(item => ({
+            status: item.status,
+            count: item._count.id
+        }));
 
         const reportData = {
             totalUsers,
@@ -67,12 +137,16 @@ export async function GET(request: NextRequest) {
             totalLoans,
             activeLoans,
             pendingLoans,
-            totalPayments: totalPayments * 25000, // Mock total amount
-            monthlyGrowth: 15.5, // Mock growth percentage
-            userRegistrations,
-            cooperativeRegistrations,
-            transactionVolume,
-            loanPerformance
+            totalPayments: totalPayments,
+            userRegistrations: formattedUserRegistrations,
+            cooperativeRegistrations: formattedCooperativeRegistrations,
+            transactionVolume: formattedTransactionVolume,
+            loanPerformance: formattedLoanPerformance,
+            recentUsers,
+            recentTransactions: recentTransactions.map(tx => ({
+                ...tx,
+                amount: Number(tx.amount) / 100 // Convert from kobo to naira
+            }))
         };
 
         return NextResponse.json(reportData);

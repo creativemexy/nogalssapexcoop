@@ -11,12 +11,34 @@ interface ReportData {
     activeLoans: number;
     pendingLoans: number;
     totalPayments: number;
+    userRegistrations: Array<{ month: string; count: number }>;
+    cooperativeRegistrations: Array<{ month: string; count: number }>;
+    transactionVolume: Array<{ month: string; amount: number }>;
+    loanPerformance: Array<{ status: string; count: number }>;
+    recentUsers: Array<{
+        firstName: string;
+        lastName: string;
+        email: string;
+        role: string;
+        createdAt: string;
+    }>;
+    recentTransactions: Array<{
+        amount: number;
+        type: string;
+        status: string;
+        createdAt: string;
+        user: {
+            firstName: string;
+            lastName: string;
+        };
+    }>;
 }
 
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [dateRange, setDateRange] = useState('30');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [reportData, setReportData] = useState<ReportData | null>(null);
 
     useEffect(() => {
@@ -26,13 +48,18 @@ export default function ReportsPage() {
     const fetchReportData = async () => {
         try {
             setLoading(true);
+            setError(null);
             const response = await fetch(`/api/admin/reports?range=${dateRange}`);
             if (response.ok) {
                 const data = await response.json();
                 setReportData(data);
+            } else {
+                const errorData = await response.json();
+                setError(errorData.error || 'Failed to fetch report data');
             }
         } catch (error) {
             console.error('Error fetching report data:', error);
+            setError('Network error occurred while fetching data');
         } finally {
             setLoading(false);
         }
@@ -65,7 +92,30 @@ export default function ReportsPage() {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D5E42]"></div>
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D5E42] mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Loading report data...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex justify-center items-center h-64">
+                    <div className="text-center">
+                        <div className="text-red-600 text-6xl mb-4">⚠️</div>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Reports</h2>
+                        <p className="text-gray-600 mb-4">{error}</p>
+                        <button
+                            onClick={fetchReportData}
+                            className="px-4 py-2 bg-[#0D5E42] text-white rounded hover:bg-[#0A4A35]"
+                        >
+                            Retry
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -206,8 +256,63 @@ export default function ReportsPage() {
                 {activeTab === 'users' && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">User Analytics</h2>
-                        <div className="text-center text-gray-500 py-8">
-                            User analytics data will be displayed here
+                        
+                        {/* User Registration Chart */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Registrations (Last 6 Months)</h3>
+                            <div className="space-y-2">
+                                {reportData?.userRegistrations?.map((item, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">{item.month}</span>
+                                        <div className="flex items-center">
+                                            <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                                <div 
+                                                    className="bg-[#0D5E42] h-2 rounded-full" 
+                                                    style={{ width: `${(item.count / Math.max(...(reportData?.userRegistrations?.map(r => r.count) || [1]))) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900">{item.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Recent Users */}
+                        <div className="bg-white rounded-lg shadow overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200">
+                                <h3 className="text-lg font-medium text-gray-900">Recent Users</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {reportData?.recentUsers?.map((user, index) => (
+                                            <tr key={index}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    {user.firstName} {user.lastName}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        {user.role}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(user.createdAt).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -215,8 +320,26 @@ export default function ReportsPage() {
                 {activeTab === 'cooperatives' && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">Cooperative Analytics</h2>
-                        <div className="text-center text-gray-500 py-8">
-                            Cooperative analytics data will be displayed here
+                        
+                        {/* Cooperative Registration Chart */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cooperative Registrations (Last 6 Months)</h3>
+                            <div className="space-y-2">
+                                {reportData?.cooperativeRegistrations?.map((item, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">{item.month}</span>
+                                        <div className="flex items-center">
+                                            <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                                <div 
+                                                    className="bg-yellow-500 h-2 rounded-full" 
+                                                    style={{ width: `${(item.count / Math.max(...(reportData?.cooperativeRegistrations?.map(r => r.count) || [1]))) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900">{item.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -224,8 +347,71 @@ export default function ReportsPage() {
                 {activeTab === 'financial' && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">Financial Analytics</h2>
-                        <div className="text-center text-gray-500 py-8">
-                            Financial analytics data will be displayed here
+                        
+                        {/* Transaction Volume Chart */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaction Volume (Last 6 Months)</h3>
+                            <div className="space-y-2">
+                                {reportData?.transactionVolume?.map((item, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">{item.month}</span>
+                                        <div className="flex items-center">
+                                            <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                                <div 
+                                                    className="bg-green-500 h-2 rounded-full" 
+                                                    style={{ width: `${(item.amount / Math.max(...(reportData?.transactionVolume?.map(r => r.amount) || [1]))) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900">₦{item.amount.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Recent Transactions */}
+                        <div className="bg-white rounded-lg shadow overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200">
+                                <h3 className="text-lg font-medium text-gray-900">Recent Transactions</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {reportData?.recentTransactions?.map((transaction, index) => (
+                                            <tr key={index}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    {transaction.user.firstName} {transaction.user.lastName}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{transaction.type}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    ₦{transaction.amount.toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                        transaction.status === 'SUCCESSFUL' ? 'bg-green-100 text-green-800' :
+                                                        transaction.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {transaction.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(transaction.createdAt).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -233,8 +419,31 @@ export default function ReportsPage() {
                 {activeTab === 'loans' && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">Loan Analytics</h2>
-                        <div className="text-center text-gray-500 py-8">
-                            Loan analytics data will be displayed here
+                        
+                        {/* Loan Performance Chart */}
+                        <div className="bg-gray-50 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Loan Performance</h3>
+                            <div className="space-y-2">
+                                {reportData?.loanPerformance?.map((item, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">{item.status}</span>
+                                        <div className="flex items-center">
+                                            <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                                <div 
+                                                    className={`h-2 rounded-full ${
+                                                        item.status === 'ACTIVE' ? 'bg-green-500' :
+                                                        item.status === 'PENDING' ? 'bg-yellow-500' :
+                                                        item.status === 'COMPLETED' ? 'bg-blue-500' :
+                                                        'bg-red-500'
+                                                    }`}
+                                                    style={{ width: `${(item.count / Math.max(...(reportData?.loanPerformance?.map(r => r.count) || [1]))) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900">{item.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -242,8 +451,50 @@ export default function ReportsPage() {
                 {activeTab === 'activity' && (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">System Activity</h2>
-                        <div className="text-center text-gray-500 py-8">
-                            System activity data will be displayed here
+                        
+                        {/* Activity Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-blue-50 rounded-lg p-6">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-blue-600">Total Users</p>
+                                        <p className="text-2xl font-bold text-blue-900">{reportData?.totalUsers || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-green-50 rounded-lg p-6">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-green-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-green-600">Total Transactions</p>
+                                        <p className="text-2xl font-bold text-green-900">{reportData?.totalTransactions || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-purple-50 rounded-lg p-6">
+                                <div className="flex items-center">
+                                    <div className="p-2 bg-purple-100 rounded-lg">
+                                        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-purple-600">Active Loans</p>
+                                        <p className="text-2xl font-bold text-purple-900">{reportData?.activeLoans || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
