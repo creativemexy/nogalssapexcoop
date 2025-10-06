@@ -66,8 +66,10 @@ export async function GET(request: NextRequest) {
     const [
       // Administrative fees
       adminFees,
-      // Contributions/Savings
-      contributions,
+      // Contributions/Savings from Transaction table
+      transactionContributions,
+      // Direct contributions from Contribution table
+      directContributions,
       // Loan repayments
       loanRepayments,
       // Loans
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
           createdAt: { gte: dateRange.start, lte: dateRange.end }
         }
       }),
-      // Contributions/Savings
+      // Contributions/Savings from Transaction table
       prisma.transaction.aggregate({
         _sum: { amount: true },
         _count: { id: true },
@@ -105,6 +107,15 @@ export async function GET(request: NextRequest) {
             { description: { not: { contains: 'registration' } } },
             { description: { not: { contains: 'repayment' } } }
           ],
+          createdAt: { gte: dateRange.start, lte: dateRange.end }
+        }
+      }),
+      // Direct contributions from Contribution table
+      prisma.contribution.aggregate({
+        _sum: { amount: true },
+        _count: { id: true },
+        where: {
+          isActive: true,
           createdAt: { gte: dateRange.start, lte: dateRange.end }
         }
       }),
@@ -181,7 +192,9 @@ export async function GET(request: NextRequest) {
 
     // Calculate totals (convert from kobo to naira)
     const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
-    const totalContributions = Number(contributions._sum.amount || 0) / 100;
+    const totalTransactionContributions = Number(transactionContributions._sum.amount || 0) / 100;
+    const totalDirectContributions = Number(directContributions._sum.amount || 0) / 100;
+    const totalContributions = totalTransactionContributions + totalDirectContributions;
     const totalLoanRepayments = Number(loanRepayments._sum.amount || 0) / 100;
     const totalLoans = Number(loans._sum.amount || 0) / 100;
     const totalWithdrawals = Number(withdrawals._sum.amount || 0) / 100;
@@ -239,7 +252,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get previous period data for comparison
-    const [prevAdminFees, prevContributions, prevLoans, prevWithdrawals] = await Promise.all([
+    const [prevAdminFees, prevTransactionContributions, prevDirectContributions, prevLoans, prevWithdrawals] = await Promise.all([
       prisma.transaction.aggregate({
         _sum: { amount: true },
         where: {
@@ -261,6 +274,13 @@ export async function GET(request: NextRequest) {
           createdAt: { gte: previousPeriodStart, lte: previousPeriodEnd }
         }
       }),
+      prisma.contribution.aggregate({
+        _sum: { amount: true },
+        where: {
+          isActive: true,
+          createdAt: { gte: previousPeriodStart, lte: previousPeriodEnd }
+        }
+      }),
       prisma.loan.aggregate({
         _sum: { amount: true },
         where: { 
@@ -278,7 +298,7 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const prevTotalInflow = (Number(prevAdminFees._sum.amount || 0) + Number(prevContributions._sum.amount || 0)) / 100;
+    const prevTotalInflow = (Number(prevAdminFees._sum.amount || 0) + Number(prevTransactionContributions._sum.amount || 0) + Number(prevDirectContributions._sum.amount || 0)) / 100;
     const prevTotalOutflow = (Number(prevLoans._sum.amount || 0) + Number(prevWithdrawals._sum.amount || 0)) / 100;
     const prevNetBalance = prevTotalInflow - prevTotalOutflow;
 
@@ -313,7 +333,7 @@ export async function GET(request: NextRequest) {
         },
         contributions: {
           amount: totalContributions,
-          count: contributions._count.id,
+          count: transactionContributions._count.id + directContributions._count.id,
           percentage: totalInflow > 0 ? (totalContributions / totalInflow) * 100 : 0
         },
         loanRepayments: {

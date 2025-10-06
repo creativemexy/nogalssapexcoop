@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     const [
       // Administrative fees (includes registration fees)
       adminFees,
-      // Contributions/Savings (excluding admin fees)
-      contributions,
+      // Contributions/Savings from Transaction table (excluding admin fees)
+      transactionContributions,
+      // Contributions from Contribution table (direct contributions)
+      directContributions,
       // Loans
       loans,
       // Withdrawals
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
           type: 'FEE'
         }
       }),
-      // Contributions/Savings (member contributions, excluding admin fees and loan repayments)
+      // Contributions/Savings from Transaction table (member contributions, excluding admin fees and loan repayments)
       prisma.transaction.aggregate({
         _sum: { amount: true },
         _count: { id: true },
@@ -50,6 +52,14 @@ export async function GET(request: NextRequest) {
             { description: { not: { contains: 'registration' } } },
             { description: { not: { contains: 'repayment' } } }
           ]
+        }
+      }),
+      // Direct contributions from Contribution table (leaders and cooperative members)
+      prisma.contribution.aggregate({
+        _sum: { amount: true },
+        _count: { id: true },
+        where: {
+          isActive: true
         }
       }),
       // Loans
@@ -110,7 +120,9 @@ export async function GET(request: NextRequest) {
 
     // Calculate totals (convert from kobo to naira)
     const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
-    const totalContributions = Number(contributions._sum.amount || 0) / 100;
+    const totalTransactionContributions = Number(transactionContributions._sum.amount || 0) / 100;
+    const totalDirectContributions = Number(directContributions._sum.amount || 0) / 100;
+    const totalContributions = totalTransactionContributions + totalDirectContributions;
     const totalLoans = Number(loans._sum.amount || 0) / 100;
     const totalWithdrawals = Number(withdrawals._sum.amount || 0) / 100;
     const totalLoanRepayments = Number(loanRepayments._sum.amount || 0) / 100;
@@ -156,7 +168,7 @@ export async function GET(request: NextRequest) {
       },
       contributions: {
         amount: totalContributions,
-        count: contributions._count.id
+        count: transactionContributions._count.id + directContributions._count.id
       },
       loans: {
         amount: totalLoans,
