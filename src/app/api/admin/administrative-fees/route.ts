@@ -44,22 +44,13 @@ export async function GET(request: NextRequest) {
 
     const pages = Math.max(1, Math.ceil(count / pageSize));
 
-    // Convert amounts from kobo to naira and calculate fund distributions
+    // Calculate fund distributions (amounts are already in naira)
     const convertedRows = rows.map(row => {
-      const amountNaira = Number(row.amount) / 100; // Convert from kobo to naira
-      const apexFunds = amountNaira * 0.4; // 40% of amount in naira
-      const nogalssFunds = amountNaira * 0.2; // 20% of amount in naira
-      const cooperativeShare = amountNaira * 0.2; // 20% of amount in naira
-      const leaderShare = amountNaira * 0.2; // 20% of amount in naira
-      
-      console.log('Row conversion:', {
-        originalAmount: row.amount,
-        amountNaira,
-        apexFunds,
-        nogalssFunds,
-        cooperativeShare,
-        leaderShare
-      });
+      const amountNaira = Number(row.amount); // Amount is already in naira
+      const apexFunds = amountNaira * 0.4; // 40% of amount
+      const nogalssFunds = amountNaira * 0.2; // 20% of amount
+      const cooperativeShare = amountNaira * 0.2; // 20% of amount
+      const leaderShare = amountNaira * 0.2; // 20% of amount
       
       return {
         ...row,
@@ -71,7 +62,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalAmountNaira = Number(totalsAgg._sum.amount || 0) / 100;
+    const totalAmountNaira = Number(totalsAgg._sum.amount || 0);
 
     return NextResponse.json({
       rows: convertedRows,
