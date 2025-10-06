@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear the session by setting a cookie with an expired date
-    const response = NextResponse.json({ success: true, message: 'Logged out successfully' });
+    const response = NextResponse.redirect(new URL('/auth/signin', request.url));
     
     // Clear the session cookie
     response.cookies.set('next-auth.session-token', '', {
