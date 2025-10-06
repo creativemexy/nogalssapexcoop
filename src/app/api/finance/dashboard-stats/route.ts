@@ -10,27 +10,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get comprehensive financial data
-    const [
-      // Administrative fees (includes registration fees)
-      adminFees,
-      // Contributions/Savings from Transaction table (excluding admin fees)
-      transactionContributions,
-      // Contributions from Contribution table (direct contributions)
-      directContributions,
-      // Loans
-      loans,
-      // Withdrawals
-      withdrawals,
-      // Loan repayments
-      loanRepayments,
-      // Recent transactions
-      recentTransactions,
-      // Monthly breakdown
-      monthlyStats,
-      // User counts
-      userStats
-    ] = await Promise.all([
+    // Try to get comprehensive financial data with fallback
+    let adminFees, transactionContributions, directContributions, loans, withdrawals, loanRepayments, recentTransactions, monthlyStats, userStats;
+    
+    try {
+      [
+        // Administrative fees (includes registration fees)
+        adminFees,
+        // Contributions/Savings from Transaction table (excluding admin fees)
+        transactionContributions,
+        // Contributions from Contribution table (direct contributions)
+        directContributions,
+        // Loans
+        loans,
+        // Withdrawals
+        withdrawals,
+        // Loan repayments
+        loanRepayments,
+        // Recent transactions
+        recentTransactions,
+        // Monthly breakdown
+        monthlyStats,
+        // User counts
+        userStats
+      ] = await Promise.all([
       // Administrative fees (includes registration fees and other admin charges)
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -111,12 +114,26 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' }
       }),
-      // User statistics
-      prisma.user.groupBy({
-        by: ['role'],
-        _count: { id: true }
-      })
-    ]);
+        // User statistics
+        prisma.user.groupBy({
+          by: ['role'],
+          _count: { id: true }
+        })
+      ]);
+    } catch (dbError) {
+      console.error('Database connection error, using fallback data:', dbError);
+      
+      // Fallback data when database is unavailable
+      adminFees = { _sum: { amount: 0 }, _count: { id: 0 } };
+      transactionContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
+      directContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
+      loans = { _sum: { amount: 0 }, _count: { id: 0 } };
+      withdrawals = { _sum: { amount: 0 }, _count: { id: 0 } };
+      loanRepayments = { _sum: { amount: 0 }, _count: { id: 0 } };
+      recentTransactions = [];
+      monthlyStats = [];
+      userStats = [];
+    }
 
     // Calculate totals (convert from kobo to naira)
     const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
@@ -186,7 +203,10 @@ export async function GET(request: NextRequest) {
       // Recent activity
       recentTransactions: formattedTransactions,
       monthlyBreakdown,
-      userBreakdown
+      userBreakdown,
+      
+      // Database status
+      databaseStatus: recentTransactions.length > 0 ? 'connected' : 'fallback'
     });
   } catch (error) {
     console.error('Finance dashboard stats error:', error);
