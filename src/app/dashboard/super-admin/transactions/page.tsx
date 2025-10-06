@@ -14,6 +14,7 @@ interface Row {
   status: string;
   reference: string;
   description: string;
+  source: string;
 }
 
 export default function TransactionsPage() {
@@ -107,7 +108,16 @@ export default function TransactionsPage() {
                     <Td>{new Date(tx.createdAt).toLocaleString()}</Td>
                     <Td>{tx.user}</Td>
                     <Td>{tx.cooperative}</Td>
-                    <Td>{tx.type}</Td>
+                    <Td>
+                      <div className="flex items-center">
+                        <span>{tx.type}</span>
+                        {tx.source === 'contribution' && (
+                          <span className="ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            Contribution
+                          </span>
+                        )}
+                      </div>
+                    </Td>
                     <Td>{tx.reference}</Td>
                     <Td className="max-w-xs truncate" title={tx.description}>{tx.description}</Td>
                     <Td className="text-right">₦{(tx.amount || 0).toLocaleString()}</Td>

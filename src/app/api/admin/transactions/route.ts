@@ -36,35 +36,88 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count
-    const totalCount = await prisma.transaction.count({ where: whereClause });
-
-    // Get transactions with pagination
-    const transactions = await prisma.transaction.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true
+    // Get transactions and contributions separately
+    const [transactions, contributions] = await Promise.all([
+      prisma.transaction.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          cooperative: {
+            select: {
+              name: true
+            }
           }
         },
-        cooperative: {
-          select: {
-            name: true
+        orderBy: {
+          [sortBy]: sortOrder
+        },
+        skip,
+        take: limit
+      }),
+      prisma.contribution.findMany({
+        where: search ? {
+          OR: [
+            { description: { contains: search, mode: 'insensitive' } },
+            { user: { 
+              OR: [
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } }
+              ]
+            }},
+            { cooperative: { name: { contains: search, mode: 'insensitive' } } }
+          ]
+        } : {},
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          cooperative: {
+            select: {
+              name: true
+            }
           }
-        }
-      },
-      orderBy: {
-        [sortBy]: sortOrder
-      },
-      skip,
-      take: limit
-    });
+        },
+        orderBy: {
+          [sortBy]: sortOrder
+        },
+        skip,
+        take: limit
+      })
+    ]);
 
-    // Format the data
-    const rows = transactions.map(tx => ({
+    // Get total counts
+    const [transactionCount, contributionCount] = await Promise.all([
+      prisma.transaction.count({ where: whereClause }),
+      prisma.contribution.count({ 
+        where: search ? {
+          OR: [
+            { description: { contains: search, mode: 'insensitive' } },
+            { user: { 
+              OR: [
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } }
+              ]
+            }},
+            { cooperative: { name: { contains: search, mode: 'insensitive' } } }
+          ]
+        } : {}
+      })
+    ]);
+
+    // Format transactions
+    const formattedTransactions = transactions.map(tx => ({
       id: tx.id,
       createdAt: tx.createdAt.toISOString(),
       user: `${tx.user.firstName} ${tx.user.lastName}`,
@@ -74,8 +127,36 @@ export async function GET(request: NextRequest) {
       amount: Number(tx.amount) / 100, // Convert from kobo to naira
       status: tx.status,
       reference: tx.reference,
-      description: tx.description
+      description: tx.description,
+      source: 'transaction'
     }));
+
+    // Format contributions
+    const formattedContributions = contributions.map(contrib => ({
+      id: contrib.id,
+      createdAt: contrib.createdAt.toISOString(),
+      user: `${contrib.user.firstName} ${contrib.user.lastName}`,
+      email: contrib.user.email,
+      cooperative: contrib.cooperative?.name || 'N/A',
+      type: 'CONTRIBUTION',
+      amount: Number(contrib.amount) / 100, // Convert from kobo to naira
+      status: 'SUCCESSFUL',
+      reference: `CONTRIB_${contrib.id}`,
+      description: contrib.description || 'Contribution',
+      source: 'contribution'
+    }));
+
+    // Combine and sort all records
+    const allRecords = [...formattedTransactions, ...formattedContributions];
+    const sortedRecords = allRecords.sort((a, b) => {
+      const aDate = new Date(a.createdAt).getTime();
+      const bDate = new Date(b.createdAt).getTime();
+      return sortOrder === 'desc' ? bDate - aDate : aDate - bDate;
+    });
+
+    // Apply pagination to combined results
+    const rows = sortedRecords.slice(skip, skip + limit);
+    const totalCount = transactionCount + contributionCount;
 
     const pages = Math.ceil(totalCount / limit);
 
