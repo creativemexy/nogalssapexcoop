@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
@@ -14,6 +14,16 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Clear URL parameters on component mount for security
+  useEffect(() => {
+    if (searchParams.toString()) {
+      console.warn('Security Warning: Sensitive data detected in URL parameters. Clearing...');
+      // Remove any sensitive parameters from URL
+      router.replace('/auth/signin', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +67,7 @@ export default function SignInPage() {
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-8">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} method="POST">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                 {error}
