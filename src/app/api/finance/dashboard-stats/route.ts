@@ -124,19 +124,18 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      // Monthly stats for the last 6 months
-      prisma.transaction.groupBy({
-        by: ['createdAt'],
-        _sum: { amount: true },
-        _count: { id: true },
-        where: {
-          status: 'SUCCESSFUL',
-          createdAt: {
-            gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
-          }
-        },
-        orderBy: { createdAt: 'desc' }
-      }),
+      // Monthly stats for the last 6 months - use raw query to group by month
+      prisma.$queryRaw`
+        SELECT 
+          DATE_TRUNC('month', "createdAt") as month,
+          SUM(amount) as total_amount,
+          COUNT(id) as transaction_count
+        FROM "Transaction" 
+        WHERE status = 'SUCCESSFUL' 
+          AND "createdAt" >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', "createdAt")
+        ORDER BY month DESC
+      `,
         // User statistics
         prisma.user.groupBy({
           by: ['role'],
@@ -201,10 +200,10 @@ export async function GET(request: NextRequest) {
       .slice(0, 20); // Take the 20 most recent
 
     // Format monthly stats (convert from kobo to naira)
-    const monthlyBreakdown = monthlyStats.map(stat => ({
-      month: stat.createdAt.toISOString().substring(0, 7),
-      amount: Number(stat._sum.amount || 0) / 100,
-      count: stat._count.id
+    const monthlyBreakdown = (monthlyStats as any[]).map(stat => ({
+      month: new Date(stat.month).toISOString().substring(0, 7),
+      amount: Number(stat.total_amount || 0) / 100,
+      count: Number(stat.transaction_count || 0)
     }));
 
     // Format user stats
