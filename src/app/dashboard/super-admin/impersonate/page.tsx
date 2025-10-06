@@ -32,6 +32,7 @@ interface UsersResponse {
   users: User[];
   total: number;
   pagination: PaginationInfo;
+  error?: string;
 }
 
 export default function ImpersonatePage() {
