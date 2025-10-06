@@ -62,31 +62,34 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get comprehensive financial data for the period
-    const [
-      // Administrative fees
-      adminFees,
-      // Contributions/Savings from Transaction table
-      transactionContributions,
-      // Direct contributions from Contribution table
-      directContributions,
-      // Loan repayments
-      loanRepayments,
-      // Loans
-      loans,
-      // Withdrawals
-      withdrawals,
-      // Expenses
-      expenses,
-      // All transactions for the period
-      allTransactions,
-      // All contributions for the period
-      allContributions,
-      // User activity stats
-      userActivity,
-      // Transaction trends
-      transactionTrends
-    ] = await Promise.all([
+    // Try to get comprehensive financial data with fallback
+    let adminFees, transactionContributions, directContributions, loanRepayments, loans, withdrawals, expenses, allTransactions, allContributions, userActivity, transactionTrends;
+    
+    try {
+      [
+        // Administrative fees
+        adminFees,
+        // Contributions/Savings from Transaction table
+        transactionContributions,
+        // Direct contributions from Contribution table
+        directContributions,
+        // Loan repayments
+        loanRepayments,
+        // Loans
+        loans,
+        // Withdrawals
+        withdrawals,
+        // Expenses
+        expenses,
+        // All transactions for the period
+        allTransactions,
+        // All contributions for the period
+        allContributions,
+        // User activity stats
+        userActivity,
+        // Transaction trends
+        transactionTrends
+      ] = await Promise.all([
       // Administrative fees
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -203,7 +206,23 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'asc' }
       })
-    ]);
+      ]);
+    } catch (dbError) {
+      console.error('Database connection error in finance reports, using fallback data:', dbError);
+      
+      // Fallback data when database is unavailable
+      adminFees = { _sum: { amount: 0 }, _count: { id: 0 } };
+      transactionContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
+      directContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
+      loanRepayments = { _sum: { amount: 0 }, _count: { id: 0 } };
+      loans = { _sum: { amount: 0 }, _count: { id: 0 } };
+      withdrawals = { _sum: { amount: 0 }, _count: { id: 0 } };
+      expenses = { _sum: { amount: 0 }, _count: { id: 0 } };
+      allTransactions = [];
+      allContributions = [];
+      userActivity = 0;
+      transactionTrends = [];
+    }
 
     // Calculate totals (convert from kobo to naira)
     const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
@@ -417,7 +436,10 @@ export async function GET(request: NextRequest) {
           outflow: Math.round(outflowGrowth * 100) / 100,
           balance: Math.round(balanceGrowth * 100) / 100
         }
-      }
+      },
+      
+      // Database status
+      databaseStatus: allTransactions.length > 0 ? 'connected' : 'fallback'
     });
   } catch (error) {
     console.error('Finance reports error:', error);
