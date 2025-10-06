@@ -166,10 +166,15 @@ export default function SuperAdminDashboard() {
     try {
       const res = await fetch('/api/admin/2fa/global');
       const data = await res.json();
-      if (res.ok) setGlobal2FAEnabled(Boolean(data.enabled));
-      else setGlobal2FAEnabled(null);
-    } catch {
-      setGlobal2FAEnabled(null);
+      if (res.ok) {
+        setGlobal2FAEnabled(Boolean(data.enabled));
+      } else {
+        console.error('Failed to fetch 2FA status:', data);
+        setGlobal2FAEnabled(false); // Default to false instead of null
+      }
+    } catch (error) {
+      console.error('Error fetching 2FA status:', error);
+      setGlobal2FAEnabled(false); // Default to false instead of null
     }
   };
 
