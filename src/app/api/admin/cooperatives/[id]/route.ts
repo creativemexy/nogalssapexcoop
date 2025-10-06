@@ -15,13 +15,23 @@ export async function GET(
 
     const cooperativeId = params.id;
 
+    // Get cooperative with related data
     const cooperative = await prisma.cooperative.findUnique({
       where: { id: cooperativeId },
       include: {
+        users: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            isActive: true
+          }
+        },
         _count: {
           select: {
-            members: true,
-            leaders: true
+            users: true
           }
         }
       }
@@ -31,6 +41,11 @@ export async function GET(
       return NextResponse.json({ error: 'Cooperative not found' }, { status: 404 });
     }
 
+    // Calculate member and leader counts
+    const memberCount = cooperative.users.filter(user => user.role === 'MEMBER').length;
+    const leaderCount = cooperative.users.filter(user => user.role === 'LEADER').length;
+
+    // Format the response
     const formattedCooperative = {
       id: cooperative.id,
       name: cooperative.name,
@@ -39,13 +54,14 @@ export async function GET(
       state: cooperative.state,
       status: cooperative.isActive ? 'Active' : 'Inactive',
       createdAt: cooperative.createdAt.toISOString(),
-      memberCount: cooperative._count.members,
-      leaderCount: cooperative._count.leaders,
+      memberCount,
+      leaderCount,
       email: cooperative.email,
       phoneNumber: cooperative.phoneNumber,
       address: cooperative.address,
       bankName: cooperative.bankName,
-      bankAccountNumber: cooperative.bankAccountNumber
+      bankAccountNumber: cooperative.bankAccountNumber,
+      users: cooperative.users
     };
 
     return NextResponse.json({ cooperative: formattedCooperative });
@@ -69,6 +85,15 @@ export async function PUT(
     const cooperativeId = params.id;
     const body = await request.json();
 
+    // Validate required fields
+    const requiredFields = ['name', 'registrationNumber', 'address', 'city', 'state', 'phoneNumber', 'email', 'bankName', 'bankAccountNumber'];
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return NextResponse.json({ error: `${field} is required` }, { status: 400 });
+      }
+    }
+
+    // Update the cooperative
     const updatedCooperative = await prisma.cooperative.update({
       where: { id: cooperativeId },
       data: {
@@ -92,6 +117,42 @@ export async function PUT(
 
   } catch (error) {
     console.error('Error updating cooperative:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || (session.user as any).role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const cooperativeId = params.id;
+
+    // Check if cooperative has members
+    const memberCount = await prisma.user.count({
+      where: { cooperativeId }
+    });
+
+    if (memberCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete cooperative with existing members. Please remove all members first.' 
+      }, { status: 400 });
+    }
+
+    // Delete the cooperative
+    await prisma.cooperative.delete({
+      where: { id: cooperativeId }
+    });
+
+    return NextResponse.json({ message: 'Cooperative deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting cooperative:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

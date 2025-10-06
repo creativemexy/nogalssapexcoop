@@ -43,18 +43,18 @@ export default function EditCooperativePage() {
 
   useEffect(() => {
     if (cooperativeId) {
-      fetchCooperative();
+      fetchCooperativeDetails();
     }
   }, [cooperativeId]);
 
-  const fetchCooperative = async () => {
+  const fetchCooperativeDetails = async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/cooperatives/${cooperativeId}`);
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch cooperative');
+        throw new Error(data.error || 'Failed to fetch cooperative details');
       }
       
       setCooperative(data.cooperative);
@@ -81,6 +81,8 @@ export default function EditCooperativePage() {
     e.preventDefault();
     try {
       setSaving(true);
+      setError(null);
+      
       const response = await fetch(`/api/admin/cooperatives/${cooperativeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -92,8 +94,8 @@ export default function EditCooperativePage() {
         throw new Error(error.error || 'Failed to update cooperative');
       }
       
-      // Redirect back to cooperative details
-      window.location.href = `/dashboard/super-admin/cooperatives/${cooperativeId}`;
+      // Redirect back to cooperatives list
+      window.location.href = '/dashboard/super-admin/cooperatives';
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -110,13 +112,13 @@ export default function EditCooperativePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <span className="ml-2 text-gray-500">Loading cooperative...</span>
+          <span className="ml-3 text-gray-600">Loading cooperative details...</span>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !cooperative) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -133,22 +135,33 @@ export default function EditCooperativePage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Edit Cooperative</h1>
-        <Link 
-          href={`/dashboard/super-admin/cooperatives/${cooperativeId}`}
-          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-        >
-          Cancel
-        </Link>
+        <div className="flex space-x-3">
+          <Link 
+            href={`/dashboard/super-admin/cooperatives/${cooperativeId}`}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            View Details
+          </Link>
+          <Link 
+            href="/dashboard/super-admin/cooperatives" 
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Back to Cooperatives
+          </Link>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Cooperative Information</h2>
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-4">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      )}
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Name *</label>
+              <label className="block text-sm font-medium text-gray-700">Cooperative Name *</label>
               <input
                 type="text"
                 name="name"
@@ -169,17 +182,21 @@ export default function EditCooperativePage() {
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Address *</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                required
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Address *</label>
+            <input
+              type="text"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              required
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">City *</label>
               <input
@@ -213,17 +230,21 @@ export default function EditCooperativePage() {
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email *</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email *</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">Bank Name *</label>
               <input
@@ -246,22 +267,23 @@ export default function EditCooperativePage() {
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Status *</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                required
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Status *</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              required
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-6 border-t">
             <Link
               href={`/dashboard/super-admin/cooperatives/${cooperativeId}`}
               className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
