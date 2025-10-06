@@ -4,36 +4,29 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 
-// Error boundary component for charts
-class ChartErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
+// Simple error boundary for charts
+const ChartErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = React.useState(false);
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
+  React.useEffect(() => {
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
-  componentDidCatch(error, errorInfo) {
-    console.error('Chart error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center h-full text-red-600">
-          <div className="text-center">
-            <p className="text-lg font-semibold">Chart Error</p>
-            <p className="text-sm">Unable to render chart. Please try refreshing the page.</p>
-          </div>
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center h-full text-red-600">
+        <div className="text-center">
+          <p className="text-lg font-semibold">Chart Error</p>
+          <p className="text-sm">Unable to render chart. Please try refreshing the page.</p>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
-}
+
+  return <>{children}</>;
+};
 
 interface ReportData {
   period: string;
