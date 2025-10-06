@@ -56,11 +56,11 @@ export default function AdministrativeFeesPage() {
       r.email,
       r.cooperative,
       r.reference,
-      r.amount,
-      r.apexFunds,
-      r.nogalssFunds,
-      r.cooperativeShare,
-      r.leaderShare,
+      r.amount || 0,
+      r.apexFunds || 0,
+      r.nogalssFunds || 0,
+      r.cooperativeShare || 0,
+      r.leaderShare || 0,
     ]);
     return [header, ...lines].map(arr => arr.join(',')).join('\n');
   }, [rows]);
@@ -153,11 +153,11 @@ export default function AdministrativeFeesPage() {
                     <Td>{r.email}</Td>
                     <Td>{r.cooperative}</Td>
                     <Td>{r.reference}</Td>
-                    <Td className="text-right">₦{r.amount.toLocaleString()}</Td>
-                    <Td className="text-right">₦{r.apexFunds.toLocaleString()}</Td>
-                    <Td className="text-right">₦{r.nogalssFunds.toLocaleString()}</Td>
-                    <Td className="text-right">₦{r.cooperativeShare.toLocaleString()}</Td>
-                    <Td className="text-right">₦{r.leaderShare.toLocaleString()}</Td>
+                    <Td className="text-right">₦{(r.amount || 0).toLocaleString()}</Td>
+                    <Td className="text-right">₦{(r.apexFunds || 0).toLocaleString()}</Td>
+                    <Td className="text-right">₦{(r.nogalssFunds || 0).toLocaleString()}</Td>
+                    <Td className="text-right">₦{(r.cooperativeShare || 0).toLocaleString()}</Td>
+                    <Td className="text-right">₦{(r.leaderShare || 0).toLocaleString()}</Td>
                   </tr>
                 ))}
               </tbody>
