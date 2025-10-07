@@ -15,6 +15,13 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
+          console.log('Auth attempt:', {
+            email: credentials?.email,
+            hasPassword: !!credentials?.password,
+            hasTotp: !!credentials?.totp,
+            totpValue: credentials?.totp
+          });
+          
           if (!credentials?.email || !credentials?.password) {
             return null;
           }
@@ -38,6 +45,11 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          console.log('User 2FA status:', {
+            twoFactorEnabled: user.twoFactorEnabled,
+            hasSecret: !!user.twoFactorSecret
+          });
+
           // Check if user has 2FA enabled
           if (user.twoFactorEnabled) {
             // If 2FA is enabled, TOTP code is REQUIRED
@@ -51,6 +63,11 @@ export const authOptions: NextAuthOptions = {
             }
 
             const isTotpValid = verifyTOTPToken(user.twoFactorSecret, credentials.totp);
+            console.log('2FA Verification:', {
+              secret: user.twoFactorSecret ? 'present' : 'missing',
+              token: credentials.totp,
+              isValid: isTotpValid
+            });
             if (!isTotpValid) {
               throw new Error('2FA_INVALID');
             }
@@ -76,6 +93,11 @@ export const authOptions: NextAuthOptions = {
               }
 
               const isTotpValid = verifyTOTPToken(user.twoFactorSecret, credentials.totp);
+              console.log('Global 2FA Verification:', {
+                secret: user.twoFactorSecret ? 'present' : 'missing',
+                token: credentials.totp,
+                isValid: isTotpValid
+              });
               if (!isTotpValid) {
                 throw new Error('2FA_INVALID');
               }
