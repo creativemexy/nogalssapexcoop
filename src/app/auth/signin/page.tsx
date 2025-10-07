@@ -142,7 +142,6 @@ function SignInForm() {
                 name="totp"
                 type="text"
                 inputMode="numeric"
-                pattern="\\d{6}"
                 maxLength={6}
                 value={totp}
                 onChange={(e) => setTotp(e.target.value.replace(/[^0-9]/g, ''))}
