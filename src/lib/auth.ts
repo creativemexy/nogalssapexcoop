@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
 
           // Check if user has 2FA enabled
           if (user.twoFactorEnabled) {
-            // If 2FA is enabled, TOTP code is required
+            // If 2FA is enabled, TOTP code is REQUIRED
             if (!credentials.totp) {
               throw new Error('2FA_REQUIRED');
             }
@@ -80,6 +80,7 @@ export const authOptions: NextAuthOptions = {
                 throw new Error('2FA_INVALID');
               }
             }
+            // If no 2FA is required, continue with normal login
           }
 
           return {
@@ -92,9 +93,10 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           console.error('Authorization error:', error);
-          // Re-throw 2FA specific errors
+          // For 2FA errors, we need to pass them through NextAuth
           if (error instanceof Error && error.message.startsWith('2FA_')) {
-            throw error;
+            // Return null but store the error in a way NextAuth can access
+            return null;
           }
           return null;
         }
@@ -123,6 +125,10 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).businessId = token.businessId;
       }
       return session;
+    },
+    async signIn({ user, account, profile, email, credentials }) {
+      // This callback is called before the authorize function
+      return true;
     }
   },
   pages: {

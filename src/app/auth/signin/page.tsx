@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
 
@@ -19,6 +19,18 @@ function SignInForm() {
   // Clear URL parameters on component mount for security
   useEffect(() => {
     if (searchParams.toString()) {
+      // Check for 2FA error in URL
+      const error = searchParams.get('error');
+      if (error === '2FA_REQUIRED') {
+        setError('2FA code is required. Please enter your 6-digit authentication code.');
+      } else if (error === '2FA_INVALID') {
+        setError('Invalid 2FA code. Please check your authenticator app and try again.');
+      } else if (error === '2FA_NOT_SETUP') {
+        setError('2FA is not properly set up. Please contact your administrator.');
+      } else if (error === '2FA_REQUIRED_GLOBAL') {
+        setError('2FA is required for all users. Please set up 2FA in your account settings.');
+      }
+      
       console.warn('Security Warning: Sensitive data detected in URL parameters. Clearing...');
       // Remove any sensitive parameters from URL
       router.replace('/auth/signin', { scroll: false });
@@ -41,24 +53,20 @@ function SignInForm() {
       if (result?.error) {
         // Handle specific 2FA errors
         switch (result.error) {
-          case '2FA_REQUIRED':
+          case 'CredentialsSignin':
+            setError('Invalid email or password');
+            break;
+          case 'CallbackRouteError':
             setError('2FA code is required. Please enter your 6-digit authentication code.');
-            break;
-          case '2FA_INVALID':
-            setError('Invalid 2FA code. Please check your authenticator app and try again.');
-            break;
-          case '2FA_NOT_SETUP':
-            setError('2FA is not properly set up. Please contact your administrator.');
-            break;
-          case '2FA_REQUIRED_GLOBAL':
-            setError('2FA is required for all users. Please set up 2FA in your account settings.');
             break;
           default:
             setError('Invalid email or password');
         }
-      } else {
-        // Redirect to a generic dashboard first, then let the middleware handle role-based routing
+      } else if (result?.ok) {
+        // Successful login
         router.push('/dashboard');
+      } else {
+        setError('Login failed. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);
