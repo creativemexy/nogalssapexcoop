@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import EmergencyAlertBanner from '@/components/EmergencyAlertBanner';
+import NotificationBanner from '@/components/NotificationBanner';
 import { useTheme } from '@/components/providers/ThemeProvider';
 
 export default function DashboardLayout({
@@ -73,6 +74,9 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Notification Banner */}
+      <NotificationBanner />
+      
       {/* Emergency Alert Banner */}
       <EmergencyAlertBanner />
       
