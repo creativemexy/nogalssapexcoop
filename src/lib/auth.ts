@@ -47,11 +47,13 @@ export const authOptions: NextAuthOptions = {
 
           console.log('User 2FA status:', {
             twoFactorEnabled: user.twoFactorEnabled,
-            hasSecret: !!user.twoFactorSecret
+            hasSecret: !!user.twoFactorSecret,
+            secretValue: user.twoFactorSecret ? 'present' : 'null'
           });
 
           // Check if user has 2FA enabled
           if (user.twoFactorEnabled) {
+            console.log('2FA is enabled, checking for TOTP code...');
             // If 2FA is enabled, TOTP code is REQUIRED
             if (!credentials.totp) {
               throw new Error('2FA_REQUIRED');
@@ -72,9 +74,16 @@ export const authOptions: NextAuthOptions = {
               throw new Error('2FA_INVALID');
             }
           } else {
+            console.log('2FA is NOT enabled for user, checking global 2FA...');
             // Check if global 2FA is enabled
             const global2FASetting = await prisma.setting.findUnique({
               where: { key: 'global_2fa_enabled' }
+            });
+            
+            console.log('Global 2FA setting:', {
+              found: !!global2FASetting,
+              value: global2FASetting?.value,
+              isEnabled: global2FASetting?.value === 'true'
             });
 
             if (global2FASetting?.value === 'true') {
@@ -103,8 +112,10 @@ export const authOptions: NextAuthOptions = {
               }
             }
             // If no 2FA is required, continue with normal login
+            console.log('No 2FA required, proceeding with normal login');
           }
 
+          console.log('Authentication successful, returning user data');
           return {
             id: user.id,
             email: user.email,
