@@ -104,10 +104,11 @@ export default function LeaderDashboard() {
                     {/* Management Actions */}
                     <div className="bg-white rounded-lg shadow p-6 mb-8">
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Cooperative Management</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <ActionCard title="Manage Members" description="View and manage all co-operative members" href="/dashboard/leader/members" />
                             <ActionCard title="View Contributions" description="See all member contributions" href="/dashboard/leader/contributions" />
                             <ActionCard title="Approve Loans" description="Review and approve loan applications" href="/dashboard/leader/loans" />
+                            <ActionCard title="2FA Security" description="Set up two-factor authentication" href="/dashboard/2fa-setup" />
                         </div>
                     </div>
                 </>

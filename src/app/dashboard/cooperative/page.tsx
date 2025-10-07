@@ -282,6 +282,12 @@ export default function CooperativeDashboard() {
                 >
                   View Allocations
                 </Link>
+                <Link
+                  href="/dashboard/2fa-setup"
+                  className="block w-full bg-red-600 text-white text-center py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  🔐 2FA Security
+                </Link>
               </div>
             </div>
           </div>
