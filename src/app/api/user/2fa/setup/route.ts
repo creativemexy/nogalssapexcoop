@@ -28,34 +28,15 @@ export async function PUT(req: NextRequest) {
   }
 
   const { token } = await req.json()
-  console.log('2FA Verification attempt:', {
-    email: session.user.email,
-    token: token,
-    hasToken: !!token
-  })
-  
   if (!token) return NextResponse.json({ error: 'Token required' }, { status: 400 })
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-  console.log('User 2FA setup status:', {
-    userFound: !!user,
-    hasSecret: !!user?.twoFactorSecret,
-    secretValue: user?.twoFactorSecret ? 'present' : 'null'
-  })
-  
   if (!user || !user.twoFactorSecret) return NextResponse.json({ error: 'Setup not initiated' }, { status: 400 })
 
   const ok = verifyTOTPToken(user.twoFactorSecret, token)
-  console.log('TOTP Verification result:', {
-    secret: user.twoFactorSecret ? 'present' : 'missing',
-    token: token,
-    isValid: ok
-  })
-  
   if (!ok) return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
 
   await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } })
-  console.log('2FA enabled successfully for user:', user.email)
   return NextResponse.json({ success: true })
 }
 
@@ -69,5 +50,3 @@ export async function DELETE() {
   await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } })
   return NextResponse.json({ success: true })
 }
-
-

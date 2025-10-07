@@ -90,6 +90,7 @@ export default function ApexDashboard() {
         <ActionCard title="Generate Reports" description="Create and view reports" href="/dashboard/apex/reports" />
         <ActionCard title="Manage Events" description="Create, edit, and manage events" href="/dashboard/apex/events" />
         <ActionCard title="Registration Fee" description="Set and manage registration fees" href="/dashboard/apex/settings/registration-fee" />
+        <ActionCard title="2FA Security" description="Set up two-factor authentication" href="/dashboard/2fa-setup" />
       </div>
 
       {/*
