@@ -6,6 +6,37 @@ import { sendMail } from '@/lib/email';
 import { getWelcomeEmailHtml } from '@/lib/notifications';
 import { createVirtualAccount } from '@/lib/paystack';
 
+// Helper function to calculate base amount from total amount (reversing Paystack fee calculation)
+function calculateBaseAmountFromTotal(totalPaid: number): number {
+  // Paystack fees: 1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500
+  // We need to reverse this calculation to get the original base amount
+  
+  // If total paid is less than 2,500, no fees were applied
+  if (totalPaid < 2500) {
+    return totalPaid;
+  }
+  
+  // For amounts >= 2,500, we need to solve: totalPaid = baseAmount + min(1.5% * baseAmount + 100, 2000)
+  // This is: totalPaid = baseAmount + min(0.015 * baseAmount + 100, 2000)
+  
+  // Let's try to find the base amount by working backwards
+  // If fees were capped at 2000: totalPaid = baseAmount + 2000, so baseAmount = totalPaid - 2000
+  // If fees were not capped: totalPaid = baseAmount + 0.015 * baseAmount + 100
+  // So: totalPaid = baseAmount * (1 + 0.015) + 100 = baseAmount * 1.015 + 100
+  // Therefore: baseAmount = (totalPaid - 100) / 1.015
+  
+  const baseAmountWithUncappedFees = (totalPaid - 100) / 1.015;
+  const feesForUncapped = 0.015 * baseAmountWithUncappedFees + 100;
+  
+  // If the calculated fees would be <= 2000, use the uncapped calculation
+  if (feesForUncapped <= 2000) {
+    return baseAmountWithUncappedFees;
+  }
+  
+  // Otherwise, fees were capped at 2000
+  return totalPaid - 2000;
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Payment verification GET request received');
@@ -468,10 +499,14 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
       });
       console.log('✅ Member user created:', memberUser.id);
 
-      // Record the successful payment
+      // Record the successful payment (base amount only, excluding Paystack fees)
+      // Calculate base amount by reversing the fee calculation
+      const totalPaid = paystackData.data.amount / 100; // Convert from kobo to naira
+      const baseAmount = calculateBaseAmountFromTotal(totalPaid);
+      
       await tx.transaction.create({
         data: {
-          amount: paystackData.data.amount,
+          amount: Math.round(baseAmount * 100), // Convert back to kobo for storage
           type: 'FEE',
           description: 'Member registration fee payment',
           status: 'SUCCESSFUL',
