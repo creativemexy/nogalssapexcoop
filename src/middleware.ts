@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/public/') ||
     pathname.startsWith('/api/events') ||
     pathname === '/' ||
     pathname.startsWith('/about') ||
@@ -52,7 +53,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/logo.png') ||
     pathname.startsWith('/android-chrome-') ||
     pathname.startsWith('/apple-touch-icon') ||
-    pathname.startsWith('/favicon-')
+    pathname.startsWith('/favicon-') ||
+    pathname.startsWith('/site.webmanifest') ||
+    pathname.startsWith('/robots.txt') ||
+    pathname.startsWith('/sitemap.xml') ||
+    pathname.startsWith('/browserconfig.xml')
   ) {
     return NextResponse.next();
   }

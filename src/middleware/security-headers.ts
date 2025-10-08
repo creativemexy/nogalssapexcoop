@@ -48,11 +48,52 @@ export interface SecurityHeadersConfig {
   };
 }
 
+// Development-specific security configuration (more permissive)
+const developmentSecurityConfig: SecurityHeadersConfig = {
+  csp: {
+    defaultSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "blob:", "chrome-extension:"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    imgSrc: ["'self'", "data:", "https:", "blob:", "chrome-extension:"],
+    connectSrc: ["'self'", "https://api.paystack.co", "https://api.ethereal.email", "ws:", "wss:"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'", "data:", "blob:"],
+    frameSrc: ["'self'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+    upgradeInsecureRequests: false
+  },
+  cors: {
+    origin: ["http://localhost:3000", "https://localhost:3000", "http://127.0.0.1:3000"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+    maxAge: 86400
+  },
+  https: {
+    enforce: false,
+    redirect: false,
+    hsts: false,
+    hstsMaxAge: 0,
+    includeSubDomains: false,
+    preload: false
+  },
+  additional: {
+    xFrameOptions: "SAMEORIGIN",
+    xContentTypeOptions: "nosniff",
+    xXssProtection: "1; mode=block",
+    referrerPolicy: "strict-origin-when-cross-origin",
+    permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+  }
+};
+
 // Default security configuration
 const defaultSecurityConfig: SecurityHeadersConfig = {
   csp: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: Consider removing unsafe-inline and unsafe-eval in production
+    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "blob:"], // Note: Consider removing unsafe-inline and unsafe-eval in production
     styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
     imgSrc: ["'self'", "data:", "https:", "blob:"],
     connectSrc: ["'self'", "https://api.paystack.co", "https://api.ethereal.email"],
@@ -180,7 +221,8 @@ export function applySecurityHeaders(
   response: NextResponse,
   config?: SecurityHeadersConfig
 ): NextResponse {
-  const securityConfig = config || defaultSecurityConfig;
+  // Use development config in development mode
+  const securityConfig = config || (process.env.NODE_ENV === 'development' ? developmentSecurityConfig : defaultSecurityConfig);
   const origin = request.headers.get('origin');
   
   // Apply CORS headers
