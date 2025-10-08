@@ -63,12 +63,15 @@ export default function RegisterPage() {
     const [ninLocked, setNinLocked] = useState(false);
     const [cooperatives, setCooperatives] = useState<{ code: string; name: string }[]>([]);
     const [loadingCooperatives, setLoadingCooperatives] = useState(false);
+    const [occupations, setOccupations] = useState<{ id: string; name: string }[]>([]);
+    const [loadingOccupations, setLoadingOccupations] = useState(false);
     const [memberStep, setMemberStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
 
 
     useEffect(() => {
         fetchRegistrationFee();
+        fetchOccupations(); // Always fetch occupations
         if (registrationType === 'MEMBER') {
             fetchCooperatives();
         }
@@ -137,6 +140,46 @@ export default function RegisterPage() {
             alert('Failed to load cooperatives. Please refresh the page and try again.');
         } finally {
             setLoadingCooperatives(false);
+        }
+    };
+
+    const fetchOccupations = async () => {
+        try {
+            setLoadingOccupations(true);
+            console.log('Fetching occupations...');
+            
+            const response = await fetch('/api/occupations', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
+            
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Occupations data:', data);
+            
+            if (data.occupations && Array.isArray(data.occupations)) {
+                setOccupations(data.occupations);
+                console.log('Occupations loaded:', data.occupations.length);
+            } else {
+                console.warn('No occupations found in response');
+                setOccupations([]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch occupations:', err);
+            setOccupations([]);
+        } finally {
+            setLoadingOccupations(false);
         }
     };
 
@@ -735,8 +778,36 @@ export default function RegisterPage() {
                             <p className="text-xs text-gray-600 mt-1">Minimum age: 16 years</p>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Occupation</label>
-                            <input type="text" name="occupation" value={formData.occupation} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                            <label className="block text-sm font-medium">Occupation *</label>
+                            {loadingOccupations ? (
+                                <div className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 mr-2"></div>
+                                    <span className="text-sm text-gray-600">Loading occupations...</span>
+                                </div>
+                            ) : occupations.length === 0 ? (
+                                <div className="w-full mt-1 p-2 border border-red-300 rounded-md bg-red-50 flex items-center">
+                                    <svg className="h-4 w-4 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                    <span className="text-sm text-red-600">No occupations available</span>
+                                </div>
+                            ) : (
+                                <select 
+                                    name="occupation" 
+                                    value={formData.occupation} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                >
+                                    <option value="">Select your occupation</option>
+                                    {occupations.map(occupation => (
+                                        <option key={occupation.id} value={occupation.name}>
+                                            {occupation.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            <p className="text-xs text-gray-600 mt-1">Select your current occupation</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Address</label>
