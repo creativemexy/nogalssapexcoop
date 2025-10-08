@@ -389,14 +389,14 @@ export default function RegisterPage() {
                                     required 
                                     minLength={10}
                                     maxLength={10}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
                                     placeholder="1234567890"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Bank Account Name *</label>
-                                <input type="text" name="bankAccountName" value={formData.bankAccountName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
+                                <input type="text" name="bankAccountName" value={formData.bankAccountName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"/>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Phone *</label>
@@ -413,14 +413,14 @@ export default function RegisterPage() {
                                     required 
                                     minLength={11}
                                     maxLength={11}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
                                     placeholder="08012345678"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Email *</label>
-                                <input type="email" name="cooperativeEmail" value={formData.cooperativeEmail} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
+                                <input type="email" name="cooperativeEmail" value={formData.cooperativeEmail} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"/>
                             </div>
                         </div>
                     </div>
@@ -434,11 +434,11 @@ export default function RegisterPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">Leader's First Name *</label>
-                                    <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                    <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Last Name *</label>
-                                    <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                    <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
                                 </div>
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -457,19 +457,19 @@ export default function RegisterPage() {
                                         required 
                                         minLength={11}
                                         maxLength={11}
-                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
                                         placeholder="08012345678"
                                     />
                                     <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Title *</label>
-                                    <input type="text" name="leaderTitle" value={formData.leaderTitle} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                    <input type="text" name="leaderTitle" value={formData.leaderTitle} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Leader's Email *</label>
-                                <input type="email" name="leaderEmail" value={formData.leaderEmail} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <input type="email" name="leaderEmail" value={formData.leaderEmail} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Leader's Password *</label>
@@ -682,23 +682,23 @@ export default function RegisterPage() {
                         </div>
                         <div>
                             <label htmlFor="phoneNumber" className="block text-sm font-medium">Phone Number *</label>
-                            <input 
-                                type="tel" 
-                                id="phoneNumber"
-                                name="phoneNumber" 
-                                value={formData.phoneNumber} 
-                                onChange={(e) => {
-                                    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                                    if (value.length <= 11) {
-                                        setFormData(prev => ({ ...prev, phoneNumber: value }));
-                                    }
-                                }}
-                                required 
-                                minLength={11}
-                                maxLength={11}
-                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
-                                placeholder="08012345678"
-                            />
+                                <input 
+                                    type="tel" 
+                                    id="phoneNumber"
+                                    name="phoneNumber" 
+                                    value={formData.phoneNumber} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 11) {
+                                            setFormData(prev => ({ ...prev, phoneNumber: value }));
+                                        }
+                                    }}
+                                    required 
+                                    minLength={11}
+                                    maxLength={11}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
+                                    placeholder="08012345678"
+                                />
                             <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                         </div>
                         <div>
@@ -711,7 +711,7 @@ export default function RegisterPage() {
                                     onChange={handleChange} 
                                     required 
                                     minLength={6}
-                                    className="w-full mt-1 p-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                 />
                                 <button
                                     type="button"
@@ -742,7 +742,7 @@ export default function RegisterPage() {
                                     onChange={handleChange} 
                                     required 
                                     minLength={6}
-                                    className="w-full mt-1 p-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                 />
                                 <button
                                     type="button"
@@ -797,7 +797,7 @@ export default function RegisterPage() {
                                     value={formData.occupation} 
                                     onChange={handleChange} 
                                     required 
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
                                 >
                                     <option value="">Select your occupation</option>
                                     {occupations.map(occupation => (
@@ -811,16 +811,16 @@ export default function RegisterPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Address</label>
-                            <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                            <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">City</label>
-                                <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                                <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">State</label>
-                                <select name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500">
+                                <select name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black">
                                     <option value="">Select State</option>
                                     {states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                                 </select>
@@ -829,7 +829,7 @@ export default function RegisterPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">LGA</label>
-                                <select name="lga" value={formData.lga} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500" disabled={!formData.state}>
+                                <select name="lga" value={formData.lga} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black" disabled={!formData.state}>
                                     <option value="">Select LGA</option>
                                     {selectedState && selectedState.lgas.map(lga => <option key={lga} value={lga}>{lga}</option>)}
                                 </select>
@@ -845,7 +845,7 @@ export default function RegisterPage() {
                                     value={formData.nextOfKinName} 
                                     onChange={handleChange} 
                                     required 
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                     placeholder="Full name as it appears on NIN"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Full name as it appears on NIN</p>
@@ -865,7 +865,7 @@ export default function RegisterPage() {
                                     required 
                                     minLength={11}
                                     maxLength={11}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                     placeholder="08012345678"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
@@ -880,7 +880,7 @@ export default function RegisterPage() {
                                     value={formData.emergencyContact} 
                                     onChange={handleChange} 
                                     required 
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Name of emergency contact person</p>
                             </div>
@@ -899,7 +899,7 @@ export default function RegisterPage() {
                                     required 
                                     minLength={11}
                                     maxLength={11}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
                                     placeholder="08012345678"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
