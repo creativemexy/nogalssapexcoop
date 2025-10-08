@@ -71,15 +71,15 @@ export async function POST(req: NextRequest) {
             if (existingCooperative) {
                 return NextResponse.json({ error: 'A co-operative with this registration number already exists.' }, { status: 409 });
             }
-            // Get registration fee from system settings
-            const registrationFeeSetting = await prisma.systemSettings.findFirst({
+            // Get cooperative registration fee from system settings
+            const cooperativeFeeSetting = await prisma.systemSettings.findFirst({
                 where: { 
                     category: 'payment',
-                    key: 'registration_fee' 
+                    key: 'cooperative_registration_fee' 
                 }
             });
-            const defaultFee = 5000000; // ₦50,000.00 in kobo
-            const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            const defaultCooperativeFee = 5000000; // ₦50,000.00 in kobo
+            const baseRegistrationFee = cooperativeFeeSetting ? parseInt(cooperativeFeeSetting.value) : defaultCooperativeFee;
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
             const baseAmount = baseRegistrationFee / 100; // Convert to naira
@@ -248,15 +248,15 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: getPasswordPolicyMessage() }, { status: 400 });
             }
 
-            // Get registration fee from system settings
-            const registrationFeeSetting = await prisma.systemSettings.findFirst({
+            // Get member registration fee from system settings
+            const memberFeeSetting = await prisma.systemSettings.findFirst({
                 where: { 
                     category: 'payment',
-                    key: 'registration_fee' 
+                    key: 'member_registration_fee' 
                 }
             });
-            const defaultFee = 5000000; // ₦50,000.00 in kobo
-            const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
+            const defaultMemberFee = 50000; // ₦500.00 in kobo
+            const baseRegistrationFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : defaultMemberFee;
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
             const baseAmount = baseRegistrationFee / 100; // Convert to naira

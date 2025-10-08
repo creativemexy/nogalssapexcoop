@@ -90,14 +90,27 @@ export default function RegisterPage() {
 
     const fetchRegistrationFee = async () => {
         try {
-            const response = await fetch('/api/public/registration-fee');
+            let endpoint = '/api/public/registration-fee'; // Default fallback
+            
+            if (registrationType === 'MEMBER') {
+                endpoint = '/api/public/member-registration-fee';
+            } else if (registrationType === 'COOPERATIVE') {
+                endpoint = '/api/public/cooperative-registration-fee';
+            }
+            
+            const response = await fetch(endpoint);
             const data = await response.json();
             if (response.ok) {
                 setRegistrationFee(data.registrationFeeFormatted);
             }
         } catch (err) {
             console.error('Failed to fetch registration fee:', err);
-            setRegistrationFee('₦50,000.00'); // Fallback
+            // Set appropriate fallback based on registration type
+            if (registrationType === 'MEMBER') {
+                setRegistrationFee('₦500.00'); // Member fallback
+            } else {
+                setRegistrationFee('₦50,000.00'); // Cooperative fallback
+            }
         }
     };
 
