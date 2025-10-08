@@ -260,7 +260,7 @@ export default function RegisterPage() {
                                 <label className="block text-sm font-medium">City *</label>
                                 <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
                             </div>
-                             <div className="grid grid-cols-2 gap-4">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">State *</label>
                                     <select name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md">
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                         <h3 className="text-xl font-semibold border-b pb-2">Step 3: Leader's Details</h3>
                         <p className="text-sm text-gray-500 mt-2">Create the primary leader account for this organization.</p>
                         <div className="space-y-4 mt-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">Leader's First Name *</label>
                                     <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
@@ -326,7 +326,7 @@ export default function RegisterPage() {
                                     <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
                                 </div>
                             </div>
-                             <div className="grid grid-cols-2 gap-4">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Phone *</label>
                                     <input type="text" name="leaderPhone" value={formData.leaderPhone} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
@@ -464,7 +464,7 @@ export default function RegisterPage() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">First Name</label>
                                 <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
@@ -571,7 +571,7 @@ export default function RegisterPage() {
                             <label className="block text-sm font-medium">Address</label>
                             <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">City</label>
                                 <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
@@ -584,7 +584,7 @@ export default function RegisterPage() {
                                 </select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">LGA</label>
                                 <select name="lga" value={formData.lga} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500" disabled={!formData.state}>
@@ -594,7 +594,7 @@ export default function RegisterPage() {
                             </div>
                             <div></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">Emergency Contact Name *</label>
                                 <input 
@@ -769,15 +769,15 @@ export default function RegisterPage() {
         if (!registrationType) {
             return (
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Choose Registration Type</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div onClick={() => handleTypeSelect('COOPERATIVE')} className="p-8 border rounded-lg bg-white shadow-md hover:shadow-xl transition-shadow cursor-pointer">
-                            <h3 className="text-xl font-semibold text-green-600">Register an Organization</h3>
-                            <p className="text-gray-600 mt-2">Create a new organization and the primary leader account.</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Choose Registration Type</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div onClick={() => handleTypeSelect('COOPERATIVE')} className="p-4 sm:p-8 border rounded-lg bg-white shadow-md hover:shadow-xl transition-shadow cursor-pointer">
+                            <h3 className="text-lg sm:text-xl font-semibold text-green-600">Register an Organization</h3>
+                            <p className="text-sm sm:text-base text-gray-600 mt-2">Create a new organization and the primary leader account.</p>
                         </div>
-                        <div onClick={() => handleTypeSelect('MEMBER')} className="p-8 border rounded-lg bg-white shadow-md hover:shadow-xl transition-shadow cursor-pointer">
-                            <h3 className="text-xl font-semibold text-yellow-600">Register as a Member</h3>
-                            <p className="text-gray-600 mt-2">Join an existing organization as a member.</p>
+                        <div onClick={() => handleTypeSelect('MEMBER')} className="p-4 sm:p-8 border rounded-lg bg-white shadow-md hover:shadow-xl transition-shadow cursor-pointer">
+                            <h3 className="text-lg sm:text-xl font-semibold text-yellow-600">Register as a Member</h3>
+                            <p className="text-sm sm:text-base text-gray-600 mt-2">Join an existing organization as a member.</p>
                         </div>
                     </div>
                 </div>
@@ -806,20 +806,21 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center py-12 relative">
-            <Link href="/" className="absolute left-8 top-8">
-                <button className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 font-semibold transition shadow">
-                    &larr; Back to Home
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center py-4 sm:py-12 relative">
+            <Link href="/" className="absolute left-2 sm:left-8 top-2 sm:top-8">
+                <button className="px-2 sm:px-4 py-1 sm:py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 font-semibold transition shadow text-sm">
+                    <span className="hidden sm:inline">&larr; Back to Home</span>
+                    <span className="sm:hidden">&larr; Back</span>
                 </button>
             </Link>
-            <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full max-w-2xl mx-auto px-4 sm:px-0">
                 <div className="flex flex-col items-center mb-4">
-                    <Image src="/logo.png" alt="Nogalss Logo" width={96} height={96} priority />
+                    <Image src="/logo.png" alt="Nogalss Logo" width={64} height={64} className="sm:w-24 sm:h-24" priority />
                 </div>
-                <div className="text-center mb-8">
-                    <h2 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">Create an Account</h2>
+                <div className="text-center mb-6 sm:mb-8">
+                    <h2 className="mt-2 sm:mt-4 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Create an Account</h2>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-8">
                     {renderForm()}
                 </div>
             </div>

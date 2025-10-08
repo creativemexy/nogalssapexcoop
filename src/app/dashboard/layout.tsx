@@ -110,33 +110,37 @@ export default function DashboardLayout({
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Link href="/">
-                <Image src="/logo.png" alt="Nogalss Logo" width={48} height={48} priority />
+                <Image src="/logo.png" alt="Nogalss Logo" width={40} height={40} className="sm:w-12 sm:h-12" priority />
               </Link>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 dark:text-gray-200">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <span className="hidden sm:block text-sm text-gray-600 dark:text-gray-200">
                 Welcome, {impersonationData ? `${impersonationData.firstName} ${impersonationData.lastName}` : session.user?.name}
               </span>
+              <span className="sm:hidden text-xs text-gray-600 dark:text-gray-200 truncate max-w-20">
+                {impersonationData ? `${impersonationData.firstName}` : session.user?.name?.split(' ')[0]}
+              </span>
               {(session.user as any)?.role === 'SUPER_ADMIN' && !impersonationData && (
-                <Link href="/dashboard/super-admin/profile" className="text-green-600 dark:text-green-400 hover:text-green-500 dark:hover:text-green-300 text-sm">
+                <Link href="/dashboard/super-admin/profile" className="hidden sm:block text-green-600 dark:text-green-400 hover:text-green-500 dark:hover:text-green-300 text-sm">
                   Profile
                 </Link>
               )}
               <button
                 onClick={toggleTheme}
-                className="flex items-center px-2 py-1 rounded text-sm border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                className="flex items-center px-1 sm:px-2 py-1 rounded text-xs sm:text-sm border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                 aria-label="Toggle dark mode"
               >
                 {theme === 'dark' ? (
-                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.95 7.05l-.71-.71M6.34 6.34l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.95 7.05l-.71-.71M6.34 6.34l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                 ) : (
-                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" /></svg>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" /></svg>
                 )}
-                {theme === 'dark' ? 'Light' : 'Dark'} Mode
+                <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'} Mode</span>
               </button>
-              <Link href="/api/auth/signout" className="text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300 text-sm">
-                Sign Out
+              <Link href="/api/auth/signout" className="text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300 text-xs sm:text-sm">
+                <span className="hidden sm:inline">Sign Out</span>
+                <span className="sm:hidden">Exit</span>
               </Link>
             </div>
           </div>
