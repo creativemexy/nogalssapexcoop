@@ -71,6 +71,17 @@ export default function RegisterPage() {
         }
     }, [registrationType]);
 
+    // Retry mechanism for cooperatives
+    useEffect(() => {
+        if (registrationType === 'MEMBER' && cooperatives.length === 0 && !loadingCooperatives) {
+            const retryTimer = setTimeout(() => {
+                console.log('Retrying cooperative fetch...');
+                fetchCooperatives();
+            }, 2000);
+            return () => clearTimeout(retryTimer);
+        }
+    }, [registrationType, cooperatives.length, loadingCooperatives]);
+
     const fetchRegistrationFee = async () => {
         try {
             const response = await fetch('/api/public/registration-fee');
@@ -87,14 +98,40 @@ export default function RegisterPage() {
     const fetchCooperatives = async () => {
         try {
             setLoadingCooperatives(true);
-            const response = await fetch('/api/public/cooperatives');
+            console.log('Fetching cooperatives...');
+            
+            const response = await fetch('/api/public/cooperatives', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
+            
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
-            if (response.ok) {
-                setCooperatives(data.cooperatives || []);
+            console.log('Cooperatives data:', data);
+            
+            if (data.cooperatives && Array.isArray(data.cooperatives)) {
+                setCooperatives(data.cooperatives);
+                console.log('Cooperatives loaded:', data.cooperatives.length);
+            } else {
+                console.warn('No cooperatives found in response');
+                setCooperatives([]);
             }
         } catch (err) {
             console.error('Failed to fetch cooperatives:', err);
             setCooperatives([]);
+            // Show user-friendly error message
+            alert('Failed to load cooperatives. Please refresh the page and try again.');
         } finally {
             setLoadingCooperatives(false);
         }
@@ -376,11 +413,29 @@ export default function RegisterPage() {
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Select Your Cooperative</h3>
                         <div>
-                            <label htmlFor="cooperativeCode" className="block text-sm font-medium">Select Cooperative *</label>
+                            <label htmlFor="cooperativeCode" className="block text-sm font-medium text-gray-700">
+                                Select Cooperative *
+                            </label>
                             {loadingCooperatives ? (
-                                <div className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
+                                <div className="w-full mt-1 p-3 border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center">
                                     <span className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></span>
-                                    Loading cooperatives...
+                                    <span className="text-sm text-gray-600">Loading cooperatives...</span>
+                                </div>
+                            ) : cooperatives.length === 0 ? (
+                                <div className="w-full mt-1 p-3 border border-red-300 rounded-md bg-red-50">
+                                    <div className="flex items-center">
+                                        <svg className="w-4 h-4 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                        </svg>
+                                        <span className="text-sm text-red-600">No cooperatives available</span>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={fetchCooperatives}
+                                        className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                                    >
+                                        Try again
+                                    </button>
                                 </div>
                             ) : (
                                 <select
@@ -389,7 +444,17 @@ export default function RegisterPage() {
                                     value={formData.cooperativeCode}
                                     onChange={handleChange}
                                     required
-                                    className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    className="w-full mt-1 p-3 border border-yellow-400 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 bg-white text-gray-900"
+                                    style={{ 
+                                        WebkitAppearance: 'none',
+                                        MozAppearance: 'none',
+                                        appearance: 'none',
+                                        backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6,9 12,15 18,9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 12px center',
+                                        backgroundSize: '16px',
+                                        paddingRight: '40px'
+                                    }}
                                 >
                                     <option value="">Select your cooperative</option>
                                     {cooperatives.map((coop) => (
@@ -399,7 +464,19 @@ export default function RegisterPage() {
                                     ))}
                                 </select>
                             )}
-                            <p className="text-xs text-gray-600 mt-1">Choose your cooperative from the list</p>
+                            <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-gray-600">
+                                    Choose your cooperative from the list. If the list is empty, try refreshing.
+                                </p>
+                                <button 
+                                    type="button"
+                                    onClick={fetchCooperatives}
+                                    disabled={loadingCooperatives}
+                                    className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                                >
+                                    {loadingCooperatives ? 'Loading...' : 'Refresh List'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
