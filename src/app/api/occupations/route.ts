@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '500');
 
     let whereClause: any = {
       isActive: true
@@ -22,21 +22,28 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const occupations = await prisma.occupation.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true
-      },
-      orderBy: {
-        name: 'asc'
-      },
-      take: limit
-    });
+    const [occupations, totalCount] = await Promise.all([
+      prisma.occupation.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true
+        },
+        orderBy: {
+          name: 'asc'
+        },
+        take: limit
+      }),
+      prisma.occupation.count({
+        where: whereClause
+      })
+    ]);
 
     return NextResponse.json({
       occupations,
-      total: occupations.length
+      total: totalCount,
+      returned: occupations.length,
+      hasMore: occupations.length < totalCount
     });
 
   } catch (error) {
