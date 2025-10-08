@@ -9,14 +9,14 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email or NIN", type: "text" },
         password: { label: "Password", type: "password" },
         totp: { label: "2FA Code", type: "text" }
       },
       async authorize(credentials) {
         try {
           console.log('Auth attempt:', {
-            email: credentials?.email,
+            emailOrNin: credentials?.email,
             hasPassword: !!credentials?.password,
             hasTotp: !!credentials?.totp,
             totpValue: credentials?.totp
@@ -26,11 +26,30 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email
+          // Check if input is email or NIN and find user accordingly
+          const isEmail = credentials.email.includes('@');
+          let user;
+          
+          if (isEmail) {
+            // Login with email
+            user = await prisma.user.findUnique({
+              where: {
+                email: credentials.email
+              }
+            });
+          } else {
+            // Login with NIN (assuming NIN is 10 digits)
+            if (!/^\d{10}$/.test(credentials.email)) {
+              console.log('Invalid NIN format:', credentials.email);
+              return null;
             }
-          });
+            
+            user = await prisma.user.findFirst({
+              where: {
+                nin: credentials.email
+              }
+            });
+          }
 
           if (!user || !user.password) {
             return null;

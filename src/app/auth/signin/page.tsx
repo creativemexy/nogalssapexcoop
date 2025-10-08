@@ -8,7 +8,7 @@ import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
 
 function SignInForm() {
-  const [email, setEmail] = useState('');
+  const [emailOrNin, setEmailOrNin] = useState('');
   const [password, setPassword] = useState('');
   const [totp, setTotp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +44,7 @@ function SignInForm() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        email: emailOrNin,
         password,
         totp: totp || undefined,
         redirect: false,
@@ -100,20 +100,23 @@ function SignInForm() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email address
+              <label htmlFor="emailOrNin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email address or NIN
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="emailOrNin"
+                name="emailOrNin"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={emailOrNin}
+                onChange={(e) => setEmailOrNin(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                placeholder="Enter your email"
+                placeholder="Enter your email or NIN"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                You can sign in with either your email address or your 10-digit NIN
+              </p>
             </div>
 
             <div>
