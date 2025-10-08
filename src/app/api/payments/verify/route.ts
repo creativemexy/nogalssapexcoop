@@ -459,9 +459,11 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
           password: hashedPassword,
           role: 'MEMBER',
           cooperativeId: registrationData.cooperativeId,
-          phoneNumber: registrationData.emergencyPhone,
+          phoneNumber: registrationData.phoneNumber,
           dateOfBirth: new Date(registrationData.dateOfBirth),
           address: registrationData.address,
+          nextOfKinName: registrationData.nextOfKinName,
+          nextOfKinPhone: registrationData.nextOfKinPhone,
         },
       });
       console.log('✅ Member user created:', memberUser.id);

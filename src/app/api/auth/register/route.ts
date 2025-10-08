@@ -178,11 +178,11 @@ export async function POST(req: NextRequest) {
             }, { status: 201 });
 
         } else if (registrationType === 'MEMBER') {
-            const { firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, emergencyContact, emergencyPhone, savingAmount, savingFrequency } = body;
+            const { firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, phoneNumber, nextOfKinName, nextOfKinPhone, emergencyContact, emergencyPhone, savingAmount, savingFrequency } = body;
             
             // Validate input for all required fields
             const requiredFields = {
-                firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, emergencyContact, emergencyPhone, savingAmount, savingFrequency
+                firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, phoneNumber, nextOfKinName, nextOfKinPhone, emergencyContact, emergencyPhone, savingAmount, savingFrequency
             };
 
             for (const [key, value] of Object.entries(requiredFields)) {
@@ -247,6 +247,9 @@ export async function POST(req: NextRequest) {
                 city,
                 lga,
                 state,
+                phoneNumber,
+                nextOfKinName,
+                nextOfKinPhone,
                 emergencyContact,
                 emergencyPhone,
                 savingAmount,

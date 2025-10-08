@@ -17,6 +17,8 @@ model User {
   dateOfBirth   DateTime?
   address       String?
   profileImage  String?
+  nextOfKinName String?
+  nextOfKinPhone String?
   role          UserRole       @default(MEMBER)
   isActive      Boolean        @default(true)
   isVerified    Boolean        @default(false)

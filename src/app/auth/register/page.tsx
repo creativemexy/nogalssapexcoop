@@ -29,6 +29,9 @@ export default function RegisterPage() {
         city: '',
         lga: '',
         state: '',
+        phoneNumber: '',
+        nextOfKinName: '',
+        nextOfKinPhone: '',
         emergencyContact: '',
         emergencyPhone: '',
         savingAmount: '',
@@ -565,6 +568,20 @@ export default function RegisterPage() {
                             <p className="text-xs text-gray-600 mt-1">This will be used for login and notifications</p>
                         </div>
                         <div>
+                            <label htmlFor="phoneNumber" className="block text-sm font-medium">Phone Number *</label>
+                            <input 
+                                type="tel" 
+                                id="phoneNumber"
+                                name="phoneNumber" 
+                                value={formData.phoneNumber} 
+                                onChange={handleChange} 
+                                required 
+                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                placeholder="e.g., 08012345678"
+                            />
+                            <p className="text-xs text-gray-600 mt-1">Your primary phone number</p>
+                        </div>
+                        <div>
                             <label className="block text-sm font-medium">Password *</label>
                             <div className="relative">
                                 <input 
@@ -670,6 +687,34 @@ export default function RegisterPage() {
                                 </select>
                             </div>
                             <div></div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium">Next of Kin Full Name *</label>
+                                <input 
+                                    type="text" 
+                                    name="nextOfKinName" 
+                                    value={formData.nextOfKinName} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    placeholder="Full name as it appears on NIN"
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Full name as it appears on NIN</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium">Next of Kin Phone Number *</label>
+                                <input 
+                                    type="tel" 
+                                    name="nextOfKinPhone" 
+                                    value={formData.nextOfKinPhone} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    placeholder="e.g., 08012345678"
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Phone number of next of kin</p>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
