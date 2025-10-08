@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
           DATE_TRUNC('month', "createdAt") as month,
           SUM(amount) as total_amount,
           COUNT(id) as transaction_count
-        FROM "Transaction" 
+        FROM "transactions" 
         WHERE status = 'SUCCESSFUL' 
           AND "createdAt" >= NOW() - INTERVAL '6 months'
         GROUP BY DATE_TRUNC('month', "createdAt")
