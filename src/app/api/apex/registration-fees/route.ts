@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const defaultMemberFee = 50000; // ₦500.00 in kobo
+    const defaultMemberFee = 500000; // ₦5,000.00 in kobo
     const defaultCooperativeFee = 5000000; // ₦50,000.00 in kobo
 
     const memberFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : defaultMemberFee;

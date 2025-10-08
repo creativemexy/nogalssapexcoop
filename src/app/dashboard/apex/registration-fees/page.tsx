@@ -104,7 +104,7 @@ export default function RegistrationFeesPage() {
   };
 
   const resetToDefaults = () => {
-    setMemberFee('500');
+    setMemberFee('5000');
     setCooperativeFee('50000');
   };
 
@@ -211,7 +211,7 @@ export default function RegistrationFeesPage() {
                     max="100000"
                     step="0.01"
                     className="pl-8 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                    placeholder="500.00"
+                    placeholder="5000.00"
                     required
                   />
                 </div>

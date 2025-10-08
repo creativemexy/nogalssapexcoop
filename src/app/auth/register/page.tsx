@@ -107,7 +107,7 @@ export default function RegisterPage() {
             console.error('Failed to fetch registration fee:', err);
             // Set appropriate fallback based on registration type
             if (registrationType === 'MEMBER') {
-                setRegistrationFee('₦500.00'); // Member fallback
+                setRegistrationFee('₦5,000.00'); // Member fallback
             } else {
                 setRegistrationFee('₦50,000.00'); // Cooperative fallback
             }

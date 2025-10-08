@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
                     key: 'member_registration_fee' 
                 }
             });
-            const defaultMemberFee = 50000; // ₦500.00 in kobo
+            const defaultMemberFee = 500000; // ₦5,000.00 in kobo
             const baseRegistrationFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : defaultMemberFee;
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
