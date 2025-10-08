@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const defaultFee = 50000; // ₦500.00 in kobo
+    const defaultFee = 5000000; // ₦50,000.00 in kobo
     const registrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
 
     return NextResponse.json({

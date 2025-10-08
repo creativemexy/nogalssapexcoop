@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
                 cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone, cooperativeEmail,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
-                leaderPhone, leaderTitle
+                leaderPhone, leaderTitle, leaderBankAccountNumber
             } = body;
 
             // Validate input for all required fields
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
                     key: 'registration_fee' 
                 }
             });
-            const defaultFee = 50000; // ₦500.00 in kobo
+            const defaultFee = 5000000; // ₦50,000.00 in kobo
             const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
                     key: 'registration_fee' 
                 }
             });
-            const defaultFee = 50000; // ₦500.00 in kobo
+            const defaultFee = 5000000; // ₦50,000.00 in kobo
             const baseRegistrationFee = registrationFeeSetting ? parseInt(registrationFeeSetting.value) : defaultFee;
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)

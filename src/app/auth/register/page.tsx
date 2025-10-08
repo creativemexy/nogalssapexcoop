@@ -97,7 +97,7 @@ export default function RegisterPage() {
             }
         } catch (err) {
             console.error('Failed to fetch registration fee:', err);
-            setRegistrationFee('₦5,000.00'); // Fallback
+            setRegistrationFee('₦50,000.00'); // Fallback
         }
     };
 
