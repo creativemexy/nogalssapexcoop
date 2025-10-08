@@ -19,6 +19,7 @@ model User {
   profileImage  String?
   nextOfKinName String?
   nextOfKinPhone String?
+  nin           String?        @unique
   role          UserRole       @default(MEMBER)
   isActive      Boolean        @default(true)
   isVerified    Boolean        @default(false)
