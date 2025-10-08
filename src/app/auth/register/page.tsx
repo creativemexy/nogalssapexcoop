@@ -333,7 +333,23 @@ export default function RegisterPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Bank Account Number *</label>
-                                <input type="text" name="bankAccountNumber" value={formData.bankAccountNumber} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <input 
+                                    type="text" 
+                                    name="bankAccountNumber" 
+                                    value={formData.bankAccountNumber} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 10) {
+                                            setFormData(prev => ({ ...prev, bankAccountNumber: value }));
+                                        }
+                                    }}
+                                    required 
+                                    minLength={10}
+                                    maxLength={10}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    placeholder="1234567890"
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Bank Account Name *</label>
@@ -341,7 +357,23 @@ export default function RegisterPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Phone *</label>
-                                <input type="text" name="phone" value={formData.phone} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
+                                <input 
+                                    type="tel" 
+                                    name="phone" 
+                                    value={formData.phone} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 11) {
+                                            setFormData(prev => ({ ...prev, phone: value }));
+                                        }
+                                    }}
+                                    required 
+                                    minLength={11}
+                                    maxLength={11}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    placeholder="08012345678"
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Email *</label>
@@ -369,7 +401,23 @@ export default function RegisterPage() {
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Phone *</label>
-                                    <input type="text" name="leaderPhone" value={formData.leaderPhone} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                    <input 
+                                        type="tel" 
+                                        name="leaderPhone" 
+                                        value={formData.leaderPhone} 
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                            if (value.length <= 11) {
+                                                setFormData(prev => ({ ...prev, leaderPhone: value }));
+                                            }
+                                        }}
+                                        required 
+                                        minLength={11}
+                                        maxLength={11}
+                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                        placeholder="08012345678"
+                                    />
+                                    <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Title *</label>
@@ -399,7 +447,23 @@ export default function RegisterPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Leader Bank Account Number *</label>
-                                <input type="text" name="leaderBankAccountNumber" value={formData.leaderBankAccountNumber} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
+                                <input 
+                                    type="text" 
+                                    name="leaderBankAccountNumber" 
+                                    value={formData.leaderBankAccountNumber} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 10) {
+                                            setFormData(prev => ({ ...prev, leaderBankAccountNumber: value }));
+                                        }
+                                    }}
+                                    required 
+                                    minLength={10}
+                                    maxLength={10}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    placeholder="1234567890"
+                                />
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
                             </div>
                         </div>
                     </div>
@@ -497,13 +561,19 @@ export default function RegisterPage() {
                                 id="nin"
                                 name="nin"
                                 value={formData.nin}
-                                onChange={handleChange}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                    if (value.length <= 10) {
+                                        setFormData(prev => ({ ...prev, nin: value }));
+                                    }
+                                }}
                                 onBlur={handleNinBlur}
                                 required
-                                maxLength={11}
-                                minLength={11}
+                                maxLength={10}
+                                minLength={10}
                                 className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                                 disabled={ninLocked}
+                                placeholder="1234567890"
                             />
                             {ninLookupLoading && <span className="text-xs text-yellow-600">Looking up NIN...</span>}
                             {ninLookupError && <span className="text-xs text-red-600">{ninLookupError}</span>}
@@ -536,7 +606,7 @@ export default function RegisterPage() {
                                             setNinLookupLoading(false);
                                         }
                                     }}
-                                    disabled={ninLookupLoading || ninLocked || !formData.nin || formData.nin.length !== 11}
+                                    disabled={ninLookupLoading || ninLocked || !formData.nin || formData.nin.length !== 10}
                                     className="mt-2 px-4 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 disabled:opacity-50"
                                 >
                                     {ninLookupLoading ? 'Looking up...' : 'Look Up NIN'}
@@ -574,12 +644,19 @@ export default function RegisterPage() {
                                 id="phoneNumber"
                                 name="phoneNumber" 
                                 value={formData.phoneNumber} 
-                                onChange={handleChange} 
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                    if (value.length <= 11) {
+                                        setFormData(prev => ({ ...prev, phoneNumber: value }));
+                                    }
+                                }}
                                 required 
+                                minLength={11}
+                                maxLength={11}
                                 className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
-                                placeholder="e.g., 08012345678"
+                                placeholder="08012345678"
                             />
-                            <p className="text-xs text-gray-600 mt-1">Your primary phone number</p>
+                            <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Password *</label>
@@ -708,12 +785,19 @@ export default function RegisterPage() {
                                     type="tel" 
                                     name="nextOfKinPhone" 
                                     value={formData.nextOfKinPhone} 
-                                    onChange={handleChange} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 11) {
+                                            setFormData(prev => ({ ...prev, nextOfKinPhone: value }));
+                                        }
+                                    }}
                                     required 
+                                    minLength={11}
+                                    maxLength={11}
                                     className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
-                                    placeholder="e.g., 08012345678"
+                                    placeholder="08012345678"
                                 />
-                                <p className="text-xs text-gray-600 mt-1">Phone number of next of kin</p>
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -735,11 +819,19 @@ export default function RegisterPage() {
                                     type="tel" 
                                     name="emergencyPhone" 
                                     value={formData.emergencyPhone} 
-                                    onChange={handleChange} 
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                        if (value.length <= 11) {
+                                            setFormData(prev => ({ ...prev, emergencyPhone: value }));
+                                        }
+                                    }}
                                     required 
+                                    minLength={11}
+                                    maxLength={11}
                                     className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                    placeholder="08012345678"
                                 />
-                                <p className="text-xs text-gray-600 mt-1">Phone number of emergency contact</p>
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                             </div>
                         </div>
                         <div className="flex justify-start pt-4">

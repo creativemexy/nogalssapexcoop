@@ -41,6 +41,26 @@ export async function POST(req: NextRequest) {
                     return NextResponse.json({ error: `Field '${key}' is required.` }, { status: 400 });
                 }
             }
+
+            // Validate phone number format (11 digits)
+            if (phone && !/^\d{11}$/.test(phone)) {
+                return NextResponse.json({ error: 'Organization phone number must be exactly 11 digits.' }, { status: 400 });
+            }
+
+            // Validate bank account number format (10 digits)
+            if (bankAccountNumber && !/^\d{10}$/.test(bankAccountNumber)) {
+                return NextResponse.json({ error: 'Bank account number must be exactly 10 digits.' }, { status: 400 });
+            }
+
+            // Validate leader phone number format (11 digits)
+            if (leaderPhone && !/^\d{11}$/.test(leaderPhone)) {
+                return NextResponse.json({ error: 'Leader phone number must be exactly 11 digits.' }, { status: 400 });
+            }
+
+            // Validate leader bank account number format (10 digits)
+            if (leaderBankAccountNumber && !/^\d{10}$/.test(leaderBankAccountNumber)) {
+                return NextResponse.json({ error: 'Leader bank account number must be exactly 10 digits.' }, { status: 400 });
+            }
             // Check if leader email is already in use
             const existingUser = await prisma.user.findUnique({ where: { email: leaderEmail } });
             if (existingUser) {
@@ -189,6 +209,26 @@ export async function POST(req: NextRequest) {
                 if (!value) {
                     return NextResponse.json({ error: `Field '${key}' is required.` }, { status: 400 });
                 }
+            }
+
+            // Validate NIN format (10 digits)
+            if (nin && !/^\d{10}$/.test(nin)) {
+                return NextResponse.json({ error: 'NIN must be exactly 10 digits.' }, { status: 400 });
+            }
+
+            // Validate phone number format (11 digits)
+            if (phoneNumber && !/^\d{11}$/.test(phoneNumber)) {
+                return NextResponse.json({ error: 'Phone number must be exactly 11 digits.' }, { status: 400 });
+            }
+
+            // Validate next of kin phone number format (11 digits)
+            if (nextOfKinPhone && !/^\d{11}$/.test(nextOfKinPhone)) {
+                return NextResponse.json({ error: 'Next of kin phone number must be exactly 11 digits.' }, { status: 400 });
+            }
+
+            // Validate emergency contact phone number format (11 digits)
+            if (emergencyPhone && !/^\d{11}$/.test(emergencyPhone)) {
+                return NextResponse.json({ error: 'Emergency contact phone number must be exactly 11 digits.' }, { status: 400 });
             }
 
             // Check if co-operative exists
