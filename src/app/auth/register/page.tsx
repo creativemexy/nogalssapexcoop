@@ -80,7 +80,7 @@ export default function RegisterPage() {
             }
         } catch (err) {
             console.error('Failed to fetch registration fee:', err);
-            setRegistrationFee('₦500.00'); // Fallback
+            setRegistrationFee('₦5,000.00'); // Fallback
         }
     };
 
@@ -245,12 +245,12 @@ export default function RegisterPage() {
                         <h3 className="text-xl font-semibold border-b pb-2">Step 1: Organization Details</h3>
                         <div className="space-y-4 mt-4">
                             <div>
-                                <label className="block text-sm font-medium">Organization Name *</label>
-                                <input type="text" name="cooperativeName" value={formData.cooperativeName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <label htmlFor="cooperativeName" className="block text-sm font-medium">Organization Name *</label>
+                                <input type="text" id="cooperativeName" name="cooperativeName" value={formData.cooperativeName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium">Organization Registration Number *</label>
-                                <input type="text" name="cooperativeRegNo" value={formData.cooperativeRegNo} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <label htmlFor="cooperativeRegNo" className="block text-sm font-medium">Organization Registration Number *</label>
+                                <input type="text" id="cooperativeRegNo" name="cooperativeRegNo" value={formData.cooperativeRegNo} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Address *</label>
@@ -376,7 +376,7 @@ export default function RegisterPage() {
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Select Your Cooperative</h3>
                         <div>
-                            <label className="block text-sm font-medium">Select Cooperative *</label>
+                            <label htmlFor="cooperativeCode" className="block text-sm font-medium">Select Cooperative *</label>
                             {loadingCooperatives ? (
                                 <div className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-gray-50 flex items-center">
                                     <span className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></span>
@@ -384,6 +384,7 @@ export default function RegisterPage() {
                                 </div>
                             ) : (
                                 <select
+                                    id="cooperativeCode"
                                     name="cooperativeCode"
                                     value={formData.cooperativeCode}
                                     onChange={handleChange}
@@ -410,9 +411,10 @@ export default function RegisterPage() {
                         
                         {/* NIN Field */}
                         <div>
-                            <label className="block text-sm font-medium">NIN *</label>
+                            <label htmlFor="nin" className="block text-sm font-medium">NIN *</label>
                             <input
                                 type="text"
+                                id="nin"
                                 name="nin"
                                 value={formData.nin}
                                 onChange={handleChange}
@@ -473,9 +475,10 @@ export default function RegisterPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Email Address *</label>
+                            <label htmlFor="email" className="block text-sm font-medium">Email Address *</label>
                             <input 
                                 type="email" 
+                                id="email"
                                 name="email" 
                                 value={formData.email} 
                                 onChange={handleChange} 
