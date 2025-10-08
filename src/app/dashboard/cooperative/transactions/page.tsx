@@ -98,6 +98,10 @@ export default function CooperativeTransactionsPage() {
         return 'text-red-600';
       case 'LOAN':
         return 'text-purple-600';
+      case 'INVESTMENT':
+        return 'text-indigo-600';
+      case 'REPAYMENT':
+        return 'text-orange-600';
       default:
         return 'text-gray-600';
     }
@@ -174,6 +178,36 @@ export default function CooperativeTransactionsPage() {
             }`}
           >
             Withdrawals
+          </button>
+          <button
+            onClick={() => handleFilterChange('loan')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              filter === 'loan'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Loans
+          </button>
+          <button
+            onClick={() => handleFilterChange('investment')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              filter === 'investment'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Investments
+          </button>
+          <button
+            onClick={() => handleFilterChange('repayment')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              filter === 'repayment'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Repayments
           </button>
         </div>
       </div>

@@ -31,19 +31,52 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Build where clause based on filter
-    let whereClause: any = {
+    let transactionWhereClause: any = {
       user: { cooperativeId }
     };
 
-    if (filter !== 'all') {
-      whereClause.type = filter.toUpperCase();
+    let contributionWhereClause: any = {
+      cooperativeId
+    };
+
+    let shouldFetchTransactions = true;
+    let shouldFetchContributions = true;
+
+    // Apply filters
+    if (filter === 'contribution') {
+      // Only show contributions, no transactions
+      shouldFetchTransactions = false;
+    } else if (filter === 'fee') {
+      // Only show FEE transactions, no contributions
+      transactionWhereClause.type = 'FEE';
+      shouldFetchContributions = false;
+    } else if (filter === 'withdrawal') {
+      // Only show WITHDRAWAL transactions, no contributions
+      transactionWhereClause.type = 'WITHDRAWAL';
+      shouldFetchContributions = false;
+    } else if (filter === 'loan') {
+      // Only show LOAN transactions, no contributions
+      transactionWhereClause.type = 'LOAN';
+      shouldFetchContributions = false;
+    } else if (filter === 'investment') {
+      // Only show INVESTMENT transactions, no contributions
+      transactionWhereClause.type = 'INVESTMENT';
+      shouldFetchContributions = false;
+    } else if (filter === 'repayment') {
+      // Only show REPAYMENT transactions, no contributions
+      transactionWhereClause.type = 'REPAYMENT';
+      shouldFetchContributions = false;
+    } else if (filter !== 'all') {
+      // For other specific filters, only show that transaction type
+      transactionWhereClause.type = filter.toUpperCase();
+      shouldFetchContributions = false;
     }
 
-    // Get transactions from both transaction and contribution tables
+    // Get transactions and contributions based on filters
     const [transactions, contributions, totalCount] = await Promise.all([
       // Get transactions
-      prisma.transaction.findMany({
-        where: whereClause,
+      shouldFetchTransactions ? prisma.transaction.findMany({
+        where: transactionWhereClause,
         include: {
           user: {
             select: {
@@ -56,13 +89,11 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
-      }),
+      }) : [],
 
-      // Get contributions (leader personal contributions)
-      prisma.contribution.findMany({
-        where: {
-          cooperativeId
-        },
+      // Get contributions
+      shouldFetchContributions ? prisma.contribution.findMany({
+        where: contributionWhereClause,
         include: {
           user: {
             select: {
@@ -75,11 +106,11 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
-      }),
+      }) : [],
 
       // Get total count
       prisma.transaction.count({
-        where: whereClause
+        where: transactionWhereClause
       })
     ]);
 
