@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '500');
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam) : undefined;
 
     let whereClause: any = {
       isActive: true
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
         orderBy: {
           name: 'asc'
         },
-        take: limit
+        ...(limit && { take: limit })
       }),
       prisma.occupation.count({
         where: whereClause
