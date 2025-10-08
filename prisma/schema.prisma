@@ -378,6 +378,7 @@ enum TransactionType {
   WITHDRAWAL
   FEE
   INVESTMENT
+  REPAYMENT
 }
 
 model Event {
