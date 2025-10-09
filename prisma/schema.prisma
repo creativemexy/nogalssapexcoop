@@ -45,7 +45,7 @@ model User {
   withdrawals Withdrawal[]
   expensesCreated Expense[]
   expensesApproved Expense[] @relation("ExpenseApprover")
-  investments Investment[]
+  investments UserInvestment[]
 
   @@map("users")
 }
@@ -83,7 +83,7 @@ model Cooperative {
   transactions       Transaction[]
   members            User[]
   pendingContributions PendingContribution[]
-  investments        Investment[]
+  investments        UserInvestment[]
 
   @@map("cooperatives")
 }
@@ -504,7 +504,7 @@ model Expense {
   @@map("expenses")
 }
 
-model Investment {
+model UserInvestment {
   id            String   @id @default(cuid())
   userId        String
   cooperativeId String

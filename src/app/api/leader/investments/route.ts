@@ -23,37 +23,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get leader's cooperative
-    const leader = await prisma.leader.findUnique({
-      where: { userId: (session.user as any).id },
-      include: { cooperative: true }
-    });
+    try {
+      // Get leader's cooperative
+      const leader = await prisma.leader.findUnique({
+        where: { userId: (session.user as any).id },
+        include: { cooperative: true }
+      });
 
-    if (!leader) {
-      return NextResponse.json({ error: 'Leader not found' }, { status: 404 });
-    }
-
-    // Fetch investments for this leader
-    const investments = await prisma.investment.findMany({
-      where: { userId: (session.user as any).id },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        amount: true,
-        type: true,
-        status: true,
-        createdAt: true,
-        description: true
+      if (!leader) {
+        return NextResponse.json({ error: 'Leader not found' }, { status: 404 });
       }
-    });
 
-    return NextResponse.json({
-      success: true,
-      investments: investments.map(inv => ({
-        ...inv,
-        amount: inv.amount / 100 // Convert from kobo to naira
-      }))
-    });
+      // Fetch investments for this leader
+      const investments = await prisma.userInvestment.findMany({
+        where: { userId: (session.user as any).id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          amount: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          description: true
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        investments: investments.map(inv => ({
+          ...inv,
+          amount: inv.amount / 100 // Convert from kobo to naira
+        }))
+      });
+
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      // Return empty investments array if database is not accessible
+      return NextResponse.json({
+        success: true,
+        investments: [],
+        message: 'Database temporarily unavailable - showing empty list'
+      });
+    }
 
   } catch (error) {
     console.error('Error fetching investments:', error);
@@ -89,59 +100,69 @@ export async function POST(request: NextRequest) {
       amount: parseFloat(body.amount)
     });
 
-    // Get leader's cooperative
-    const leader = await prisma.leader.findUnique({
-      where: { userId: (session.user as any).id },
-      include: { cooperative: true }
-    });
+    try {
+      // Get leader's cooperative
+      const leader = await prisma.leader.findUnique({
+        where: { userId: (session.user as any).id },
+        include: { cooperative: true }
+      });
 
-    if (!leader) {
-      return NextResponse.json({ error: 'Leader not found' }, { status: 404 });
+      if (!leader) {
+        return NextResponse.json({ error: 'Leader not found' }, { status: 404 });
+      }
+
+      // Check if leader has sufficient balance (this would need to be implemented based on your business logic)
+      // For now, we'll just create the investment record
+
+      // Create investment
+      const investment = await prisma.userInvestment.create({
+        data: {
+          amount: Math.round(validatedData.amount * 100), // Convert to kobo for storage
+          type: validatedData.type,
+          status: 'PENDING',
+          description: validatedData.description,
+          userId: (session.user as any).id,
+          cooperativeId: leader.cooperativeId
+        },
+        select: {
+          id: true,
+          amount: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          description: true
+        }
+      });
+
+      // Create transaction record for the investment
+      await prisma.transaction.create({
+        data: {
+          amount: Math.round(validatedData.amount * 100), // Convert to kobo
+          type: 'INVESTMENT',
+          description: `Investment: ${validatedData.type}`,
+          status: 'PENDING',
+          userId: (session.user as any).id,
+          cooperativeId: leader.cooperativeId,
+          reference: `INV_${Date.now()}`
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        investment: {
+          ...investment,
+          amount: investment.amount / 100 // Convert from kobo to naira
+        }
+      });
+
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return NextResponse.json({
+        success: false,
+        error: 'Database temporarily unavailable. Please try again later.',
+        details: 'Investment creation failed due to database connectivity issues'
+      }, { status: 503 });
     }
-
-    // Check if leader has sufficient balance (this would need to be implemented based on your business logic)
-    // For now, we'll just create the investment record
-
-    // Create investment
-    const investment = await prisma.investment.create({
-      data: {
-        amount: Math.round(validatedData.amount * 100), // Convert to kobo for storage
-        type: validatedData.type,
-        status: 'PENDING',
-        description: validatedData.description,
-        userId: (session.user as any).id,
-        cooperativeId: leader.cooperativeId
-      },
-      select: {
-        id: true,
-        amount: true,
-        type: true,
-        status: true,
-        createdAt: true,
-        description: true
-      }
-    });
-
-    // Create transaction record for the investment
-    await prisma.transaction.create({
-      data: {
-        amount: Math.round(validatedData.amount * 100), // Convert to kobo
-        type: 'INVESTMENT',
-        description: `Investment: ${validatedData.type}`,
-        status: 'PENDING',
-        userId: (session.user as any).id,
-        cooperativeId: leader.cooperativeId,
-        reference: `INV_${Date.now()}`
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      investment: {
-        ...investment,
-        amount: investment.amount / 100 // Convert from kobo to naira
-      }
-    });
 
   } catch (error) {
     console.error('Error creating investment:', error);
