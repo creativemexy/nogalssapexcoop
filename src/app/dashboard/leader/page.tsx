@@ -88,13 +88,16 @@ export default function LeaderDashboard() {
                             </div>
                             <div className="bg-blue-50 rounded-lg p-4">
                                 <h3 className="text-lg font-semibold text-blue-800 mb-2">Personal Services</h3>
-                                <p className="text-blue-700">Make contributions and apply for loans as a cooperative member</p>
+                                <p className="text-blue-700">Make contributions, apply for loans, and manage investments as a cooperative member</p>
                                 <div className="mt-3 space-x-2">
                                     <Link href="/dashboard/leader/personal/contribute" className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                                         Make Contribution
                                     </Link>
                                     <Link href="/dashboard/leader/personal/apply-loan" className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                                         Apply for Loan
+                                    </Link>
+                                    <Link href="/dashboard/leader/personal/investment" className="inline-block bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                                        Investment
                                     </Link>
                                 </div>
                             </div>

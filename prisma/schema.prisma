@@ -45,6 +45,7 @@ model User {
   withdrawals Withdrawal[]
   expensesCreated Expense[]
   expensesApproved Expense[] @relation("ExpenseApprover")
+  investments Investment[]
 
   @@map("users")
 }
@@ -82,6 +83,7 @@ model Cooperative {
   transactions       Transaction[]
   members            User[]
   pendingContributions PendingContribution[]
+  investments        Investment[]
 
   @@map("cooperatives")
 }
@@ -500,4 +502,26 @@ model Expense {
   approver    User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id])
 
   @@map("expenses")
+}
+
+model Investment {
+  id            String   @id @default(cuid())
+  userId        String
+  cooperativeId String
+  amount        Int      // Amount in kobo
+  type          String   // 'FIXED_DEPOSIT', 'SAVINGS_BOND', 'TREASURY_BILL', 'MUTUAL_FUND'
+  status        String   @default("PENDING") // 'PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'
+  description   String?
+  startDate     DateTime?
+  endDate       DateTime?
+  interestRate  Decimal?
+  maturityAmount Int?    // Maturity amount in kobo
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+
+  @@map("investments")
 }
