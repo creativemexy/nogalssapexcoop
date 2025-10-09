@@ -14,6 +14,15 @@ interface DashboardStats {
   rejectedLoans: number;
   totalContributions: number;
   totalLoans: number;
+  // Member registration fees
+  totalMemberRegistrationFees: number;
+  totalMemberRegistrationTransactions: number;
+  currentMemberFee: number;
+  // Cooperative registration fees
+  totalCooperativeRegistrationFees: number;
+  totalCooperativeRegistrationTransactions: number;
+  currentCooperativeFee: number;
+  // Legacy fields for backward compatibility
   totalRegistrationFees: number;
   totalRegistrations: number;
   totalWithdrawals: number;
@@ -196,7 +205,7 @@ export default function SuperAdminDashboard() {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-6">Super Admin Dashboard</h1>
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
@@ -217,14 +226,32 @@ export default function SuperAdminDashboard() {
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Registration Fee</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Member Registration Fee</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                {registrationFee === null || registrationFee === undefined ? '₦500.00' : `₦${(registrationFee / 100).toLocaleString()}`}
+                {loading ? '...' : `₦${(stats?.currentMemberFee || 5000).toLocaleString()}`}
               </p>
+              <p className="text-xs text-gray-500">{stats?.totalMemberRegistrationTransactions || 0} members registered</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Cooperative Registration Fee</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {loading ? '...' : `₦${(stats?.currentCooperativeFee || 50000).toLocaleString()}`}
+              </p>
+              <p className="text-xs text-gray-500">{stats?.totalCooperativeRegistrationTransactions || 0} cooperatives registered</p>
             </div>
           </div>
         </div>
@@ -270,11 +297,11 @@ export default function SuperAdminDashboard() {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Administrative Fees</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Registration Fees</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 {loading ? '...' : `₦${(stats?.totalRegistrationFees || 0).toLocaleString()}`}
               </p>
-              <p className="text-xs text-gray-500">{stats?.totalRegistrations || 0} fees collected</p>
+              <p className="text-xs text-gray-500">{stats?.totalRegistrations || 0} total registrations</p>
             </div>
           </div>
         </div>

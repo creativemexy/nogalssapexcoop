@@ -26,8 +26,11 @@ export async function GET(request: NextRequest) {
       rejectedLoans,
       totalContributionsResult,
       totalLoansResult,
-      registrationFeesResult,
+      memberRegistrationFeesResult,
+      cooperativeRegistrationFeesResult,
       withdrawalResult,
+      memberFeeSetting,
+      cooperativeFeeSetting,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.cooperative.count(),
@@ -41,12 +44,18 @@ export async function GET(request: NextRequest) {
       prisma.loan.aggregate({
         _sum: { amount: true },
       }),
+      // Member registration fees (transactions with reference starting with 'REG_MEMBER_')
       prisma.transaction.aggregate({
         where: { 
-          OR: [
-            { type: 'FEE' },
-            { reference: { startsWith: 'REG_' } }
-          ]
+          reference: { startsWith: 'REG_MEMBER_' }
+        },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Cooperative registration fees (transactions with reference starting with 'REG_COOP_')
+      prisma.transaction.aggregate({
+        where: { 
+          reference: { startsWith: 'REG_COOP_' }
         },
         _sum: { amount: true },
         _count: { id: true },
@@ -59,15 +68,28 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
         _count: { id: true },
       }),
+      // Get current fee settings
+      prisma.systemSettings.findFirst({
+        where: { category: 'payment', key: 'member_registration_fee' }
+      }),
+      prisma.systemSettings.findFirst({
+        where: { category: 'payment', key: 'cooperative_registration_fee' }
+      }),
     ]);
 
     // Convert amounts from kobo to naira for display
     const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
     const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
-    const totalAdministrativeFees = Number(registrationFeesResult._sum.amount || 0) / 100;
-    const totalAdministrativeFeeTransactions = registrationFeesResult._count.id;
+    const totalMemberRegistrationFees = Number(memberRegistrationFeesResult._sum.amount || 0) / 100;
+    const totalMemberRegistrationTransactions = memberRegistrationFeesResult._count.id;
+    const totalCooperativeRegistrationFees = Number(cooperativeRegistrationFeesResult._sum.amount || 0) / 100;
+    const totalCooperativeRegistrationTransactions = cooperativeRegistrationFeesResult._count.id;
     const totalWithdrawals = Number(withdrawalResult._sum.amount || 0) / 100;
     const totalWithdrawalTransactions = withdrawalResult._count.id;
+
+    // Get current fee amounts
+    const currentMemberFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : 500000; // ₦5,000.00
+    const currentCooperativeFee = cooperativeFeeSetting ? parseInt(cooperativeFeeSetting.value) : 5000000; // ₦50,000.00
 
     return NextResponse.json({
       totalUsers,
@@ -78,8 +100,17 @@ export async function GET(request: NextRequest) {
       rejectedLoans,
       totalContributions,
       totalLoans,
-      totalRegistrationFees: totalAdministrativeFees,
-      totalRegistrations: totalAdministrativeFeeTransactions,
+      // Member registration fees
+      totalMemberRegistrationFees,
+      totalMemberRegistrationTransactions,
+      currentMemberFee: currentMemberFee / 100, // Convert to naira
+      // Cooperative registration fees
+      totalCooperativeRegistrationFees,
+      totalCooperativeRegistrationTransactions,
+      currentCooperativeFee: currentCooperativeFee / 100, // Convert to naira
+      // Legacy fields for backward compatibility
+      totalRegistrationFees: totalMemberRegistrationFees + totalCooperativeRegistrationFees,
+      totalRegistrations: totalMemberRegistrationTransactions + totalCooperativeRegistrationTransactions,
       totalWithdrawals,
       totalWithdrawalTransactions,
     });
