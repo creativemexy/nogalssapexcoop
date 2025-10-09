@@ -124,13 +124,43 @@ export class GitUpdater {
    * Manual update process (fallback)
    */
   private async manualUpdate(): Promise<UpdateResult> {
+    const steps: string[] = [];
+    const errors: string[] = [];
+    
     try {
-      // Step 1: Fetch latest changes
-      console.log('Fetching latest changes...');
-      const { stdout: fetchOutput } = await execAsync('git fetch origin', { cwd: this.workingDir });
+      // Step 1: Check if we're in a git repository
+      console.log('Checking git repository...');
+      try {
+        await execAsync('git status', { cwd: this.workingDir });
+        steps.push('✓ Git repository verified');
+      } catch (error) {
+        errors.push('Not a git repository');
+        throw new Error('Not a git repository');
+      }
       
-      // Step 2: Check if there are updates
+      // Step 2: Fetch latest changes
+      console.log('Fetching latest changes...');
+      try {
+        const { stdout: fetchOutput, stderr: fetchError } = await execAsync('git fetch origin', { 
+          cwd: this.workingDir,
+          timeout: 60000 // 1 minute timeout
+        });
+        steps.push('✓ Fetched latest changes');
+        console.log('Fetch output:', fetchOutput);
+        if (fetchError) console.log('Fetch stderr:', fetchError);
+      } catch (error) {
+        errors.push(`Failed to fetch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw error;
+      }
+      
+      // Step 3: Check if there are updates
+      console.log('Checking for updates...');
       const status = await this.checkForUpdates();
+      if (status.error) {
+        errors.push(`Check updates failed: ${status.error}`);
+        throw new Error(status.error);
+      }
+      
       if (status.isUpToDate) {
         return {
           success: true,
@@ -139,46 +169,96 @@ export class GitUpdater {
         };
       }
       
-      // Step 3: Stash any local changes (optional)
+      steps.push(`✓ Updates found: ${status.currentCommit.substring(0, 8)} → ${status.latestCommit.substring(0, 8)}`);
+      
+      // Step 4: Stash any local changes (optional)
+      console.log('Stashing local changes...');
       try {
-        await execAsync('git stash push -m "Auto-stash before update"', { cwd: this.workingDir });
-        console.log('Local changes stashed');
+        const { stdout: stashOutput } = await execAsync('git stash push -m "Auto-stash before update"', { 
+          cwd: this.workingDir,
+          timeout: 30000
+        });
+        steps.push('✓ Local changes stashed');
+        console.log('Stash output:', stashOutput);
       } catch (error) {
+        steps.push('✓ No local changes to stash');
         console.log('No local changes to stash');
       }
       
-      // Step 4: Pull latest changes
+      // Step 5: Pull latest changes
       console.log('Pulling latest changes...');
-      const { stdout: pullOutput } = await execAsync(`git pull origin ${this.branch}`, { cwd: this.workingDir });
-      
-      // Step 5: Install dependencies
-      console.log('Installing dependencies...');
-      const { stdout: installOutput } = await execAsync('npm install', { cwd: this.workingDir });
-      
-      // Step 6: Build the application
-      console.log('Building application...');
-      const { stdout: buildOutput } = await execAsync('npm run build', { cwd: this.workingDir });
-      
-      // Step 7: Restart the application (if using PM2 or similar)
       try {
-        await execAsync('pm2 restart nogalss-cooperative', { cwd: this.workingDir });
-        console.log('Application restarted with PM2');
+        const { stdout: pullOutput, stderr: pullError } = await execAsync(`git pull origin ${this.branch}`, { 
+          cwd: this.workingDir,
+          timeout: 120000 // 2 minutes timeout
+        });
+        steps.push('✓ Pulled latest changes');
+        console.log('Pull output:', pullOutput);
+        if (pullError) console.log('Pull stderr:', pullError);
       } catch (error) {
+        errors.push(`Failed to pull: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw error;
+      }
+      
+      // Step 6: Install dependencies
+      console.log('Installing dependencies...');
+      try {
+        const { stdout: installOutput, stderr: installError } = await execAsync('npm install', { 
+          cwd: this.workingDir,
+          timeout: 300000 // 5 minutes timeout
+        });
+        steps.push('✓ Dependencies installed');
+        console.log('Install output:', installOutput);
+        if (installError) console.log('Install stderr:', installError);
+      } catch (error) {
+        errors.push(`Failed to install dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw error;
+      }
+      
+      // Step 7: Build the application
+      console.log('Building application...');
+      try {
+        const { stdout: buildOutput, stderr: buildError } = await execAsync('npm run build', { 
+          cwd: this.workingDir,
+          timeout: 600000 // 10 minutes timeout
+        });
+        steps.push('✓ Application built');
+        console.log('Build output:', buildOutput);
+        if (buildError) console.log('Build stderr:', buildError);
+      } catch (error) {
+        errors.push(`Build failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw error;
+      }
+      
+      // Step 8: Restart the application (if using PM2 or similar)
+      console.log('Restarting application...');
+      try {
+        const { stdout: restartOutput, stderr: restartError } = await execAsync('pm2 restart nogalss-cooperative', { 
+          cwd: this.workingDir,
+          timeout: 60000
+        });
+        steps.push('✓ Application restarted with PM2');
+        console.log('Restart output:', restartOutput);
+        if (restartError) console.log('Restart stderr:', restartError);
+      } catch (error) {
+        steps.push('⚠ PM2 restart failed, manual restart may be required');
         console.log('PM2 restart failed, manual restart may be required');
       }
       
       return {
         success: true,
         message: 'Code updated successfully',
-        output: `Fetch: ${fetchOutput}\nPull: ${pullOutput}\nInstall: ${installOutput}\nBuild: ${buildOutput}`
+        output: steps.join('\n')
       };
       
     } catch (error) {
       console.error('Error in manual update:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
         success: false,
         message: 'Manual update failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        output: `Steps completed:\n${steps.join('\n')}\n\nErrors:\n${errors.join('\n')}`
       };
     }
   }
