@@ -53,6 +53,7 @@ export default function RegisterPage() {
         leaderBankName: '',
         leaderBankAccountNumber: '',
         bankAccountName: '',
+        parentOrganizationId: '',
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,8 @@ export default function RegisterPage() {
     const [loadingOccupations, setLoadingOccupations] = useState(false);
     const [memberStep, setMemberStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
+    const [parentOrganizations, setParentOrganizations] = useState<{ id: string; name: string; description?: string }[]>([]);
+    const [loadingParentOrganizations, setLoadingParentOrganizations] = useState(false);
 
 
     useEffect(() => {
@@ -74,6 +77,8 @@ export default function RegisterPage() {
         fetchOccupations(); // Always fetch occupations
         if (registrationType === 'MEMBER') {
             fetchCooperatives();
+        } else if (registrationType === 'COOPERATIVE') {
+            fetchParentOrganizations();
         }
     }, [registrationType]);
 
@@ -193,6 +198,45 @@ export default function RegisterPage() {
             setOccupations([]);
         } finally {
             setLoadingOccupations(false);
+        }
+    };
+
+    const fetchParentOrganizations = async () => {
+        try {
+            setLoadingParentOrganizations(true);
+            console.log('Fetching parent organizations...');
+            
+            const response = await fetch('/api/public/parent-organizations', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
+            
+            console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Parent organizations data:', data);
+            
+            if (data.parentOrganizations && Array.isArray(data.parentOrganizations)) {
+                setParentOrganizations(data.parentOrganizations);
+                console.log('Parent organizations loaded:', data.parentOrganizations.length);
+            } else {
+                console.warn('No parent organizations found in response');
+                setParentOrganizations([]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch parent organizations:', err);
+            setParentOrganizations([]);
+        } finally {
+            setLoadingParentOrganizations(false);
         }
     };
 
@@ -340,6 +384,70 @@ export default function RegisterPage() {
                         
                         <h3 className="text-xl font-semibold border-b pb-2">Step 1: Organization Details</h3>
                         <div className="space-y-4 mt-4">
+                            <div>
+                                <label htmlFor="parentOrganizationId" className="block text-sm font-medium">Parent Organization *</label>
+                                {loadingParentOrganizations ? (
+                                    <div className="w-full mt-1 p-3 border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center">
+                                        <span className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></span>
+                                        <span className="text-sm text-gray-600">Loading parent organizations...</span>
+                                    </div>
+                                ) : parentOrganizations.length === 0 ? (
+                                    <div className="w-full mt-1 p-3 border border-red-300 rounded-md bg-red-50">
+                                        <div className="flex items-center">
+                                            <svg className="w-4 h-4 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                            </svg>
+                                            <span className="text-sm text-red-600">No parent organizations available</span>
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            onClick={fetchParentOrganizations}
+                                            className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                                        >
+                                            Try again
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <select
+                                        id="parentOrganizationId"
+                                        name="parentOrganizationId"
+                                        value={formData.parentOrganizationId}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full mt-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900"
+                                        style={{ 
+                                            WebkitAppearance: 'none',
+                                            MozAppearance: 'none',
+                                            appearance: 'none',
+                                            backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6,9 12,15 18,9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'right 12px center',
+                                            backgroundSize: '16px',
+                                            paddingRight: '40px'
+                                        }}
+                                    >
+                                        <option value="">Select parent organization</option>
+                                        {parentOrganizations.map((org) => (
+                                            <option key={org.id} value={org.id}>
+                                                {org.name} {org.description && `- ${org.description}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                                <div className="flex items-center justify-between mt-1">
+                                    <p className="text-xs text-gray-600">
+                                        Choose the parent organization this cooperative belongs to.
+                                    </p>
+                                    <button 
+                                        type="button"
+                                        onClick={fetchParentOrganizations}
+                                        disabled={loadingParentOrganizations}
+                                        className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                                    >
+                                        {loadingParentOrganizations ? 'Loading...' : 'Refresh List'}
+                                    </button>
+                                </div>
+                            </div>
                             <div>
                                 <label htmlFor="cooperativeName" className="block text-sm font-medium">Organization Name *</label>
                                 <input type="text" id="cooperativeName" name="cooperativeName" value={formData.cooperativeName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>

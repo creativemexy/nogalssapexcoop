@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
                 cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone, cooperativeEmail,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
-                leaderPhone, leaderTitle, leaderBankAccountNumber
+                leaderPhone, leaderTitle, leaderBankAccountNumber, parentOrganizationId
             } = body;
 
             // Validate input for all required fields
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
                 cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
-                leaderPhone, leaderTitle
+                leaderPhone, leaderTitle, parentOrganizationId
             };
 
             for (const [key, value] of Object.entries(requiredFields)) {
@@ -70,6 +70,18 @@ export async function POST(req: NextRequest) {
             const existingCooperative = await prisma.cooperative.findUnique({ where: { registrationNumber: cooperativeRegNo } });
             if (existingCooperative) {
                 return NextResponse.json({ error: 'A co-operative with this registration number already exists.' }, { status: 409 });
+            }
+
+            // Validate parent organization exists and is active
+            const parentOrganization = await prisma['parentOrganization'].findUnique({
+                where: { id: parentOrganizationId },
+                select: { id: true, name: true, isActive: true }
+            });
+            if (!parentOrganization) {
+                return NextResponse.json({ error: 'Selected parent organization does not exist.' }, { status: 400 });
+            }
+            if (!parentOrganization.isActive) {
+                return NextResponse.json({ error: 'Selected parent organization is not active.' }, { status: 400 });
             }
             // Get cooperative registration fee from system settings
             const cooperativeFeeSetting = await prisma.systemSettings.findFirst({
@@ -112,7 +124,8 @@ export async function POST(req: NextRequest) {
                 leaderEmail,
                 leaderPassword,
                 leaderPhone,
-                leaderTitle
+                leaderTitle,
+                parentOrganizationId
             };
 
             // Generate a single reference for both pending registration and Paystack

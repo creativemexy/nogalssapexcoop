@@ -60,6 +60,13 @@ export default function LeaderDashboard() {
                 <Image src="/logo.png" alt="Nogalss Logo" width={96} height={96} priority />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">Leader Dashboard</h1>
+            
+            {/* Welcome Message */}
+            <div className="bg-white rounded-lg shadow p-6 mb-8">
+                <p className="text-gray-600 text-lg">Welcome, {session?.user?.name}.</p>
+                <p className="mt-2 text-gray-600">This is your dashboard for managing your co-operative. Use the quick actions below to get started.</p>
+            </div>
+            
             <RegistrationFeeCard canEdit={false} showTitle />
             {loading ? (
                 <div className="flex justify-center items-center py-12">
@@ -116,10 +123,6 @@ export default function LeaderDashboard() {
                     </div>
                 </>
             )}
-            <div className="bg-white rounded-lg shadow p-8">
-                <p className="text-gray-600">Welcome, {session?.user?.name}.</p>
-                <p className="mt-4 text-gray-600">This is your dashboard for managing your co-operative. Use the quick actions above to get started.</p>
-            </div>
         </div>
     );
 }

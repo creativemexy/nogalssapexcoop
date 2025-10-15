@@ -229,6 +229,7 @@ export async function GET(request: NextRequest) {
           city: registrationData.city,
           phoneNumber: registrationData.phone,
           email: registrationData.cooperativeEmail,
+          parentOrganizationId: registrationData.parentOrganizationId,
         },
       });
 

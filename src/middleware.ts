@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { SecurityHeaders } from '@/lib/security-headers';
+import { AuditLogger } from '@/lib/audit-logger';
 import { applyRateLimit } from '@/middleware/rate-limit';
 import { validateEnvironmentOnStartup } from '@/lib/startup';
 import { 
@@ -46,6 +48,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/events') ||
     pathname.startsWith('/api/occupations') ||
     pathname.startsWith('/api/test-investment') ||
+    pathname.startsWith('/api/test-notifications-public') ||
+    pathname.startsWith('/api/test-ndpa-compliance') ||
     pathname === '/' ||
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
@@ -89,6 +93,7 @@ export async function middleware(request: NextRequest) {
   const isFinance = userRole === 'FINANCE';
   const isApexFunds = userRole === 'APEX_FUNDS';
   const isNogalssFunds = userRole === 'NOGALSS_FUNDS';
+  const isParentOrganization = userRole === 'PARENT_ORGANIZATION';
 
   // Super admin routes
   if (pathname.startsWith('/dashboard/super-admin')) {
@@ -128,6 +133,13 @@ export async function middleware(request: NextRequest) {
   // Member routes
   if (pathname.startsWith('/dashboard/member')) {
     if (!isMember && !isSuperAdmin) {
+      return NextResponse.redirect(new URL('/dashboard/unauthorized', request.url));
+    }
+  }
+
+  // Parent Organization routes
+  if (pathname.startsWith('/dashboard/parent-organization')) {
+    if (!isParentOrganization && !isSuperAdmin) {
       return NextResponse.redirect(new URL('/dashboard/unauthorized', request.url));
     }
   }

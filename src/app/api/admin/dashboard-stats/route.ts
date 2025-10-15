@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const [
       totalUsers,
       totalCooperatives,
+      totalParentOrganizations,
       totalTransactions,
       pendingLoans,
       approvedLoans,
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       prisma.user.count(),
       prisma.cooperative.count(),
+      prisma.parentOrganization.count(),
       prisma.transaction.count(),
       prisma.loan.count({ where: { status: 'PENDING' } }),
       prisma.loan.count({ where: { status: 'APPROVED' } }),
@@ -44,18 +46,22 @@ export async function GET(request: NextRequest) {
       prisma.loan.aggregate({
         _sum: { amount: true },
       }),
-      // Member registration fees (transactions with reference starting with 'REG_MEMBER_')
+      // Member registration fees (transactions with type 'FEE' and description containing 'Member registration')
       prisma.transaction.aggregate({
         where: { 
-          reference: { startsWith: 'REG_MEMBER_' }
+          type: 'FEE',
+          description: { contains: 'Member registration' },
+          status: 'SUCCESSFUL'
         },
         _sum: { amount: true },
         _count: { id: true },
       }),
-      // Cooperative registration fees (transactions with reference starting with 'REG_COOP_')
+      // Cooperative registration fees (transactions with type 'FEE' and description containing 'Cooperative registration')
       prisma.transaction.aggregate({
         where: { 
-          reference: { startsWith: 'REG_COOP_' }
+          type: 'FEE',
+          description: { contains: 'Cooperative registration' },
+          status: 'SUCCESSFUL'
         },
         _sum: { amount: true },
         _count: { id: true },
@@ -81,19 +87,84 @@ export async function GET(request: NextRequest) {
     const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
     const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
     const totalMemberRegistrationFees = Number(memberRegistrationFeesResult._sum.amount || 0) / 100;
-    const totalMemberRegistrationTransactions = memberRegistrationFeesResult._count.id;
+    const totalMemberRegistrationTransactions = memberRegistrationFeesResult._count.id || 0;
     const totalCooperativeRegistrationFees = Number(cooperativeRegistrationFeesResult._sum.amount || 0) / 100;
-    const totalCooperativeRegistrationTransactions = cooperativeRegistrationFeesResult._count.id;
+    const totalCooperativeRegistrationTransactions = cooperativeRegistrationFeesResult._count.id || 0;
     const totalWithdrawals = Number(withdrawalResult._sum.amount || 0) / 100;
-    const totalWithdrawalTransactions = withdrawalResult._count.id;
+    const totalWithdrawalTransactions = withdrawalResult._count.id || 0;
 
     // Get current fee amounts
     const currentMemberFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : 500000; // ₦5,000.00
     const currentCooperativeFee = cooperativeFeeSetting ? parseInt(cooperativeFeeSetting.value) : 5000000; // ₦50,000.00
 
+    // Get allocation percentages from system settings
+    const allocationSettings = await prisma.systemSettings.findMany({
+      where: {
+        category: 'allocation',
+        isActive: true
+      }
+    });
+
+    // Default allocation percentages
+    const defaultAllocations = {
+      apexFunds: 40,
+      nogalssFunds: 20,
+      cooperativeShare: 20,
+      leaderShare: 15,
+      parentOrganizationShare: 5
+    };
+
+    // Parse current settings or use defaults
+    const allocations = { ...defaultAllocations };
+    allocationSettings.forEach(setting => {
+      const value = parseFloat(setting.value);
+      if (!isNaN(value)) {
+        allocations[setting.key as keyof typeof allocations] = value;
+      }
+    });
+
+    // Calculate total registration fees
+    const totalRegistrationFees = totalMemberRegistrationFees + totalCooperativeRegistrationFees;
+    const totalRegistrations = totalMemberRegistrationTransactions + totalCooperativeRegistrationTransactions;
+
+    // Calculate parent organization allocation
+    const parentOrganizationAllocation = totalRegistrationFees * (allocations.parentOrganizationShare / 100);
+
+    // Debug logging
+    console.log('Registration fees debug:', {
+      memberFees: totalMemberRegistrationFees,
+      memberCount: totalMemberRegistrationTransactions,
+      cooperativeFees: totalCooperativeRegistrationFees,
+      cooperativeCount: totalCooperativeRegistrationTransactions,
+    });
+
+    // If no registration fees found with description matching, try a broader search
+    if (totalMemberRegistrationTransactions === 0 && totalCooperativeRegistrationTransactions === 0) {
+      console.log('No registration fees found with description matching, trying broader search...');
+      
+      // Get all FEE transactions to see what we have
+      const allFeeTransactions = await prisma.transaction.findMany({
+        where: { 
+          type: 'FEE',
+          status: 'SUCCESSFUL'
+        },
+        select: {
+          id: true,
+          amount: true,
+          description: true,
+          reference: true,
+          createdAt: true,
+        },
+        take: 10,
+      });
+      
+      console.log('All FEE transactions found:', allFeeTransactions);
+    }
+
     return NextResponse.json({
       totalUsers,
       totalCooperatives,
+      totalParentOrganizations,
       totalTransactions,
       pendingLoans,
       approvedLoans,
@@ -109,8 +180,11 @@ export async function GET(request: NextRequest) {
       totalCooperativeRegistrationTransactions,
       currentCooperativeFee: currentCooperativeFee / 100, // Convert to naira
       // Legacy fields for backward compatibility
-      totalRegistrationFees: totalMemberRegistrationFees + totalCooperativeRegistrationFees,
-      totalRegistrations: totalMemberRegistrationTransactions + totalCooperativeRegistrationTransactions,
+      totalRegistrationFees,
+      totalRegistrations,
+      // Parent organization allocation
+      parentOrganizationAllocation,
+      parentOrganizationPercentage: allocations.parentOrganizationShare,
       totalWithdrawals,
       totalWithdrawalTransactions,
     });

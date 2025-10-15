@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { ChargeTracker } from '@/lib/charge-tracker';
 
 export async function GET(request: NextRequest) {
   try {
@@ -212,6 +213,9 @@ export async function GET(request: NextRequest) {
       count: stat._count.id
     }));
 
+    // Get charge tracking data
+    const chargeTracking = await ChargeTracker.getSystemChargeStats();
+
     return NextResponse.json({
       // Main financial metrics
       totalInflow,
@@ -244,6 +248,15 @@ export async function GET(request: NextRequest) {
       recentTransactions: allRecentActivity,
       monthlyBreakdown,
       userBreakdown,
+      
+      // Charge tracking data
+      chargeTracking: {
+        totalCharges: chargeTracking.totalCharges,
+        totalBaseAmount: chargeTracking.totalBaseAmount,
+        chargeCount: chargeTracking.chargeCount,
+        averageChargePercentage: chargeTracking.averageChargePercentage,
+        chargesByType: chargeTracking.chargesByType
+      },
       
       // Database status
       databaseStatus: allRecentActivity.length > 0 ? 'connected' : 'fallback'

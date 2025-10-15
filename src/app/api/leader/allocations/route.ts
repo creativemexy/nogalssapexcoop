@@ -57,8 +57,32 @@ export async function GET(request: NextRequest) {
     const totalRegistrationFees = Number(registrationFees._sum.amount || 0) / 100; // Convert from kobo to naira
     const totalTransactions = registrationFees._count.id || 0;
     
-    // Calculate Leader's 20% allocation
-    const leaderAllocation = totalRegistrationFees * 0.2; // 20% of registration fees from their cooperative members
+    // Get allocation percentages from system settings
+    const allocationSettings = await prisma.systemSettings.findMany({
+      where: {
+        category: 'allocation',
+        isActive: true
+      }
+    });
+
+    // Default allocation percentages
+    const defaultAllocations = {
+      cooperativeShare: 20,
+      leaderShare: 15,
+      parentOrganizationShare: 5
+    };
+
+    // Parse current settings or use defaults
+    const allocations = { ...defaultAllocations };
+    allocationSettings.forEach(setting => {
+      const value = parseFloat(setting.value);
+      if (!isNaN(value)) {
+        allocations[setting.key as keyof typeof allocations] = value;
+      }
+    });
+    
+    // Calculate Leader's allocation based on settings
+    const leaderAllocation = totalRegistrationFees * (allocations.leaderShare / 100);
     
     // Get recent transactions from cooperative members
     const recentTransactions = await prisma.transaction.findMany({
@@ -109,7 +133,7 @@ export async function GET(request: NextRequest) {
       });
       
       const monthTotal = Number(monthFees._sum.amount || 0) / 100; // Convert from kobo to naira
-      const monthLeaderAllocation = monthTotal * 0.2;
+      const monthLeaderAllocation = monthTotal * (allocations.leaderShare / 100);
       
       monthlyData.push({
         month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -123,8 +147,8 @@ export async function GET(request: NextRequest) {
       // Main metrics
       totalRegistrationFees,
       totalTransactions,
-      leaderAllocation, // 20% of registration fees from their cooperative members
-      allocationPercentage: 20,
+      leaderAllocation, // Dynamic percentage of registration fees from their cooperative members
+      allocationPercentage: allocations.leaderShare,
       
       // Recent activity
       recentTransactions: recentTransactions.map(tx => ({
@@ -135,7 +159,7 @@ export async function GET(request: NextRequest) {
         reference: tx.reference,
         createdAt: tx.createdAt,
         description: tx.description,
-        leaderAllocation: (Number(tx.amount) / 100) * 0.2, // 20% of this transaction
+        leaderAllocation: (Number(tx.amount) / 100) * (allocations.leaderShare / 100), // Dynamic percentage of this transaction
       })),
       
       // Monthly breakdown

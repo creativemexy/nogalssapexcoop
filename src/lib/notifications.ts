@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS_B64 ? Buffer.from(process.env.SMTP_PASS_B64, 'base64').toString() : process.env.SMTP_PASS,
   },
   // Add connection timeout and retry options
   connectionTimeout: 10000,
@@ -17,7 +17,10 @@ const transporter = nodemailer.createTransport({
   // Disable TLS verification for development (not recommended for production)
   tls: {
     rejectUnauthorized: false
-  }
+  },
+  // Debug mode to see what's happening
+  debug: process.env.NODE_ENV === 'development',
+  logger: process.env.NODE_ENV === 'development'
 });
 
 interface EmailNotification {

@@ -44,13 +44,40 @@ export async function GET(request: NextRequest) {
 
     const pages = Math.max(1, Math.ceil(count / pageSize));
 
+    // Get allocation percentages from system settings
+    const allocationSettings = await prisma.systemSettings.findMany({
+      where: {
+        category: 'allocation',
+        isActive: true
+      }
+    });
+
+    // Default allocation percentages
+    const defaultAllocations = {
+      apexFunds: 40,
+      nogalssFunds: 20,
+      cooperativeShare: 20,
+      leaderShare: 15,
+      parentOrganizationShare: 5
+    };
+
+    // Parse current settings or use defaults
+    const allocations = { ...defaultAllocations };
+    allocationSettings.forEach(setting => {
+      const value = parseFloat(setting.value);
+      if (!isNaN(value)) {
+        allocations[setting.key as keyof typeof allocations] = value;
+      }
+    });
+
     // Calculate fund distributions (amounts are already in naira)
     const convertedRows = rows.map(row => {
       const amountNaira = Number(row.amount); // Amount is already in naira
-      const apexFunds = amountNaira * 0.4; // 40% of amount
-      const nogalssFunds = amountNaira * 0.2; // 20% of amount
-      const cooperativeShare = amountNaira * 0.2; // 20% of amount
-      const leaderShare = amountNaira * 0.2; // 20% of amount
+      const apexFunds = amountNaira * (allocations.apexFunds / 100);
+      const nogalssFunds = amountNaira * (allocations.nogalssFunds / 100);
+      const cooperativeShare = amountNaira * (allocations.cooperativeShare / 100);
+      const leaderShare = amountNaira * (allocations.leaderShare / 100);
+      const parentOrganizationShare = amountNaira * (allocations.parentOrganizationShare / 100);
       
       return {
         ...row,
@@ -59,6 +86,7 @@ export async function GET(request: NextRequest) {
         nogalssFunds,
         cooperativeShare,
         leaderShare,
+        parentOrganizationShare,
       };
     });
 
@@ -69,10 +97,11 @@ export async function GET(request: NextRequest) {
       pagination: { page: pageNum, pages, count },
       totals: {
         totalAmount: totalAmountNaira,
-        apexFunds: totalAmountNaira * 0.4, // 40% of total
-        nogalssFunds: totalAmountNaira * 0.2, // 20% of total
-        cooperativeShare: totalAmountNaira * 0.2, // 20% of total
-        leaderShare: totalAmountNaira * 0.2, // 20% of total
+        apexFunds: totalAmountNaira * (allocations.apexFunds / 100),
+        nogalssFunds: totalAmountNaira * (allocations.nogalssFunds / 100),
+        cooperativeShare: totalAmountNaira * (allocations.cooperativeShare / 100),
+        leaderShare: totalAmountNaira * (allocations.leaderShare / 100),
+        parentOrganizationShare: totalAmountNaira * (allocations.parentOrganizationShare / 100),
       }
     });
   } catch (error) {

@@ -46,6 +46,9 @@ model User {
   expensesCreated Expense[]
   expensesApproved Expense[] @relation("ExpenseApprover")
   investments UserInvestment[]
+  parentOrganizationsCreated ParentOrganization[] @relation("OrganizationCreator")
+  parentOrganization ParentOrganization? @relation("OrganizationUser")
+  chargeRecords ChargeRecord[]
 
   @@map("users")
 }
@@ -73,10 +76,12 @@ model Cooperative {
   lgaId              String?
   stateId            String?
   type               String?
+  parentOrganizationId String?
   contributions      Contribution[]
   bank               Bank?          @relation(fields: [bankId], references: [id])
   lga                Lga?           @relation(fields: [lgaId], references: [id])
   state              State?         @relation(fields: [stateId], references: [id])
+  parentOrganization ParentOrganization? @relation(fields: [parentOrganizationId], references: [id])
   leader             Leader?
   loans              Loan[]
   payments           Payment[]
@@ -84,6 +89,7 @@ model Cooperative {
   members            User[]
   pendingContributions PendingContribution[]
   investments        UserInvestment[]
+  chargeRecords      ChargeRecord[]
 
   @@map("cooperatives")
 }
@@ -138,6 +144,7 @@ model Business {
   payments           Payment[]
   transactions       Transaction[]
   users              User[]
+  chargeRecords      ChargeRecord[]
 
   @@map("businesses")
 }
@@ -366,6 +373,7 @@ enum UserRole {
   FINANCE
   APEX_FUNDS
   NOGALSS_FUNDS
+  PARENT_ORGANIZATION
 }
 
 enum PaymentStatus {
@@ -524,4 +532,194 @@ model UserInvestment {
   cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
 
   @@map("investments")
+}
+
+model ParentOrganization {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  contactEmail  String
+  contactPhone  String?
+  address       String?
+  website       String?
+  logo          String?
+  parentId      String?  // Self-referencing for hierarchy
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String   // User ID who created this organization
+  
+  // User account fields
+  userId        String?  @unique // Associated user account
+  defaultPassword String? // Default password for the organization
+  
+  // Self-referencing relationship for hierarchy
+  parent        ParentOrganization? @relation("OrganizationHierarchy", fields: [parentId], references: [id])
+  children      ParentOrganization[] @relation("OrganizationHierarchy")
+  
+  // Relations to other entities
+  cooperatives  Cooperative[]
+  creator       User @relation("OrganizationCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  user          User? @relation("OrganizationUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("parent_organizations")
+}
+
+// NDPA Compliance Models
+model DataProcessingActivity {
+  id               String   @id @default(cuid())
+  purpose          String
+  legalBasis       String
+  dataCategories   String[]
+  recipients       String[]
+  retentionPeriod  Int      // in days
+  securityMeasures String[]
+  riskLevel        String   @default("low")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdBy        String
+
+  // Relations
+  consentRecords   ConsentRecord[]
+  dataBreaches     DataBreach[]
+  auditLogs        AuditLog[]
+
+  @@map("data_processing_activities")
+}
+
+model ConsentRecord {
+  id             String   @id @default(cuid())
+  dataSubjectId  String
+  purpose        String
+  consentGiven   Boolean
+  consentDate    DateTime
+  withdrawalDate DateTime?
+  ipAddress      String
+  userAgent      String
+  consentVersion String   @default("1.0")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  dataProcessingActivityId String?
+  dataProcessingActivity   DataProcessingActivity? @relation(fields: [dataProcessingActivityId], references: [id])
+
+  @@map("consent_records")
+}
+
+model DataBreach {
+  id                      String   @id @default(cuid())
+  description             String
+  categories              String[]
+  approximateDataSubjects  Int
+  likelyConsequences      String
+  measuresProposed        String
+  reportedToAuthority     Boolean  @default(false)
+  reportedToDataSubjects  Boolean  @default(false)
+  reportedAt              DateTime
+  status                  String   @default("detected")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  reportedBy              String
+
+  // Relations
+  dataProcessingActivityId String?
+  dataProcessingActivity   DataProcessingActivity? @relation(fields: [dataProcessingActivityId], references: [id])
+
+  @@map("data_breaches")
+}
+
+model DataSubjectRequest {
+  id          String   @id @default(cuid())
+  dataSubjectId String
+  requestType String   // access, rectification, erasure, portability, objection
+  description String
+  status      String   @default("pending") // pending, in_progress, completed, rejected
+  response    String?
+  requestedAt DateTime @default(now())
+  completedAt DateTime?
+  handledBy   String?
+
+  @@map("data_subject_requests")
+}
+
+model PrivacyImpactAssessment {
+  id                      String   @id @default(cuid())
+  activityId              String
+  purpose                 String
+  legalBasis              String
+  dataCategories          String[]
+  riskLevel               String
+  mitigationMeasures      String[]
+  dataMinimization        String
+  purposeLimitation       String
+  storageLimitation       String
+  accuracy                String
+  security                String
+  transparency            String
+  assessmentDate          DateTime @default(now())
+  assessedBy              String
+  approvedBy              String?
+
+  @@map("privacy_impact_assessments")
+}
+
+model AuditLog {
+  id                      String   @id @default(cuid())
+  userId                  String?
+  action                  String
+  resource                String
+  resourceId              String?
+  oldValues               Json?
+  newValues               Json?
+  ipAddress               String
+  userAgent               String
+  timestamp               DateTime @default(now())
+  dataProcessingActivityId String?
+  dataProcessingActivity   DataProcessingActivity? @relation(fields: [dataProcessingActivityId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model DataRetentionPolicy {
+  id              String   @id @default(cuid())
+  dataCategory    String
+  retentionPeriod Int      // in days
+  legalBasis      String
+  description     String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+
+  @@map("data_retention_policies")
+}
+
+// Charge Tracking Model - Records charges without applying them to payments
+model ChargeRecord {
+  id                String   @id @default(cuid())
+  transactionId     String?  // Reference to the transaction if available
+  userId            String
+  cooperativeId     String?
+  businessId        String?
+  chargeType        String
+  baseAmount        Float
+  chargeAmount      Float
+  chargePercentage  Float
+  totalAmount       Float
+  paymentType       String
+  paymentMethod     String
+  status            String   @default("recorded")
+  description       String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user              User         @relation(fields: [userId], references: [id])
+  cooperative       Cooperative? @relation(fields: [cooperativeId], references: [id])
+  business          Business?    @relation(fields: [businessId], references: [id])
+
+  @@map("charge_records")
 }

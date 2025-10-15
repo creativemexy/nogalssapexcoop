@@ -8,6 +8,7 @@ import { useSocket } from '@/hooks/useSocket';
 interface DashboardStats {
   totalUsers: number;
   totalCooperatives: number;
+  totalParentOrganizations: number;
   totalTransactions: number;
   pendingLoans: number;
   approvedLoans: number;
@@ -302,6 +303,23 @@ export default function SuperAdminDashboard() {
                 {loading ? '...' : `₦${(stats?.totalRegistrationFees || 0).toLocaleString()}`}
               </p>
               <p className="text-xs text-gray-500">{stats?.totalRegistrations || 0} total registrations</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow dark:shadow-lg p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Parent Organizations</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {loading ? '...' : (stats?.totalParentOrganizations ?? 0)}
+              </p>
+              <p className="text-xs text-gray-500">total organizations</p>
             </div>
           </div>
         </div>
@@ -797,6 +815,48 @@ export default function SuperAdminDashboard() {
           </div>
         </Link>
 
+        <Link href="/dashboard/super-admin/user-management" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">User Security</h3>
+              <p className="text-sm text-gray-600">Manage 2FA and password resets</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/super-admin/privacy-compliance" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Privacy & Compliance</h3>
+              <p className="text-sm text-gray-600">NDPA compliance and data protection</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/super-admin/charge-tracking" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Charge Tracking</h3>
+              <p className="text-sm text-gray-600">View transaction charges and fees</p>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/dashboard/super-admin/create-apex" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
@@ -1072,6 +1132,20 @@ export default function SuperAdminDashboard() {
             <div className="ml-4">
               <h3 className="text-lg font-medium text-gray-900">Expense Management</h3>
               <p className="text-sm text-gray-600">Review and approve expense requests</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/super-admin/parent-organizations" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Parent Organizations</h3>
+              <p className="text-sm text-gray-600">Manage parent organizations and hierarchy</p>
             </div>
           </div>
         </Link>

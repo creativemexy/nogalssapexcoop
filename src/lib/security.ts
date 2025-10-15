@@ -21,7 +21,8 @@ export type UserRole =
   | 'BUSINESS'
   | 'FINANCE'
   | 'APEX_FUNDS'
-  | 'NOGALSS_FUNDS';
+  | 'NOGALSS_FUNDS'
+  | 'PARENT_ORGANIZATION';
 
 // Role hierarchy for privilege validation
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -30,6 +31,7 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   FINANCE: 70,
   APEX_FUNDS: 60,
   NOGALSS_FUNDS: 50,
+  PARENT_ORGANIZATION: 45,
   LEADER: 40,
   COOPERATIVE: 30,
   BUSINESS: 20,

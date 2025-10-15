@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { initializePayment } from '@/lib/paystack';
 import { calculateTransactionFees } from '@/lib/fee-calculator';
+import { ChargeTracker } from '@/lib/charge-tracker';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,17 +49,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No cooperative associated with leader' }, { status: 400 });
     }
 
-    // Calculate transaction fees using the utility function
+    // Calculate transaction fees for tracking purposes only
     const feeCalculation = calculateTransactionFees(amount);
     
-    console.log('💰 Fee calculation for leader contribution:', {
+    console.log('💰 Fee calculation for leader contribution (for tracking only):', {
       baseAmount: feeCalculation.baseAmount,
       fee: feeCalculation.fee,
       totalAmount: feeCalculation.totalAmount
     });
 
-    // Convert total amount (including fees) to kobo (Paystack uses kobo)
-    const amountInKobo = Math.round(feeCalculation.totalAmount * 100);
+    // Record the charge without applying it to the payment
+    await ChargeTracker.recordCharge({
+      userId: targetUserId,
+      cooperativeId: leader.cooperativeId,
+      baseAmount: amount,
+      paymentType: 'leader_contribution',
+      paymentMethod: 'paystack',
+      description: `Leader contribution`,
+      metadata: {
+        leaderId: targetUserId,
+        originalAmount: amount
+      }
+    });
+
+    // Use only the base amount for payment (no charges applied)
+    const amountInKobo = Math.round(amount * 100);
 
     // Generate unique reference
     const reference = `LEADER_CONTRIB_${targetUserId}_${Date.now()}`;
@@ -73,9 +88,9 @@ export async function POST(request: NextRequest) {
         userId: targetUserId,
         cooperativeId: leader.cooperativeId,
         type: 'leader_contribution',
-        baseAmount: feeCalculation.baseAmount,
-        fee: feeCalculation.fee,
-        totalAmount: feeCalculation.totalAmount
+        baseAmount: amount,
+        fee: feeCalculation.fee, // For tracking purposes
+        totalAmount: amount // No charges applied to payment
       }
     };
 
@@ -91,12 +106,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Store pending contribution with base amount (not including fees)
+    // Store pending contribution with base amount only
     await prisma.contribution.create({
       data: {
         userId: targetUserId,
         cooperativeId: leader.cooperativeId,
-        amount: Math.round(feeCalculation.baseAmount * 100), // Store base amount in kobo
+        amount: Math.round(amount * 100), // Store base amount in kobo (no charges)
         description: description || `Leader contribution of ₦${amount.toLocaleString()}`
       }
     });

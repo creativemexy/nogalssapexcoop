@@ -23,6 +23,7 @@ export default function DashboardPage() {
       FINANCE: '/dashboard/finance',
       APEX_FUNDS: '/dashboard/apex-funds',
       NOGALSS_FUNDS: '/dashboard/nogalss-funds',
+      PARENT_ORGANIZATION: '/dashboard/parent-organization',
       LEADER: '/dashboard/leader',
       COOPERATIVE: '/dashboard/cooperative',
       MEMBER: '/dashboard/member',

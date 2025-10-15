@@ -51,10 +51,27 @@ export default function SystemSettingsPage() {
     const [twoFA, setTwoFA] = useState(false);
     const [global2FAEnabled, setGlobal2FAEnabled] = useState<boolean | null>(null);
 
+    // Allocation percentage state
+    const [allocations, setAllocations] = useState({
+        apexFunds: 40,
+        nogalssFunds: 20,
+        cooperativeShare: 20,
+        leaderShare: 15,
+        parentOrganizationShare: 5
+    });
+    const [allocationTotal, setAllocationTotal] = useState(100);
+
+    // Calculate total allocation percentage whenever allocations change
+    useEffect(() => {
+        const total = Object.values(allocations).reduce((sum, val) => sum + val, 0);
+        setAllocationTotal(total);
+    }, [allocations]);
+
     // Load settings and audit logs
     useEffect(() => {
         fetchSettings();
         fetchAuditLogs();
+        fetchAllocationPercentages();
         
         // Set up real-time updates
         if (socket) {
@@ -114,6 +131,45 @@ export default function SystemSettingsPage() {
             setAuditLogs(data.logs || []);
         } catch (err) {
             console.error('Failed to fetch audit logs:', err);
+        }
+    };
+
+    const fetchAllocationPercentages = async () => {
+        try {
+            const response = await fetch('/api/admin/allocation-percentages');
+            if (!response.ok) throw new Error('Failed to fetch allocation percentages');
+            const data = await response.json();
+            setAllocations(data.allocations);
+            setAllocationTotal(data.totalPercentage);
+        } catch (err) {
+            console.error('Failed to fetch allocation percentages:', err);
+        }
+    };
+
+    const saveAllocationPercentages = async () => {
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const response = await fetch('/api/admin/allocation-percentages', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ allocations }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save allocation percentages');
+            }
+
+            const data = await response.json();
+            setSuccess(data.message || 'Allocation percentages saved successfully');
+            setAllocationTotal(data.totalPercentage);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save allocation percentages');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -520,6 +576,131 @@ export default function SystemSettingsPage() {
                         className="mt-6 bg-[#0D5E42] text-white px-6 py-2 rounded hover:bg-[#0A4A35] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {saving ? 'Saving...' : 'Save Security'}
+                    </button>
+                </section>
+
+                {/* Allocation Percentages */}
+                <section className="bg-white dark:bg-gray-900 rounded-lg shadow p-8">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Registration Fee Allocation</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Configure how registration fees are distributed among different stakeholders. 
+                        Total must equal 100%.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Apex Funds (%)
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                step="0.1"
+                                value={allocations.apexFunds} 
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setAllocations(prev => ({ ...prev, apexFunds: value }));
+                                }}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Nogalss Funds (%)
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                step="0.1"
+                                value={allocations.nogalssFunds} 
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setAllocations(prev => ({ ...prev, nogalssFunds: value }));
+                                }}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Cooperative Share (%)
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                step="0.1"
+                                value={allocations.cooperativeShare} 
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setAllocations(prev => ({ ...prev, cooperativeShare: value }));
+                                }}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Leader Share (%)
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                step="0.1"
+                                value={allocations.leaderShare} 
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setAllocations(prev => ({ ...prev, leaderShare: value }));
+                                }}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Parent Organization Share (%)
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                step="0.1"
+                                value={allocations.parentOrganizationShare} 
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setAllocations(prev => ({ ...prev, parentOrganizationShare: value }));
+                                }}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Total Allocation:
+                            </span>
+                            <span className={`text-lg font-bold ${Math.abs(allocationTotal - 100) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+                                {allocationTotal.toFixed(1)}%
+                            </span>
+                        </div>
+                        {Math.abs(allocationTotal - 100) > 0.01 && (
+                            <p className="text-sm text-red-600 mt-2">
+                                Total must equal exactly 100%
+                            </p>
+                        )}
+                    </div>
+                    
+                    <button 
+                        onClick={saveAllocationPercentages}
+                        disabled={saving || Math.abs(allocationTotal - 100) > 0.01}
+                        className="mt-6 bg-[#0D5E42] text-white px-6 py-2 rounded hover:bg-[#0A4A35] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {saving ? 'Saving...' : 'Save Allocation Percentages'}
                     </button>
                 </section>
 
