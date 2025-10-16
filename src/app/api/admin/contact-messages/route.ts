@@ -42,10 +42,29 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Fetch contact messages with pagination
-    const [messages, totalCount] = await Promise.all([
+    // Fetch contact messages and support tickets with pagination
+    const [messages, supportTickets, totalCount] = await Promise.all([
       prisma.contactMessage.findMany({
         where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.supportTicket.findMany({
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          parentOrganization: {
+            select: {
+              name: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -53,7 +72,7 @@ export async function GET(request: NextRequest) {
       prisma.contactMessage.count({ where }),
     ]);
 
-    // Get status counts
+    // Get status counts for contact messages
     const statusCounts = await prisma.contactMessage.groupBy({
       by: ['status'],
       where: { isActive: true },
@@ -71,8 +90,26 @@ export async function GET(request: NextRequest) {
       statusStats[status as keyof typeof statusStats] = _count.status;
     });
 
+    // Get support ticket status counts
+    const supportStatusCounts = await prisma.supportTicket.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    });
+
+    const supportStats = {
+      OPEN: 0,
+      IN_PROGRESS: 0,
+      RESOLVED: 0,
+      CLOSED: 0,
+    };
+
+    supportStatusCounts.forEach(({ status, _count }) => {
+      supportStats[status as keyof typeof supportStats] = _count.status;
+    });
+
     return NextResponse.json({
       messages,
+      supportTickets,
       pagination: {
         page,
         limit,
@@ -82,6 +119,7 @@ export async function GET(request: NextRequest) {
         hasPrev: page > 1,
       },
       statusStats,
+      supportStats,
     });
 
   } catch (error) {

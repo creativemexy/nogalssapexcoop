@@ -16,8 +16,30 @@ interface ContactMessage {
   updatedAt: string;
 }
 
+interface SupportTicket {
+  id: string;
+  subject: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  parentOrganizationId?: string;
+  userId: string;
+  user: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  parentOrganization?: {
+    name: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface ContactMessagesResponse {
   messages: ContactMessage[];
+  supportTickets: SupportTicket[];
   pagination: {
     page: number;
     limit: number;
@@ -32,20 +54,32 @@ interface ContactMessagesResponse {
     REPLIED: number;
     ARCHIVED: number;
   };
+  supportStats: {
+    OPEN: number;
+    IN_PROGRESS: number;
+    RESOLVED: number;
+    CLOSED: number;
+  };
 }
 
 export default function ContactMessagesPage() {
   const { data: session, status } = useSession();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<any>(null);
   const [statusStats, setStatusStats] = useState<any>(null);
+  const [supportStats, setSupportStats] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [usingFileBackup, setUsingFileBackup] = useState(false);
+  const [activeTab, setActiveTab] = useState<'messages' | 'tickets'>('messages');
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   useEffect(() => {
     fetchMessages();
@@ -68,8 +102,10 @@ export default function ContactMessagesPage() {
       if (response.ok) {
         const data: ContactMessagesResponse = await response.json();
         setMessages(data.messages);
+        setSupportTickets(data.supportTickets || []);
         setPagination(data.pagination);
         setStatusStats(data.statusStats);
+        setSupportStats(data.supportStats);
         setUsingFileBackup(false);
       } else {
         // If database fails, try file-based backup
@@ -154,12 +190,76 @@ export default function ContactMessagesPage() {
     }
   };
 
+  const updateTicketStatus = async (id: string, status: string) => {
+    try {
+      const response = await fetch('/api/admin/support-tickets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      if (response.ok) {
+        fetchMessages(); // Refresh the list
+        if (selectedTicket?.id === id) {
+          setSelectedTicket({ ...selectedTicket, status });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+    }
+  };
+
+  const sendReply = async (type: 'message' | 'ticket', id: string, reply: string) => {
+    setSendingReply(true);
+    try {
+      const response = await fetch('/api/admin/send-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, id, reply }),
+      });
+
+      if (response.ok) {
+        setReplyText('');
+        alert('Reply sent successfully!');
+        fetchMessages(); // Refresh the list
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to send reply: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      alert('Failed to send reply');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'UNREAD': return 'bg-red-100 text-red-800';
       case 'READ': return 'bg-yellow-100 text-yellow-800';
       case 'REPLIED': return 'bg-green-100 text-green-800';
       case 'ARCHIVED': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTicketStatusColor = (status: string) => {
+    switch (status) {
+      case 'OPEN': return 'bg-red-100 text-red-800';
+      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
+      case 'RESOLVED': return 'bg-green-100 text-green-800';
+      case 'CLOSED': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'URGENT': return 'bg-red-100 text-red-800';
+      case 'HIGH': return 'bg-orange-100 text-orange-800';
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'LOW': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -227,8 +327,36 @@ export default function ContactMessagesPage() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'messages'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Contact Messages ({statusStats ? (Object.values(statusStats) as number[]).reduce((a: number, b: number) => a + b, 0) : 0})
+            </button>
+            <button
+              onClick={() => setActiveTab('tickets')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'tickets'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Support Tickets ({supportStats ? (Object.values(supportStats) as number[]).reduce((a: number, b: number) => a + b, 0) : 0})
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* Status Stats */}
-      {statusStats && (
+      {activeTab === 'messages' && statusStats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -289,6 +417,67 @@ export default function ContactMessagesPage() {
         </div>
       )}
 
+      {/* Support Ticket Stats */}
+      {activeTab === 'tickets' && supportStats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Open</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{supportStats.OPEN}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">In Progress</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{supportStats.IN_PROGRESS}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Resolved</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{supportStats.RESOLVED}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Closed</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{supportStats.CLOSED}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -341,38 +530,82 @@ export default function ContactMessagesPage() {
                   Retry
                 </button>
               </div>
-            ) : messages.length === 0 ? (
+            ) : (activeTab === 'messages' ? messages.length === 0 : supportTickets.length === 0) ? (
               <div className="p-6 text-center">
-                <p className="text-gray-600 dark:text-gray-300">No messages found.</p>
+                <p className="text-gray-600 dark:text-gray-300">No {activeTab === 'messages' ? 'messages' : 'tickets'} found.</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
-                      selectedMessage?.id === message.id ? 'bg-green-50 dark:bg-green-900/20' : ''
-                    }`}
-                    onClick={() => setSelectedMessage(message)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{message.name}</h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(message.status)}`}>
-                            {message.status}
-                          </span>
+                {activeTab === 'messages' ? (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
+                        selectedMessage?.id === message.id ? 'bg-green-50 dark:bg-green-900/20' : ''
+                      }`}
+                      onClick={() => {
+                        setSelectedMessage(message);
+                        setSelectedTicket(null);
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{message.name}</h3>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(message.status)}`}>
+                              {message.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">{message.email}</p>
+                          <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{message.subject}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{message.message}</p>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">{message.email}</p>
-                        <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{message.subject}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{message.message}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(message.createdAt)}</p>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(message.createdAt)}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  supportTickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className={`p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
+                        selectedTicket?.id === ticket.id ? 'bg-green-50 dark:bg-green-900/20' : ''
+                      }`}
+                      onClick={() => {
+                        setSelectedTicket(ticket);
+                        setSelectedMessage(null);
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{ticket.subject}</h3>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTicketStatusColor(ticket.status)}`}>
+                              {ticket.status}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(ticket.priority)}`}>
+                              {ticket.priority}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                            {ticket.user.firstName} {ticket.user.lastName} ({ticket.user.email})
+                          </p>
+                          {ticket.parentOrganization && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                              Organization: {ticket.parentOrganization.name}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{ticket.description}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(ticket.createdAt)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
@@ -405,7 +638,7 @@ export default function ContactMessagesPage() {
           </div>
         </div>
 
-        {/* Message Details */}
+        {/* Message/Ticket Details */}
         <div className="lg:col-span-1">
           {selectedMessage ? (
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
@@ -452,6 +685,25 @@ export default function ContactMessagesPage() {
                 </div>
               </div>
               
+              {/* Reply Section */}
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Send Reply</h4>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Type your reply here..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows={4}
+                />
+                <button
+                  onClick={() => sendReply('message', selectedMessage.id, replyText)}
+                  disabled={!replyText.trim() || sendingReply}
+                  className="mt-3 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {sendingReply ? 'Sending...' : 'Send Reply'}
+                </button>
+              </div>
+              
               <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
                 <div className="flex space-x-2">
                   <button
@@ -487,9 +739,109 @@ export default function ContactMessagesPage() {
                 </div>
               </div>
             </div>
+          ) : selectedTicket ? (
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Ticket Details</h3>
+                  <div className="flex space-x-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTicketStatusColor(selectedTicket.status)}`}>
+                      {selectedTicket.status}
+                    </span>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(selectedTicket.priority)}`}>
+                      {selectedTicket.priority}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Subject</label>
+                  <p className="text-gray-900 dark:text-gray-100">{selectedTicket.subject}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">User</label>
+                  <p className="text-gray-900 dark:text-gray-100">
+                    {selectedTicket.user.firstName} {selectedTicket.user.lastName} ({selectedTicket.user.email})
+                  </p>
+                </div>
+                
+                {selectedTicket.parentOrganization && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Organization</label>
+                    <p className="text-gray-900 dark:text-gray-100">{selectedTicket.parentOrganization.name}</p>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Category</label>
+                  <p className="text-gray-900 dark:text-gray-100">{selectedTicket.category}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Description</label>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{selectedTicket.description}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Created</label>
+                  <p className="text-gray-900 dark:text-gray-100">{formatDate(selectedTicket.createdAt)}</p>
+                </div>
+              </div>
+              
+              {/* Reply Section */}
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Send Reply</h4>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Type your reply here..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows={4}
+                />
+                <button
+                  onClick={() => sendReply('ticket', selectedTicket.id, replyText)}
+                  disabled={!replyText.trim() || sendingReply}
+                  className="mt-3 w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {sendingReply ? 'Sending...' : 'Send Reply'}
+                </button>
+              </div>
+              
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => updateTicketStatus(selectedTicket.id, 'IN_PROGRESS')}
+                    disabled={selectedTicket.status === 'IN_PROGRESS'}
+                    className="flex-1 bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Mark In Progress
+                  </button>
+                  <button
+                    onClick={() => updateTicketStatus(selectedTicket.id, 'RESOLVED')}
+                    disabled={selectedTicket.status === 'RESOLVED'}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Mark Resolved
+                  </button>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => updateTicketStatus(selectedTicket.id, 'CLOSED')}
+                    disabled={selectedTicket.status === 'CLOSED'}
+                    className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Close Ticket
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6 text-center">
-              <p className="text-gray-600 dark:text-gray-300">Select a message to view details</p>
+              <p className="text-gray-600 dark:text-gray-300">Select a {activeTab === 'messages' ? 'message' : 'ticket'} to view details</p>
             </div>
           )}
         </div>
