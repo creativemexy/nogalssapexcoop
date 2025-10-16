@@ -10,7 +10,7 @@ export default function RegistrationFeeCard({ canEdit = false, showTitle = true 
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/public/registration-fee')
+    fetch('/api/public/member-registration-fee')
       .then(res => res.json())
       .then(data => {
         // Convert from kobo to naira
@@ -27,7 +27,7 @@ export default function RegistrationFeeCard({ canEdit = false, showTitle = true 
     setError(null);
     setSuccess(null);
     try {
-      const res = await fetch('/api/settings/registration-fee', {
+      const res = await fetch('/api/settings/member-registration-fee', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registrationFee: Number(inputFee) * 100 }), // Convert naira to kobo
