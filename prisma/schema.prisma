@@ -49,6 +49,7 @@ model User {
   parentOrganizationsCreated ParentOrganization[] @relation("OrganizationCreator")
   parentOrganization ParentOrganization? @relation("OrganizationUser")
   chargeRecords ChargeRecord[]
+  supportTickets SupportTicket[]
 
   @@map("users")
 }
@@ -561,6 +562,7 @@ model ParentOrganization {
   cooperatives  Cooperative[]
   creator       User @relation("OrganizationCreator", fields: [createdBy], references: [id], onDelete: Cascade)
   user          User? @relation("OrganizationUser", fields: [userId], references: [id], onDelete: SetNull)
+  supportTickets SupportTicket[]
 
   @@map("parent_organizations")
 }
@@ -722,4 +724,46 @@ model ChargeRecord {
   business          Business?    @relation(fields: [businessId], references: [id])
 
   @@map("charge_records")
+}
+
+model SupportTicket {
+  id                  String   @id @default(cuid())
+  subject             String
+  description         String
+  status              SupportTicketStatus @default(OPEN)
+  priority            SupportTicketPriority @default(MEDIUM)
+  category            SupportTicketCategory @default(GENERAL)
+  parentOrganizationId String?
+  userId              String
+  assignedTo          String?
+  resolution          String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  parentOrganization  ParentOrganization? @relation(fields: [parentOrganizationId], references: [id])
+  user                User @relation(fields: [userId], references: [id])
+
+  @@map("support_tickets")
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SupportTicketCategory {
+  TECHNICAL
+  BILLING
+  GENERAL
+  FEATURE_REQUEST
 }
