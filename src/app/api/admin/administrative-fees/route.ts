@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Calculate fund distributions (amounts are already in naira)
+    // Calculate fund distributions (convert from kobo to naira)
     const convertedRows = rows.map(row => {
-      const amountNaira = Number(row.amount); // Amount is already in naira
+      const amountNaira = Number(row.amount) / 100; // Convert from kobo to naira
       const apexFunds = amountNaira * (allocations.apexFunds / 100);
       const nogalssFunds = amountNaira * (allocations.nogalssFunds / 100);
       const cooperativeShare = amountNaira * (allocations.cooperativeShare / 100);
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalAmountNaira = Number(totalsAgg._sum.amount || 0);
+    const totalAmountNaira = Number(totalsAgg._sum.amount || 0) / 100; // Convert from kobo to naira
 
     return NextResponse.json({
       rows: convertedRows,
