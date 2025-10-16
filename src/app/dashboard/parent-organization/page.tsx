@@ -292,6 +292,11 @@ export default function ParentOrganizationDashboard() {
           href="/dashboard/parent-organization/cooperatives" 
         />
         <ActionCard 
+          title="View All Members" 
+          description="View members from all cooperatives" 
+          href="/dashboard/parent-organization/members" 
+        />
+        <ActionCard 
           title="View Reports" 
           description="Generate and view organization reports" 
           href="/dashboard/parent-organization/reports" 
