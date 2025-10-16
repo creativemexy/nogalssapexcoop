@@ -90,6 +90,51 @@ export async function GET(request: NextRequest) {
     const totalContributions = Number(totalContributionsResult._sum.amount || 0) / 100;
     const totalLoans = Number(totalLoansResult._sum.amount || 0) / 100;
 
+    // Get allocation data for parent organization
+    const registrationFees = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      _count: { id: true },
+      where: {
+        status: 'SUCCESSFUL',
+        reference: { startsWith: 'REG_' },
+        amount: { gt: 0 },
+        user: { 
+          cooperative: { 
+            parentOrganizationId: organization.id
+          } 
+        }
+      },
+    });
+
+    const totalRegistrationFees = Number(registrationFees._sum.amount || 0) / 100;
+    
+    // Get allocation percentages from system settings
+    const allocationSettings = await prisma.systemSettings.findMany({
+      where: {
+        category: 'allocation',
+        isActive: true
+      }
+    });
+
+    // Default allocation percentages
+    const defaultAllocations = {
+      cooperativeShare: 20,
+      leaderShare: 15,
+      parentOrganizationShare: 5
+    };
+
+    // Parse current settings or use defaults
+    const allocations = { ...defaultAllocations };
+    allocationSettings.forEach(setting => {
+      const value = parseFloat(setting.value);
+      if (!isNaN(value)) {
+        allocations[setting.key as keyof typeof allocations] = value;
+      }
+    });
+    
+    // Calculate Parent Organization's allocation
+    const parentOrganizationAllocation = totalRegistrationFees * (allocations.parentOrganizationShare / 100);
+
     return NextResponse.json({
       totalCooperatives,
       activeCooperatives,
@@ -97,6 +142,11 @@ export async function GET(request: NextRequest) {
       totalContributions,
       totalLoans,
       pendingLoans,
+      // Allocation data
+      totalRegistrationFees,
+      parentOrganizationAllocation,
+      allocationPercentage: allocations.parentOrganizationShare,
+      allocationSettings: allocations,
     });
 
   } catch (error) {

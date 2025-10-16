@@ -86,10 +86,10 @@ export async function GET(request: NextRequest) {
     // Calculate summary data
     const totalMembers = cooperatives.reduce((sum, coop) => sum + coop._count.members, 0);
     const totalContributions = cooperatives.reduce((sum, coop) => 
-      sum + coop.contributions.reduce((contribSum, contrib) => contribSum + contrib.amount, 0), 0
+      sum + coop.contributions.reduce((contribSum, contrib) => contribSum + Number(contrib.amount), 0), 0
     );
     const totalLoans = cooperatives.reduce((sum, coop) => 
-      sum + coop.loans.reduce((loanSum, loan) => loanSum + loan.amount, 0), 0
+      sum + coop.loans.reduce((loanSum, loan) => loanSum + Number(loan.amount), 0), 0
     );
     const activeLoans = cooperatives.reduce((sum, coop) => 
       sum + coop.loans.filter(loan => loan.status === 'APPROVED').length, 0
@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
       id: coop.id,
       name: coop.name,
       memberCount: coop._count.members,
-      contributionTotal: coop.contributions.reduce((sum, contrib) => sum + contrib.amount, 0),
-      loanTotal: coop.loans.reduce((sum, loan) => sum + loan.amount, 0),
+      contributionTotal: coop.contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0),
+      loanTotal: coop.loans.reduce((sum, loan) => sum + Number(loan.amount), 0),
       activeLoans: coop.loans.filter(loan => loan.status === 'APPROVED').length
     }));
 

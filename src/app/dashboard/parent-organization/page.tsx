@@ -44,6 +44,15 @@ interface DashboardStats {
   totalContributions: number;
   totalLoans: number;
   pendingLoans: number;
+  // Allocation data
+  totalRegistrationFees: number;
+  parentOrganizationAllocation: number;
+  allocationPercentage: number;
+  allocationSettings: {
+    cooperativeShare: number;
+    leaderShare: number;
+    parentOrganizationShare: number;
+  };
 }
 
 export default function ParentOrganizationDashboard() {
@@ -200,7 +209,80 @@ export default function ParentOrganizationDashboard() {
           value={stats?.pendingLoans || 0} 
           color="red" 
         />
+        <StatCard 
+          title="Registration Fees" 
+          value={stats?.totalRegistrationFees || 0} 
+          color="blue" 
+          isCurrency 
+        />
+        <StatCard 
+          title="Allocation Share" 
+          value={stats?.parentOrganizationAllocation || 0} 
+          color="purple" 
+          isCurrency 
+        />
+        <StatCard 
+          title="Allocation %" 
+          value={stats?.allocationPercentage || 0} 
+          color="green" 
+          isPercentage
+        />
       </div>
+
+      {/* Allocation Share Section */}
+      {stats && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Registration Fee Allocation</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">₦{stats.totalRegistrationFees?.toLocaleString() || '0'}</div>
+              <div className="text-sm text-gray-500">Total Registration Fees</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">₦{stats.parentOrganizationAllocation?.toLocaleString() || '0'}</div>
+              <div className="text-sm text-gray-500">Your Allocation Share</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-teal-600">{stats.allocationPercentage || 0}%</div>
+              <div className="text-sm text-gray-500">Allocation Percentage</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                ₦{((stats.totalRegistrationFees || 0) - (stats.parentOrganizationAllocation || 0)).toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-500">Remaining Distribution</div>
+            </div>
+          </div>
+          
+          {/* Allocation Breakdown */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-md font-medium text-gray-900 mb-3">Allocation Breakdown</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-blue-800">Cooperative Share</div>
+                <div className="text-lg font-bold text-blue-600">{stats.allocationSettings?.cooperativeShare || 0}%</div>
+                <div className="text-xs text-blue-500">
+                  ₦{((stats.totalRegistrationFees || 0) * (stats.allocationSettings?.cooperativeShare || 0) / 100).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-green-800">Leader Share</div>
+                <div className="text-lg font-bold text-green-600">{stats.allocationSettings?.leaderShare || 0}%</div>
+                <div className="text-xs text-green-500">
+                  ₦{((stats.totalRegistrationFees || 0) * (stats.allocationSettings?.leaderShare || 0) / 100).toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-orange-800">Parent Organization Share</div>
+                <div className="text-lg font-bold text-orange-600">{stats.allocationSettings?.parentOrganizationShare || 0}%</div>
+                <div className="text-xs text-orange-500">
+                  ₦{((stats.totalRegistrationFees || 0) * (stats.allocationSettings?.parentOrganizationShare || 0) / 100).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -294,12 +376,14 @@ const StatCard = ({
   title, 
   value, 
   color, 
-  isCurrency 
+  isCurrency,
+  isPercentage 
 }: { 
   title: string; 
   value: number; 
   color: 'blue' | 'green' | 'purple' | 'yellow' | 'red'; 
   isCurrency?: boolean;
+  isPercentage?: boolean;
 }) => {
   const colorClasses = {
     blue: 'border-blue-500 bg-blue-50',
@@ -321,7 +405,9 @@ const StatCard = ({
         {title}
       </p>
       <p className="text-2xl font-semibold text-gray-900">
-        {isCurrency ? `₦${value.toLocaleString()}` : value.toLocaleString()}
+        {isCurrency ? `₦${value.toLocaleString()}` : 
+         isPercentage ? `${value}%` : 
+         value.toLocaleString()}
       </p>
     </div>
   );
