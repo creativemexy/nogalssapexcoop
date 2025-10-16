@@ -88,11 +88,15 @@ export async function GET(request: NextRequest) {
         }
       }),
 
-      // Total expenses (administrative fees, etc.)
+      // Total registration fees paid by members
       prisma.transaction.aggregate({
         where: {
           user: { cooperativeId },
           type: 'FEE',
+          description: {
+            contains: 'registration fee',
+            mode: 'insensitive'
+          },
           status: 'SUCCESSFUL'
         },
         _sum: { amount: true }

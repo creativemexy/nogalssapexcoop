@@ -11,7 +11,8 @@ interface CooperativeStats {
   totalLoans: number;
   activeLoans: number;
   pendingLoans: number;
-  totalExpenses: number;
+  registrationFees: number;
+  allocation20Percent: number;
   recentTransactions: Array<{
     id: string;
     type: string;
@@ -171,7 +172,7 @@ export default function CooperativeDashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Registration Fees</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                ₦0
+                ₦{(stats?.registrationFees || 0).toLocaleString()}
               </p>
             </div>
           </div>
@@ -193,11 +194,11 @@ export default function CooperativeDashboard() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-300">Registration Fees</span>
-              <span className="font-semibold text-red-600">₦0</span>
+              <span className="font-semibold text-red-600">₦{(stats?.registrationFees || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-300">20% Allocation</span>
-              <span className="font-semibold text-green-600">₦0</span>
+              <span className="font-semibold text-green-600">₦{(stats?.allocation20Percent || 0).toLocaleString()}</span>
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">
