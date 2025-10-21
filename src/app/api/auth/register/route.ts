@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
                 amount: registrationFee,
                 currency: 'NGN',
                 reference: reference,
-                callback_url: `https://nogalssapexcoop.org/api/payments/verify`,
+                callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
                 metadata: {
                     pendingRegistrationId: pendingRegistration.id,
                     cooperativeName: cooperativeName,
@@ -334,7 +334,7 @@ export async function POST(req: NextRequest) {
                     email: email,
                     amount: registrationFee,
                     reference: reference,
-                    callback_url: `https://nogalssapexcoop.org/api/payments/verify`,
+                    callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
                     metadata: {
                         pendingRegistrationId: pendingRegistration.id,
                         registrationType: 'MEMBER'

@@ -151,14 +151,14 @@ export async function GET(request: NextRequest) {
       console.log('ERROR: No payment reference found!');
       console.log('Reference:', reference);
       console.log('Trxref:', trxref);
-      return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Payment reference is required`);
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Payment reference is required`);
     }
     
     console.log('Using payment reference:', paymentReference);
     
     // For now, let's just redirect to success to test if the callback is working
     console.log('✅ TESTING: Redirecting to success page');
-    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/success?cooperative=Test&reference=${paymentReference}`);
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?cooperative=Test&reference=${paymentReference}`);
 
     // Verify payment with Paystack
     console.log('Verifying payment with Paystack for reference:', paymentReference);
@@ -318,7 +318,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Send welcome emails with virtual account information
-      const leaderDashboardUrl = `https://nogalssapexcoop.org/dashboard/leader`;
+      const leaderDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/leader`;
       const leaderHtml = getWelcomeEmailHtml({
         name: result.leaderUser.firstName,
         email: result.leaderUser.email,
@@ -335,7 +335,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Send email to cooperative
-      const cooperativeDashboardUrl = `https://nogalssapexcoop.org/dashboard/cooperative`;
+      const cooperativeDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/cooperative`;
       const cooperativeHtml = getWelcomeEmailHtml({
         name: result.cooperativeUser.firstName,
         email: result.cooperativeUser.email,
@@ -361,12 +361,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to success page
-    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/success?cooperative=${result.cooperative.name}&reference=${paymentReference}`);
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?cooperative=${result.cooperative.name}&reference=${paymentReference}`);
 
   } catch (error) {
     console.error('❌ ERROR in payment callback:', error);
     console.error('Error stack:', error.stack);
     console.error('Error message:', error.message);
-    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Payment processing failed`);
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Payment processing failed`);
   }
 }
