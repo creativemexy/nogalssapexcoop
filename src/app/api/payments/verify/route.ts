@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { NotificationService } from '@/lib/notifications';
+import { NotificationService, getWelcomeEmailHtml } from '@/lib/notifications';
 import bcrypt from 'bcryptjs';
 import { sendMail } from '@/lib/email';
-import { getWelcomeEmailHtml } from '@/lib/notifications';
 import { createVirtualAccount } from '@/lib/paystack';
 
 // Helper function to calculate base amount from total amount (reversing Paystack fee calculation)
@@ -404,7 +403,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
       data: { status: 'COMPLETED' }
     });
 
-    // Send welcome emails
+    // Send welcome emails and SMS
     try {
       const leaderDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/leader`;
       const leaderHtml = getWelcomeEmailHtml({
@@ -416,7 +415,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
         virtualAccount: undefined,
         registrationPaid: true,
       });
-      await sendMail({
+      await NotificationService.sendEmail({
         to: result.leaderUser.email,
         subject: 'Welcome to Nogalss – Leader Account Activated',
         html: leaderHtml,
@@ -433,11 +432,26 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
         virtualAccount: undefined,
         registrationPaid: true,
       });
-      await sendMail({
+      await NotificationService.sendEmail({
         to: result.cooperativeUser.email,
         subject: 'Welcome to Nogalss – Cooperative Account Activated',
         html: cooperativeHtml,
       });
+
+      // Send SMS notifications
+      if (result.leaderUser.phoneNumber) {
+        await NotificationService.sendRegistrationConfirmationSMS(
+          result.leaderUser.phoneNumber,
+          'LEADER'
+        );
+      }
+
+      if (result.cooperativeUser.phoneNumber) {
+        await NotificationService.sendRegistrationConfirmationSMS(
+          result.cooperativeUser.phoneNumber,
+          'COOPERATIVE'
+        );
+      }
     } catch (emailError) {
       console.error('Failed to send welcome emails:', emailError);
     }
@@ -556,7 +570,7 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
       data: { status: 'COMPLETED' }
     });
 
-    // Send welcome email to member
+    // Send welcome email and SMS to member
     try {
       const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/member`;
       const html = getWelcomeEmailHtml({
@@ -572,11 +586,19 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
         },
         registrationPaid: true,
       });
-      await sendMail({
+      await NotificationService.sendEmail({
         to: result.memberUser.email,
         subject: 'Welcome to Nogalss – Member Account Activated',
         html,
       });
+
+      // Send SMS notification to member
+      if (result.memberUser.phoneNumber) {
+        await NotificationService.sendRegistrationConfirmationSMS(
+          result.memberUser.phoneNumber,
+          'MEMBER'
+        );
+      }
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
     }
