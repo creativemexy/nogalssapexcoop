@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       // Check if contribution has already been processed
       if (pendingContribution.status === 'COMPLETED') {
         console.log('✅ Contribution already processed, redirecting to success');
-        return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/success?type=contribution&reference=${paymentReference}`);
+        return NextResponse.redirect(`https://nogalssapexcoop.org/payments/success?type=contribution&reference=${paymentReference}`);
       }
       
       // This is a contribution payment, handle it differently
@@ -159,8 +159,8 @@ export async function GET(request: NextRequest) {
 
     // Redirect to success/failure page
     const redirectUrl = status === 'SUCCESSFUL' 
-      ? `${process.env.NEXTAUTH_URL}/payments/success?reference=${reference}`
-      : `${process.env.NEXTAUTH_URL}/payments/failed?reference=${reference}`;
+      ? `https://nogalssapexcoop.org/payments/success?reference=${reference}`
+      : `https://nogalssapexcoop.org/payments/failed?reference=${reference}`;
 
     return NextResponse.redirect(redirectUrl);
 
@@ -279,7 +279,7 @@ async function handleRegistrationPayment(reference: string, paystackData: any, p
         data: { status: 'FAILED' }
       });
       
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Payment not successful`);
+      return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Payment not successful`);
     }
 
     console.log('✅ Payment successful, parsing registration data...');
@@ -302,7 +302,7 @@ async function handleRegistrationPayment(reference: string, paystackData: any, p
       where: { id: pendingRegistration.id },
       data: { status: 'FAILED' }
     });
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Registration processing failed`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Registration processing failed`);
   }
 }
 
@@ -406,7 +406,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
 
     // Send welcome emails
     try {
-      const leaderDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/leader`;
+      const leaderDashboardUrl = `https://nogalssapexcoop.org/dashboard/leader`;
       const leaderHtml = getWelcomeEmailHtml({
         name: result.leaderUser.firstName,
         email: result.leaderUser.email,
@@ -423,7 +423,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
       });
 
       // Send email to cooperative
-      const cooperativeDashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/cooperative`;
+      const cooperativeDashboardUrl = `https://nogalssapexcoop.org/dashboard/cooperative`;
       const cooperativeHtml = getWelcomeEmailHtml({
         name: result.cooperativeUser.firstName,
         email: result.cooperativeUser.email,
@@ -443,7 +443,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
     }
 
     // Redirect to success page
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?cooperative=${result.cooperative.name}&reference=${reference}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/success?cooperative=${result.cooperative.name}&reference=${reference}`);
 
   } catch (error) {
     console.error('❌ Registration payment processing error:', error);
@@ -457,7 +457,7 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
       data: { status: 'FAILED' }
     });
     
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Registration processing failed: ${error.message}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Registration processing failed: ${error.message}`);
   }
 }
 
@@ -558,7 +558,7 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
 
     // Send welcome email to member
     try {
-      const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/member`;
+      const dashboardUrl = `https://nogalssapexcoop.org/dashboard/member`;
       const html = getWelcomeEmailHtml({
         name: result.memberUser.firstName,
         email: result.memberUser.email,
@@ -582,7 +582,7 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
     }
 
     // Redirect to success page
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/success?member=${result.memberUser.firstName}&reference=${reference}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/success?member=${result.memberUser.firstName}&reference=${reference}`);
 
   } catch (error) {
     console.error('❌ Member registration processing error:', error);
@@ -596,7 +596,7 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
       data: { status: 'FAILED' }
     });
     
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Member registration processing failed: ${error.message}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/auth/register/error?message=Member registration processing failed: ${error.message}`);
   }
 }
 
@@ -615,7 +615,7 @@ async function handleContributionPayment(reference: string, paystackData: any, p
         data: { status: 'FAILED' }
       });
       
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/failed?message=Contribution payment not successful`);
+      return NextResponse.redirect(`https://nogalssapexcoop.org/payments/failed?message=Contribution payment not successful`);
     }
 
     console.log('✅ Contribution payment successful, processing...');
@@ -687,7 +687,7 @@ async function handleContributionPayment(reference: string, paystackData: any, p
     }
 
     // Redirect to success page
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/success?type=contribution&reference=${reference}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/payments/success?type=contribution&reference=${reference}`);
 
   } catch (error) {
     console.error('❌ Contribution payment processing error:', error);
@@ -698,6 +698,6 @@ async function handleContributionPayment(reference: string, paystackData: any, p
       data: { status: 'FAILED' }
     });
     
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/payments/failed?message=Contribution processing failed: ${error.message}`);
+    return NextResponse.redirect(`https://nogalssapexcoop.org/payments/failed?message=Contribution processing failed: ${error.message}`);
   }
 } 
