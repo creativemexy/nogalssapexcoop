@@ -21,11 +21,14 @@ export async function POST(req: NextRequest) {
         const { registrationType } = body;
 
         if (registrationType === 'COOPERATIVE') {
+            if (!body.acceptedTerms) {
+                return NextResponse.json({ error: 'You must accept the Terms & Conditions to continue.' }, { status: 400 });
+            }
             const { 
                 cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone, cooperativeEmail,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
-                leaderPhone, leaderTitle, leaderBankAccountNumber, parentOrganizationId
+                leaderPhone, leaderTitle, leaderBankName, leaderBankAccountNumber, leaderBankAccountName, parentOrganizationId
             } = body;
 
             // Validate input for all required fields
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
                 cooperativeName, cooperativeRegNo, bankName, bankAccountNumber, bankAccountName,
                 address, city, lga, state, phone,
                 leaderFirstName, leaderLastName, leaderEmail, leaderPassword,
-                leaderPhone, leaderTitle, parentOrganizationId
+                leaderPhone, leaderTitle, leaderBankName, leaderBankAccountNumber, leaderBankAccountName, parentOrganizationId
             };
 
             for (const [key, value] of Object.entries(requiredFields)) {
@@ -90,8 +93,12 @@ export async function POST(req: NextRequest) {
                     key: 'cooperative_registration_fee' 
                 }
             });
-            const defaultCooperativeFee = 5000000; // ₦50,000.00 in kobo
-            const baseRegistrationFee = cooperativeFeeSetting ? parseInt(cooperativeFeeSetting.value) : defaultCooperativeFee;
+            
+            if (!cooperativeFeeSetting) {
+                return NextResponse.json({ error: 'Cooperative registration fee not configured in system settings.' }, { status: 400 });
+            }
+            
+            const baseRegistrationFee = parseInt(cooperativeFeeSetting.value);
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
             const baseAmount = baseRegistrationFee / 100; // Convert to naira
@@ -125,6 +132,9 @@ export async function POST(req: NextRequest) {
                 leaderPassword,
                 leaderPhone,
                 leaderTitle,
+                leaderBankName,
+                leaderBankAccountNumber,
+                leaderBankAccountName,
                 parentOrganizationId
             };
 
@@ -211,11 +221,14 @@ export async function POST(req: NextRequest) {
             }, { status: 201 });
 
         } else if (registrationType === 'MEMBER') {
+            if (!body.acceptedTerms) {
+                return NextResponse.json({ error: 'You must accept the Terms & Conditions to continue.' }, { status: 400 });
+            }
             const { firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, phoneNumber, nextOfKinName, nextOfKinPhone, emergencyContact, emergencyPhone, savingAmount, savingFrequency } = body;
             
-            // Validate input for all required fields
+            // Validate input for all required fields (email is optional)
             const requiredFields = {
-                firstName, lastName, email, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, phoneNumber, nextOfKinName, nextOfKinPhone, emergencyContact, emergencyPhone, savingAmount, savingFrequency
+                firstName, lastName, password, cooperativeCode, nin, dateOfBirth, occupation, address, city, lga, state, phoneNumber, nextOfKinName, nextOfKinPhone, emergencyContact, emergencyPhone, savingAmount, savingFrequency
             };
 
             for (const [key, value] of Object.entries(requiredFields)) {
@@ -224,9 +237,14 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // Validate NIN format (10 digits)
-            if (nin && !/^\d{10}$/.test(nin)) {
-                return NextResponse.json({ error: 'NIN must be exactly 10 digits.' }, { status: 400 });
+            // Validate that at least one of email, phone, or NIN is provided
+            if (!email && !phoneNumber && !nin) {
+                return NextResponse.json({ error: 'At least one of email, phone number, or NIN must be provided.' }, { status: 400 });
+            }
+
+            // Validate NIN format (11 digits)
+            if (nin && !/^\d{11}$/.test(nin)) {
+                return NextResponse.json({ error: 'NIN must be exactly 11 digits.' }, { status: 400 });
             }
 
             // Validate phone number format (11 digits)
@@ -268,8 +286,12 @@ export async function POST(req: NextRequest) {
                     key: 'member_registration_fee' 
                 }
             });
-            const defaultMemberFee = 500000; // ₦5,000.00 in kobo
-            const baseRegistrationFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : defaultMemberFee;
+            
+            if (!memberFeeSetting) {
+                return NextResponse.json({ error: 'Member registration fee not configured in system settings.' }, { status: 400 });
+            }
+            
+            const baseRegistrationFee = parseInt(memberFeeSetting.value);
             
             // Calculate Paystack transaction fees (1.5% + NGN 100, capped at NGN 2,000, waived for < NGN 2,500)
             const baseAmount = baseRegistrationFee / 100; // Convert to naira

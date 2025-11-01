@@ -11,8 +11,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const defaultCooperativeFee = 5000000; // ₦50,000.00 in kobo
-    const cooperativeRegistrationFee = cooperativeFeeSetting ? parseInt(cooperativeFeeSetting.value) : defaultCooperativeFee;
+    if (!cooperativeFeeSetting) {
+      return NextResponse.json({
+        error: 'Cooperative registration fee not configured in system settings'
+      }, { status: 404 });
+    }
+
+    const cooperativeRegistrationFee = parseInt(cooperativeFeeSetting.value);
 
     return NextResponse.json({
       registrationFee: cooperativeRegistrationFee,
@@ -22,11 +27,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching cooperative registration fee:', error);
-    // Return default fee if there's an error
     return NextResponse.json({
-      registrationFee: 5000000,
-      registrationFeeFormatted: '₦50,000.00',
-      currency: 'NGN'
-    });
+      error: 'Failed to fetch cooperative registration fee'
+    }, { status: 500 });
   }
 }

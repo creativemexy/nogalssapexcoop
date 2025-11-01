@@ -1,12 +1,14 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
 // Connection pool configuration
-const prismaConfig = {
+const prismaConfig: Prisma.PrismaClientOptions = {
   datasources: {
     db: {
       url: process.env.DATABASE_URL,
     },
   },
+  // Connection pool settings to prevent timeout issues
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 }
 
 const globalForPrisma = globalThis as unknown as {

@@ -60,6 +60,11 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
+                _count: {
+                  select: {
+                    members: true,
+                  },
+                },
               },
             },
             creator: {
@@ -138,6 +143,58 @@ export async function POST(request: NextRequest) {
       website,
       logo,
       parentId,
+      // CAC Registration Details
+      rcNumber,
+      companyType,
+      registrationDate,
+      businessActivities,
+      // Additional CAC Information
+      tin,
+      vatNumber,
+      registryNumber,
+      companyStatus,
+      city,
+      state,
+      lga,
+      branchAddress,
+      objectives,
+      // Share Capital Information
+      shareCapitalInWords,
+      paidUpCapital,
+      subscribedShareCapital,
+      sharesIssued,
+      sharesValue,
+      // Company Contact Persons
+      companyContactName,
+      companyContactEmail,
+      companyContactPhone,
+      // Key Personnel - Secretary
+      secretaryName,
+      secretaryEmail,
+      secretaryPhone,
+      secretaryAddress,
+      // Directors
+      director1Name,
+      director1Email,
+      director1Phone,
+      director1Address,
+      director1Occupation,
+      director1Nationality,
+      // Shareholders
+      shareholder1Name,
+      shareholder1Shares,
+      shareholder1Percentage,
+      shareholder1Address,
+      shareholder1Nationality,
+      // President Details
+      presidentFirstName,
+      presidentLastName,
+      presidentEmail,
+      presidentPhone,
+      // Bank Details
+      bankName,
+      bankAccountNumber,
+      bankAccountName,
     } = body;
 
     // Validate required fields
@@ -213,6 +270,58 @@ export async function POST(request: NextRequest) {
           createdBy: (session.user as any).id,
           userId: organizationUser.id,
           defaultPassword: defaultPassword,
+          // CAC Registration Details
+          rcNumber,
+          companyType,
+          registrationDate: registrationDate ? new Date(registrationDate) : null,
+          businessActivities,
+          // Additional CAC Information
+          tin,
+          vatNumber,
+          registryNumber,
+          companyStatus,
+          city,
+          state,
+          lga,
+          branchAddress,
+          objectives,
+          // Share Capital Information
+          shareCapitalInWords,
+          paidUpCapital,
+          subscribedShareCapital,
+          sharesIssued,
+          sharesValue,
+          // Company Contact Persons
+          companyContactName,
+          companyContactEmail,
+          companyContactPhone,
+          // Key Personnel - Secretary
+          secretaryName,
+          secretaryEmail,
+          secretaryPhone,
+          secretaryAddress,
+          // Directors
+          director1Name,
+          director1Email,
+          director1Phone,
+          director1Address,
+          director1Occupation,
+          director1Nationality,
+          // Shareholders
+          shareholder1Name,
+          shareholder1Shares,
+          shareholder1Percentage,
+          shareholder1Address,
+          shareholder1Nationality,
+          // President Details
+          presidentFirstName,
+          presidentLastName,
+          presidentEmail,
+          presidentPhone,
+          // Bank Details
+          bankName,
+          bankAccountNumber,
+          bankAccountName,
         },
         include: {
           parent: true,

@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PasswordHints from '@/components/ui/PasswordHints';
 
 interface ParentOrganization {
   id: string;
@@ -38,6 +39,12 @@ export default function ParentOrganizationSettingsPage() {
     contactPhone: '',
     address: '',
     website: '',
+  });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
@@ -373,9 +380,16 @@ export default function ParentOrganizationSettingsPage() {
                       type="password"
                       id="newPassword"
                       name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                       minLength={8}
+                    />
+                    <PasswordHints 
+                      password={passwordData.newPassword} 
+                      minLength={8}
+                      showHints={passwordData.newPassword.length > 0}
                     />
                   </div>
 
@@ -387,10 +401,20 @@ export default function ParentOrganizationSettingsPage() {
                       type="password"
                       id="confirmPassword"
                       name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                       minLength={8}
                     />
+                    <div className="mt-2">
+                      {passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                        <p className="text-sm text-red-600">Passwords do not match</p>
+                      )}
+                      {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && (
+                        <p className="text-sm text-green-600">✓ Passwords match</p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex justify-end">

@@ -1,18 +1,29 @@
 import React from 'react';
+import Link from 'next/link';
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow-lg rounded-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">
-            Privacy Policy - Nogalss National Apex Cooperative Society Ltd
-          </h1>
-          
-          <div className="prose prose-lg max-w-none">
-            <p className="text-gray-600 mb-6">
-              <strong>Last Updated:</strong> {new Date().toLocaleDateString()}
-            </p>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white shadow-lg rounded-lg p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">
+                Privacy Policy - Nogalss National Apex Cooperative Society Ltd
+              </h1>
+              <Link href="/">
+                <button className="group relative px-6 py-3 bg-gradient-to-r from-[#0D5E42] to-green-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2">
+                  <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span>Home</span>
+                </button>
+              </Link>
+            </div>
+
+            <div className="prose prose-lg max-w-none">
+              <p className="text-gray-600 mb-6">
+                <strong>Last Updated:</strong> {new Date().toLocaleDateString()}
+              </p>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
@@ -211,12 +222,12 @@ export default function PrivacyPolicyPage() {
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-2">Data Protection Officer</h3>
                     <p className="text-gray-700">Email: privacy@nogalss.org</p>
-                    <p className="text-gray-700">Phone: +234 XXX XXX XXXX</p>
+                    <p className="text-gray-700">Phone: +234 706 380 7477</p>
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-2">General Inquiries</h3>
                     <p className="text-gray-700">Email: info@nogalss.org</p>
-                    <p className="text-gray-700">Address: [Your Business Address]</p>
+                    <p className="text-gray-700">Address: 4th Floor, Jibril Aminu House, National Commission for Colleges of Education (NCCE), Plot 829 Ralph Shodeinde Street, Central Business District, FCT-Abuja</p>
                   </div>
                 </div>
               </div>

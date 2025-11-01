@@ -9,13 +9,12 @@ const envSchema = z.object({
   NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL'),
   NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
   
-  // Email Configuration (Required for production)
-  SMTP_HOST: z.string().min(1, 'SMTP_HOST is required'),
-  SMTP_PORT: z.string().regex(/^\d+$/, 'SMTP_PORT must be a number').transform(Number),
-  SMTP_USER: z.string().min(1, 'SMTP_USER is required'),
-  SMTP_PASS: z.string().min(1, 'SMTP_PASS is required'),
-  SMTP_FROM: z.string().email('SMTP_FROM must be a valid email'),
-  SMTP_SECURE: z.string().optional().transform(val => val === 'true'),
+  // Brevo Email Configuration (Required)
+  BREVO_API_KEY: z.string().min(1, 'BREVO_API_KEY is required'),
+  
+  // Termii SMS Configuration (Optional for development)
+  TERMII_API_KEY: z.string().optional(),
+  TERMII_SENDER_ID: z.string().optional(),
   
   // Paystack Configuration
   PAYSTACK_SECRET_KEY: z.string().min(1, 'PAYSTACK_SECRET_KEY is required'),
@@ -64,27 +63,16 @@ export function getValidatedEnv(): z.infer<typeof envSchema> {
 export function getEmailConfig() {
   const env = getValidatedEnv();
   
-  // Validate email configuration for production
+  // Validate Brevo configuration for production
   if (env.NODE_ENV === 'production') {
-    // Ensure production email service is configured
-    if (env.SMTP_HOST.includes('ethereal') || env.SMTP_HOST.includes('test')) {
-      throw new Error('Production environment requires production email service. Please configure SMTP_HOST with a production email provider.');
-    }
-    
-    if (env.SMTP_USER.includes('test') || env.SMTP_PASS.includes('test')) {
-      throw new Error('Production environment requires production email credentials. Please configure SMTP_USER and SMTP_PASS with production values.');
+    // Ensure Brevo API key is properly configured
+    if (!env.BREVO_API_KEY || env.BREVO_API_KEY === 'xkeys-your_brevo_api_key_here') {
+      throw new Error('Production environment requires valid Brevo API key. Please configure BREVO_API_KEY with your actual Brevo API key.');
     }
   }
   
   return {
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_SECURE || env.SMTP_PORT === 465,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-    from: env.SMTP_FROM,
+    brevoApiKey: env.BREVO_API_KEY,
   };
 }
 
@@ -145,11 +133,7 @@ export function validateEnvironmentOnStartup(): void {
     console.error('  - DATABASE_URL');
     console.error('  - NEXTAUTH_URL');
     console.error('  - NEXTAUTH_SECRET');
-    console.error('  - SMTP_HOST');
-    console.error('  - SMTP_PORT');
-    console.error('  - SMTP_USER');
-    console.error('  - SMTP_PASS');
-    console.error('  - SMTP_FROM');
+    console.error('  - RESEND_API_KEY');
     console.error('  - PAYSTACK_SECRET_KEY');
     console.error('  - PAYSTACK_PUBLIC_KEY');
     console.error('  - ENCRYPTION_KEY');
@@ -163,16 +147,17 @@ export function validateEnvironmentOnStartup(): void {
   if (result.env.NODE_ENV === 'production') {
     console.log('🔒 Running production security checks...');
     
-    // Check for test credentials in production
-    if (result.env.SMTP_HOST.includes('ethereal') || result.env.SMTP_HOST.includes('test')) {
-      console.error('❌ Production environment detected test email service');
-      throw new Error('Production environment requires production email service');
-    }
-    
-    if (result.env.SMTP_USER.includes('test') || result.env.SMTP_PASS.includes('test')) {
-      console.error('❌ Production environment detected test email credentials');
-      throw new Error('Production environment requires production email credentials');
-    }
+        // Check for valid Brevo API key format
+        if (!result.env.BREVO_API_KEY.startsWith('xkeys-')) {
+          console.error('❌ Production environment detected invalid Brevo API key format');
+          throw new Error('Production environment requires valid Brevo API key (should start with "xkeys-")');
+        }
+        
+        // Check for valid Termii API key format (only if provided)
+        if (result.env.TERMII_API_KEY && !result.env.TERMII_API_KEY.startsWith('TL')) {
+          console.error('❌ Production environment detected invalid Termii API key format');
+          throw new Error('Production environment requires valid Termii API key (should start with "TL")');
+        }
     
     // Check for default encryption keys
     if (result.env.ENCRYPTION_KEY === 'your-32-character-secret-encryption-key-here') {

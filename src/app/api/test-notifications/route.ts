@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
       // Test registration notifications
       await NotificationService.sendRegistrationConfirmationSMS(
         phoneNumber,
-        'TEST'
+        'TEST',
+        email,
+        'testpassword123',
+        'https://nogalssapexcoop.org/dashboard/test'
       );
 
       await NotificationService.sendRegistrationConfirmationEmail(

@@ -68,19 +68,46 @@ export default function CooperativesPage() {
   const handleAddCooperative = async (formData: any) => {
     try {
       setAddLoading(true);
-      const response = await fetch('/api/admin/cooperatives', {
+      // Initialize cooperative registration via existing public flow
+      const payload = {
+        registrationType: 'COOPERATIVE',
+        cooperativeName: formData.name,
+        cooperativeRegNo: formData.registrationNumber,
+        bankName: formData.bankName,
+        bankAccountNumber: formData.bankAccountNumber,
+        bankAccountName: formData.bankAccountName,
+        address: formData.address,
+        city: formData.city,
+        phone: formData.phoneNumber,
+        cooperativeEmail: formData.email,
+        leaderFirstName: formData.leaderFirstName,
+        leaderLastName: formData.leaderLastName,
+        leaderEmail: formData.leaderEmail,
+        leaderPassword: formData.leaderPassword,
+        leaderPhone: formData.leaderPhone,
+        leaderTitle: formData.leaderTitle,
+        leaderBankName: formData.leaderBankName,
+        leaderBankAccountNumber: formData.leaderBankAccountNumber,
+        leaderBankAccountName: formData.leaderBankAccountName,
+        parentOrganizationId: formData.parentOrganizationId || undefined,
+      };
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
-      
+
+      const data = await response.json();
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create cooperative');
+        throw new Error(data.error || 'Failed to initialize registration');
       }
-      
-      setShowAddModal(false);
-      fetchCooperatives(); // Refresh the list
+
+      if (data.payment?.authorizationUrl) {
+        window.location.href = data.payment.authorizationUrl;
+        return;
+      }
+
+      throw new Error('Payment initialization failed');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -121,12 +148,12 @@ export default function CooperativesPage() {
               Search
             </button>
           </form>
-          <button 
-            onClick={() => setShowAddModal(true)}
+          <Link 
+            href="/dashboard/super-admin/cooperatives/create"
             className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             + Add Cooperative
-          </button>
+          </Link>
         </div>
 
         {error && (
@@ -229,19 +256,7 @@ export default function CooperativesPage() {
         )}
       </div>
 
-      {/* Add Cooperative Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Add New Cooperative</h2>
-            <AddCooperativeForm 
-              onSubmit={handleAddCooperative}
-              onCancel={() => setShowAddModal(false)}
-              loading={addLoading}
-            />
-          </div>
-        </div>
-      )}
+      {/* Add Cooperative now handled on dedicated create page */}
     </div>
   );
 }
@@ -255,14 +270,80 @@ function AddCooperativeForm({ onSubmit, onCancel, loading }: {
   const [formData, setFormData] = useState({
     name: '',
     registrationNumber: '',
+    rcNumber: '',
     address: '',
     city: '',
     state: '',
     phoneNumber: '',
     email: '',
+    website: '',
     bankName: '',
-    bankAccountNumber: ''
+    bankAccountNumber: '',
+    bankAccountName: '',
+    // Contact person
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+    // CAC extras
+    companyType: '',
+    registrationDate: '',
+    tin: '',
+    vatNumber: '',
+    // Leader details
+    leaderFirstName: '',
+    leaderLastName: '',
+    leaderEmail: '',
+    leaderPhone: '',
+    leaderPassword: '',
+    leaderTitle: '',
+    leaderBankName: '',
+    leaderBankAccountNumber: '',
+    leaderBankAccountName: '',
+    // Optional: parent org linkage
+    parentOrganizationId: ''
   });
+
+  const [cacSearching, setCacSearching] = useState(false);
+  const [cacError, setCacError] = useState<string | null>(null);
+  const searchCAC = async () => {
+    if (!formData.rcNumber) {
+      setCacError('Enter RC Number');
+      return;
+    }
+    try {
+      setCacSearching(true);
+      setCacError(null);
+      const res = await fetch('/api/identity/cac/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rcNumber: formData.rcNumber, registrationType: 'RC' })
+      });
+      const data = await res.json();
+      if (data?.success && data.data) {
+        const d = data.data;
+        setFormData(prev => ({
+          ...prev,
+          name: d.name || prev.name,
+          registrationNumber: d.registration_number || prev.registrationNumber,
+          companyType: d.type_of_entity || prev.companyType,
+          registrationDate: d.registration_date?.split('T')[0] || prev.registrationDate,
+          address: d.address || prev.address,
+          state: d.state || prev.state,
+          city: d.city || prev.city,
+          contactEmail: d.email || prev.contactEmail,
+          contactPhone: d.phone_number || prev.contactPhone,
+          tin: d.tin || prev.tin,
+          vatNumber: d.vat_number || prev.vatNumber,
+        }));
+      } else {
+        setCacError(data?.error || 'Company not found');
+      }
+    } catch (e:any) {
+      setCacError(e.message || 'Lookup failed');
+    } finally {
+      setCacSearching(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,6 +356,28 @@ function AddCooperativeForm({ onSubmit, onCancel, loading }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-3 bg-green-50 border border-green-200 rounded">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">RC Number (optional)</label>
+            <input
+              type="text"
+              name="rcNumber"
+              value={formData.rcNumber}
+              onChange={handleChange}
+              placeholder="e.g., RC00000011 or 00000011"
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+          <div className="md:col-span-2 flex gap-2">
+            <button type="button" onClick={searchCAC} disabled={cacSearching || !formData.rcNumber} className="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-50">
+              {cacSearching ? 'Searching…' : 'Lookup CAC'}
+            </button>
+            {cacError && <span className="text-sm text-red-600">{cacError}</span>}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Cooperative Name *</label>
@@ -348,16 +451,62 @@ function AddCooperativeForm({ onSubmit, onCancel, loading }: {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Email *</label>
-        <input
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Email *</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Website</label>
+          <input
+            type="url"
+            name="website"
+            value={formData.website}
+            onChange={handleChange}
+            placeholder="https://"
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+          <input
+            type="text"
+            name="contactName"
+            value={formData.contactName}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contact Email</label>
+          <input
+            type="email"
+            name="contactEmail"
+            value={formData.contactEmail}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
+          <input
+            type="text"
+            name="contactPhone"
+            value={formData.contactPhone}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,6 +529,51 @@ function AddCooperativeForm({ onSubmit, onCancel, loading }: {
             value={formData.bankAccountNumber}
             onChange={handleChange}
             required
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Company Type</label>
+          <input
+            type="text"
+            name="companyType"
+            value={formData.companyType}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Registration Date</label>
+          <input
+            type="date"
+            name="registrationDate"
+            value={formData.registrationDate}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">TIN</label>
+          <input
+            type="text"
+            name="tin"
+            value={formData.tin}
+            onChange={handleChange}
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">VAT Number</label>
+          <input
+            type="text"
+            name="vatNumber"
+            value={formData.vatNumber}
+            onChange={handleChange}
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
           />
         </div>

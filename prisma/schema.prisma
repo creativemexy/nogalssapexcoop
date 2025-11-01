@@ -9,11 +9,11 @@ datasource db {
 
 model User {
   id            String         @id @default(cuid())
-  email         String         @unique
+  email         String?        @unique
   password      String
   firstName     String
   lastName      String
-  phoneNumber   String?
+  phoneNumber   String?        @unique
   dateOfBirth   DateTime?
   address       String?
   profileImage  String?
@@ -25,6 +25,8 @@ model User {
   isVerified    Boolean        @default(false)
   twoFactorEnabled Boolean     @default(false)
   twoFactorSecret  String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   cooperativeId String?
@@ -246,6 +248,17 @@ model Log {
 model Bank {
   id           String        @id @default(cuid())
   name         String        @unique
+  code         String        @unique
+  slug         String?       @unique
+  longcode     String?
+  gateway      String?
+  payWithBank  Int?          @default(0)
+  active       Int?          @default(1)
+  country      String?
+  currency     String?
+  type         String?
+  isDeleted    Int?          @default(0)
+  paystackCode String?       // Paystack bank code for account resolution
   cooperatives Cooperative[]
 
   @@map("banks")
@@ -553,6 +566,67 @@ model ParentOrganization {
   // User account fields
   userId        String?  @unique // Associated user account
   defaultPassword String? // Default password for the organization
+  
+  // CAC Registration Details
+  rcNumber      String?
+  companyType   String?
+  registrationDate DateTime?
+  businessActivities String?
+  
+  // Additional CAC Information
+  tin           String?
+  vatNumber     String?
+  registryNumber String?
+  companyStatus String?
+  city          String?
+  state         String?
+  lga           String?
+  branchAddress String?
+  objectives    String?
+  
+  // Share Capital Information
+  shareCapitalInWords String?
+  paidUpCapital       String?
+  subscribedShareCapital String?
+  sharesIssued        String?
+  sharesValue         String?
+  
+  // Company Contact Persons
+  companyContactName  String?
+  companyContactEmail String?
+  companyContactPhone String?
+  
+  // Key Personnel - Secretary
+  secretaryName    String?
+  secretaryEmail   String?
+  secretaryPhone   String?
+  secretaryAddress String?
+  
+  // Directors
+  director1Name        String?
+  director1Email       String?
+  director1Phone       String?
+  director1Address     String?
+  director1Occupation  String?
+  director1Nationality String?
+  
+  // Shareholders
+  shareholder1Name        String?
+  shareholder1Shares      String?
+  shareholder1Percentage  String?
+  shareholder1Address     String?
+  shareholder1Nationality String?
+  
+  // President Details
+  presidentFirstName String?
+  presidentLastName  String?
+  presidentEmail     String?
+  presidentPhone     String?
+  
+  // Bank Details
+  bankName           String?
+  bankAccountNumber  String?
+  bankAccountName    String?
   
   // Self-referencing relationship for hierarchy
   parent        ParentOrganization? @relation("OrganizationHierarchy", fields: [parentId], references: [id])

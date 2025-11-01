@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { banks } from '@/lib/data';
 
 interface Bank {
     id: string;
@@ -11,13 +10,38 @@ interface Bank {
 }
 
 export default function BanksPage() {
-    const [bankList, setBankList] = useState<Bank[]>(banks);
+    const [bankList, setBankList] = useState<Bank[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingBank, setEditingBank] = useState<Bank | null>(null);
     const [formData, setFormData] = useState({ name: '', code: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Fetch banks from API
+    useEffect(() => {
+        const fetchBanks = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch('/api/banks/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    setBankList(data.banks);
+                } else {
+                    setError('Failed to fetch banks');
+                }
+            } catch (err) {
+                setError('Failed to fetch banks');
+                console.error('Error fetching banks:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchBanks();
+    }, []);
     const [success, setSuccess] = useState<string | null>(null);
 
     const handleAdd = () => {
@@ -148,7 +172,23 @@ export default function BanksPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {bankList.map((bank) => (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
+                                        <div className="flex items-center justify-center">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-2"></div>
+                                            Loading banks...
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : bankList.length === 0 ? (
+                                <tr>
+                                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
+                                        No banks found
+                                    </td>
+                                </tr>
+                            ) : (
+                                bankList.map((bank) => (
                                 <tr key={bank.id} className="hover:bg-green-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {bank.name}
@@ -174,7 +214,8 @@ export default function BanksPage() {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

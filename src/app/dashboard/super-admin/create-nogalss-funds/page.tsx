@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PasswordHints from '@/components/ui/PasswordHints';
 
 export default function CreateNogalssFundsUser() {
   const router = useRouter();
@@ -155,7 +156,11 @@ export default function CreateNogalssFundsUser() {
               minLength={12}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
             />
-            <p className="mt-1 text-sm text-gray-500">At least 12 chars with uppercase, lowercase, number, and special</p>
+            <PasswordHints 
+              password={formData.password} 
+              minLength={12}
+              showHints={formData.password.length > 0}
+            />
           </div>
 
           <div className="flex justify-end space-x-3">

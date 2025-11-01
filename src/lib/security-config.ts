@@ -19,10 +19,10 @@ export class SecurityConfig {
   // Email security configuration
   public getEmailSecurityConfig() {
     return {
-      isProductionEmail: !this.env.SMTP_HOST.includes('ethereal') && !this.env.SMTP_HOST.includes('test'),
-      isSecureConnection: this.env.SMTP_SECURE || this.env.SMTP_PORT === 465,
-      hasValidCredentials: !this.env.SMTP_USER.includes('test') && !this.env.SMTP_PASS.includes('test'),
-      fromAddress: this.env.SMTP_FROM,
+      isProductionEmail: this.env.BREVO_API_KEY && !this.env.BREVO_API_KEY.includes('your_brevo_api_key_here'),
+      isSecureConnection: true, // Brevo uses HTTPS
+      hasValidCredentials: this.env.BREVO_API_KEY && this.env.BREVO_API_KEY.startsWith('xkeys-'),
+      fromAddress: 'noreply@nogalss.org',
     };
   }
 

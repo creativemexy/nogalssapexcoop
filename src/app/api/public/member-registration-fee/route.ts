@@ -11,8 +11,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const defaultMemberFee = 500000; // ₦5,000.00 in kobo
-    const memberRegistrationFee = memberFeeSetting ? parseInt(memberFeeSetting.value) : defaultMemberFee;
+    if (!memberFeeSetting) {
+      return NextResponse.json({
+        error: 'Member registration fee not configured in system settings'
+      }, { status: 404 });
+    }
+
+    const memberRegistrationFee = parseInt(memberFeeSetting.value);
 
     return NextResponse.json({
       registrationFee: memberRegistrationFee,
@@ -22,11 +27,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching member registration fee:', error);
-    // Return default fee if there's an error
     return NextResponse.json({
-      registrationFee: 500000,
-      registrationFeeFormatted: '₦5,000.00',
-      currency: 'NGN'
-    });
+      error: 'Failed to fetch member registration fee'
+    }, { status: 500 });
   }
 }

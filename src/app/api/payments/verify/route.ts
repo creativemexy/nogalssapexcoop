@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { NotificationService, getWelcomeEmailHtml } from '@/lib/notifications';
+import { korapayIdentityService } from '@/lib/korapay-identity';
 import bcrypt from 'bcryptjs';
 import { sendMail } from '@/lib/email';
 import { createVirtualAccount } from '@/lib/paystack';
@@ -376,13 +377,18 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
           userId: leaderUser.id,
           cooperativeId: cooperative.id,
           title: registrationData.leaderTitle,
+          bankName: registrationData.leaderBankName,
+          bankAccountNumber: registrationData.leaderBankAccountNumber,
+          bankAccountName: registrationData.leaderBankAccountName,
         },
       });
 
-      // Record the successful payment
+      // Record the successful payment (base amount only, excluding Paystack fees)
+      const totalPaidCoop = paystackData.data.amount / 100; // kobo -> naira
+      const baseAmountCoop = calculateBaseAmountFromTotal(totalPaidCoop);
       await tx.transaction.create({
         data: {
-          amount: paystackData.data.amount,
+          amount: Math.round(baseAmountCoop * 100),
           type: 'FEE',
           description: 'Cooperative registration fee payment',
           status: 'SUCCESSFUL',
@@ -391,6 +397,19 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
           reference: reference
         }
       });
+
+      // Credit Super Admin wallet with fixed cooperative allocation
+      const coopAlloc = await tx.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_COOP_AMOUNT' } });
+      const walletBal = await tx.setting.findUnique({ where: { key: 'SUPER_ADMIN_WALLET_BALANCE' } });
+      const coopAllocationAmount = parseFloat(coopAlloc?.value || '0');
+      const currentWalletBalance = parseFloat(walletBal?.value || '0');
+      if (coopAllocationAmount > 0) {
+        await tx.setting.upsert({
+          where: { key: 'SUPER_ADMIN_WALLET_BALANCE' },
+          update: { value: (currentWalletBalance + coopAllocationAmount).toString() },
+          create: { key: 'SUPER_ADMIN_WALLET_BALANCE', value: (currentWalletBalance + coopAllocationAmount).toString() },
+        });
+      }
 
       return { cooperative, cooperativeUser, leaderUser };
     }, {
@@ -442,14 +461,20 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
       if (result.leaderUser.phoneNumber) {
         await NotificationService.sendRegistrationConfirmationSMS(
           result.leaderUser.phoneNumber,
-          'LEADER'
+          'LEADER',
+          result.leaderUser.email,
+          '[Your chosen password]',
+          leaderDashboardUrl
         );
       }
 
       if (result.cooperativeUser.phoneNumber) {
         await NotificationService.sendRegistrationConfirmationSMS(
           result.cooperativeUser.phoneNumber,
-          'COOPERATIVE'
+          'COOPERATIVE',
+          result.cooperativeUser.email,
+          '[Your chosen password]',
+          cooperativeDashboardUrl
         );
       }
     } catch (emailError) {
@@ -485,6 +510,30 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
       email: registrationData.email,
       cooperativeId: registrationData.cooperativeId
     });
+
+    // Validate NIN presence and format
+    const nin: string | undefined = registrationData.nin;
+    if (!nin || !/^\d{11}$/.test(nin)) {
+      console.log('❌ Missing or invalid NIN');
+      await prisma.pendingRegistration.update({
+        where: { id: pendingRegistration.id },
+        data: { status: 'FAILED' }
+      });
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=Invalid+or+missing+NIN`);
+    }
+
+    // Verify NIN with Korapay
+    try {
+      await korapayIdentityService.lookupNIN(nin);
+      console.log('✅ NIN verified via Korapay');
+    } catch (e:any) {
+      console.error('❌ NIN verification failed:', e?.message || e);
+      await prisma.pendingRegistration.update({
+        where: { id: pendingRegistration.id },
+        data: { status: 'FAILED' }
+      });
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/register/error?message=NIN+verification+failed`);
+    }
 
     // Hash password outside transaction to avoid timeout
     console.log('🔐 Hashing password...');
@@ -529,6 +578,19 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
           reference: reference
         }
       });
+
+      // Credit Super Admin wallet with fixed member allocation
+      const memberAlloc = await tx.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_MEMBER_AMOUNT' } });
+      const walletBal = await tx.setting.findUnique({ where: { key: 'SUPER_ADMIN_WALLET_BALANCE' } });
+      const memberAllocationAmount = parseFloat(memberAlloc?.value || '0');
+      const currentWalletBalance = parseFloat(walletBal?.value || '0');
+      if (memberAllocationAmount > 0) {
+        await tx.setting.upsert({
+          where: { key: 'SUPER_ADMIN_WALLET_BALANCE' },
+          update: { value: (currentWalletBalance + memberAllocationAmount).toString() },
+          create: { key: 'SUPER_ADMIN_WALLET_BALANCE', value: (currentWalletBalance + memberAllocationAmount).toString() },
+        });
+      }
 
       // Create virtual account for member
       console.log('🏦 Creating virtual account for member...');
@@ -596,7 +658,10 @@ async function handleMemberRegistration(reference: string, paystackData: any, re
       if (result.memberUser.phoneNumber) {
         await NotificationService.sendRegistrationConfirmationSMS(
           result.memberUser.phoneNumber,
-          'MEMBER'
+          'MEMBER',
+          result.memberUser.email,
+          registrationData.password,
+          dashboardUrl
         );
       }
     } catch (emailError) {

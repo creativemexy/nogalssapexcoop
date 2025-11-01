@@ -45,11 +45,17 @@ export default function SystemSettingsPage() {
     const [registrationFee, setRegistrationFee] = useState(1000);
     const [transactionFee, setTransactionFee] = useState(1.5);
     const [emailProvider, setEmailProvider] = useState("Resend");
-    const [smsProvider, setSmsProvider] = useState("Twilio");
+    const [smsProvider, setSmsProvider] = useState("Termii");
+    const [termiiApiKey, setTermiiApiKey] = useState("");
+    const [termiiSenderId, setTermiiSenderId] = useState("");
     const [passwordPolicy, setPasswordPolicy] = useState("Minimum 8 characters, 1 number");
     const [sessionTimeout, setSessionTimeout] = useState(30);
     const [twoFA, setTwoFA] = useState(false);
     const [global2FAEnabled, setGlobal2FAEnabled] = useState<boolean | null>(null);
+    // Super admin fixed allocation amount (₦)
+    const [superAdminMemberAllocation, setSuperAdminMemberAllocation] = useState<number>(0);
+    const [superAdminCoopAllocation, setSuperAdminCoopAllocation] = useState<number>(0);
+    const [savingAllocationAmount, setSavingAllocationAmount] = useState(false);
 
     // Allocation percentage state
     const [allocations, setAllocations] = useState({
@@ -72,6 +78,7 @@ export default function SystemSettingsPage() {
         fetchSettings();
         fetchAuditLogs();
         fetchAllocationPercentages();
+        fetchSuperAdminAllocationAmount();
         
         // Set up real-time updates
         if (socket) {
@@ -109,7 +116,7 @@ export default function SystemSettingsPage() {
             }
             if (data.settings.notification) {
                 setEmailProvider(data.settings.notification.emailProvider?.value || "Resend");
-                setSmsProvider(data.settings.notification.smsProvider?.value || "Twilio");
+                setSmsProvider(data.settings.notification.smsProvider?.value || "Termii");
             }
             if (data.settings.security) {
                 setPasswordPolicy(data.settings.security.passwordPolicy?.value || "Minimum 8 characters, 1 number");
@@ -120,6 +127,37 @@ export default function SystemSettingsPage() {
             setError(err instanceof Error ? err.message : 'Failed to load settings');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchSuperAdminAllocationAmount = async () => {
+        try {
+            const res = await fetch('/api/admin/settings/super-admin-allocation');
+            const data = await res.json();
+            if (data?.success) {
+                setSuperAdminMemberAllocation(Number(data.memberAmount) || 0);
+                setSuperAdminCoopAllocation(Number(data.cooperativeAmount) || 0);
+            }
+        } catch {}
+    };
+
+    const saveSuperAdminAllocationAmount = async () => {
+        setSavingAllocationAmount(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const res = await fetch('/api/admin/settings/super-admin-allocation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ memberAmount: superAdminMemberAllocation, cooperativeAmount: superAdminCoopAllocation })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to save amount');
+            setSuccess('Super admin fixed allocation amounts saved');
+        } catch (e:any) {
+            setError(e.message || 'Failed to save amount');
+        } finally {
+            setSavingAllocationAmount(false);
         }
     };
 
@@ -398,6 +436,43 @@ export default function SystemSettingsPage() {
                     </button>
                 </section>
 
+                {/* Super Admin Fixed Allocation (Amount) */}
+                <section className="bg-white dark:bg-gray-900 rounded-lg shadow p-8">
+                    <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Super Admin Allocation (Fixed Amount)</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                        Configure fixed amounts (not percentages) deducted for Super Admin from each registration fee. Set to 0 to disable.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Member Registration Allocation (₦)</label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={superAdminMemberAllocation}
+                                onChange={e => setSuperAdminMemberAllocation(Number(e.target.value) || 0)}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cooperative Registration Allocation (₦)</label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={superAdminCoopAllocation}
+                                onChange={e => setSuperAdminCoopAllocation(Number(e.target.value) || 0)}
+                                className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            />
+                        </div>
+                    </div>
+                    <button
+                        onClick={saveSuperAdminAllocationAmount}
+                        disabled={savingAllocationAmount}
+                        className="mt-6 bg-[#0D5E42] text-white px-6 py-2 rounded hover:bg-[#0A4A35] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {savingAllocationAmount ? 'Saving...' : 'Save Super Admin Allocation'}
+                    </button>
+                </section>
+
                 {/* Notification Settings */}
                 <section className="bg-white dark:bg-gray-900 rounded-lg shadow p-8">
                     <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Notification Settings</h2>
@@ -421,12 +496,71 @@ export default function SystemSettingsPage() {
                                 onChange={e => setSmsProvider(e.target.value)} 
                                 className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                             >
-                                <option value="Twilio">Twilio</option>
                                 <option value="Termii">Termii</option>
                                 <option value="Other">Other</option>
                             </select>
                         </div>
                     </div>
+                    
+                    {/* Termii Configuration */}
+                    {smsProvider === "Termii" && (
+                        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Termii SMS Configuration</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Termii API Key</label>
+                                    <input 
+                                        type="password"
+                                        value={termiiApiKey} 
+                                        onChange={e => setTermiiApiKey(e.target.value)} 
+                                        placeholder="TLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Get your API key from Termii dashboard</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Sender ID</label>
+                                    <input 
+                                        type="text"
+                                        value={termiiSenderId} 
+                                        onChange={e => setTermiiSenderId(e.target.value)} 
+                                        placeholder="Nogalss"
+                                        maxLength={11}
+                                        className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Max 11 characters, alphanumeric only</p>
+                                </div>
+                            </div>
+                            <div className="mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Test Termii configuration
+                                        fetch('/api/test-termii', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                phone: '08012345678',
+                                                message: 'Test SMS from Nogalss - Termii integration working!'
+                                            })
+                                        })
+                                        .then(res => res.json())
+                                        .then(data => {
+                                            if (data.success) {
+                                                alert('✅ Termii SMS test successful!');
+                                            } else {
+                                                alert('❌ Termii SMS test failed: ' + data.error);
+                                            }
+                                        })
+                                        .catch(err => alert('❌ Test failed: ' + err.message));
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    Test Termii SMS
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     <div className="mt-6">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Notification Templates</label>
                         <textarea 

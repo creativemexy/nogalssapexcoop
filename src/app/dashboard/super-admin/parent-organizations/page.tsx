@@ -22,6 +22,9 @@ interface ParentOrganization {
   cooperatives: Array<{
     id: string;
     name: string;
+    _count: {
+      members: number;
+    };
   }>;
   creator: {
     id: string;
@@ -147,12 +150,12 @@ export default function ParentOrganizationsPage() {
           >
             ← Back to Dashboard
           </Link>
-          <button
-            onClick={() => setShowCreateModal(true)}
+          <Link
+            href="/dashboard/super-admin/parent-organizations/create"
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
             Add Organization
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -206,11 +209,27 @@ export default function ParentOrganizationsPage() {
           {organizations.map((org) => (
             <div key={org.id} className="bg-white rounded-lg shadow p-6">
               <div className="flex justify-between items-start mb-4">
-                <div>
+                <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
                   {org.parent && (
                     <p className="text-sm text-gray-500">Parent: {org.parent.name}</p>
                   )}
+                  
+                  {/* Organization Summary */}
+                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <span className="mr-1">🏢</span>
+                      <span>{org.cooperatives.length} cooperatives</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="mr-1">👥</span>
+                      <span>{org.cooperatives.reduce((total, coop) => total + coop._count.members, 0)} members</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="mr-1">🏛️</span>
+                      <span>{org.children.length} child orgs</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -253,13 +272,42 @@ export default function ParentOrganizationsPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>{org.cooperatives.length} cooperatives</span>
-                  <span>{org.children.length} child orgs</span>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="flex items-center text-gray-500">
+                      <span className="mr-1">🏢</span>
+                      <span>{org.cooperatives.length} cooperatives</span>
+                    </div>
+                    <div className="flex items-center text-gray-500 mt-1">
+                      <span className="mr-1">👥</span>
+                      <span>{org.cooperatives.reduce((total, coop) => total + coop._count.members, 0)} total members</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center text-gray-500">
+                      <span className="mr-1">🏛️</span>
+                      <span>{org.children.length} child orgs</span>
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Created by {org.creator.firstName} {org.creator.lastName}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Created by {org.creator.firstName} {org.creator.lastName}
-                </p>
+                
+                {/* Cooperatives List */}
+                {org.cooperatives.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Cooperatives under this organization:</p>
+                    <div className="space-y-1">
+                      {org.cooperatives.map((coop) => (
+                        <div key={coop.id} className="flex justify-between items-center text-xs bg-gray-50 px-2 py-1 rounded">
+                          <span className="text-gray-700">{coop.name}</span>
+                          <span className="text-gray-500">{coop._count.members} members</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -338,6 +386,11 @@ function OrganizationModal({
     bankName: '',
     bankAccountNumber: '',
     bankAccountName: '',
+    // CAC details
+    rcNumber: '',
+    companyType: '',
+    registrationDate: '',
+    businessActivities: '',
   });
   const [banks, setBanks] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [loadingBanks, setLoadingBanks] = useState(false);
@@ -345,8 +398,16 @@ function OrganizationModal({
   const [error, setError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [checkingEmail, setCheckingEmail] = useState(false);
+  
+  // CAC search states
+  const [cacSearchType, setCacSearchType] = useState<'rc' | 'name'>('rc');
+  const [cacSearchValue, setCacSearchValue] = useState('');
+  const [cacSearching, setCacSearching] = useState(false);
+  const [cacData, setCacData] = useState<any>(null);
+  const [cacError, setCacError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🏢 CAC Integration loaded in OrganizationModal');
     fetchBanks();
   }, []);
 
@@ -370,6 +431,11 @@ function OrganizationModal({
         bankName: '',
         bankAccountNumber: '',
         bankAccountName: '',
+        // CAC details
+        rcNumber: '',
+        companyType: '',
+        registrationDate: '',
+        businessActivities: '',
       });
     }
   }, [organization]);
@@ -409,6 +475,58 @@ function OrganizationModal({
     } finally {
       setCheckingEmail(false);
     }
+  };
+
+  const searchCAC = async () => {
+    if (!cacSearchValue.trim()) {
+      setCacError('Please enter RC Number or Company Name');
+      return;
+    }
+
+    try {
+      setCacSearching(true);
+      setCacError(null);
+      
+      const response = await fetch('/api/cac/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [cacSearchType === 'rc' ? 'rcNumber' : 'companyName']: cacSearchValue
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setCacData(data.data);
+        // Auto-populate form with CAC data
+        setFormData(prev => ({
+          ...prev,
+          name: data.data.companyName,
+          rcNumber: data.data.rcNumber,
+          companyType: data.data.companyType,
+          registrationDate: data.data.registrationDate,
+          address: data.data.address,
+          businessActivities: data.data.businessActivities.join(', '),
+          // Set president details from first director
+          presidentFirstName: data.data.directors[0]?.name?.split(' ')[0] || '',
+          presidentLastName: data.data.directors[0]?.name?.split(' ').slice(1).join(' ') || '',
+        }));
+      } else {
+        setCacError(data.error || 'Company not found in CAC database');
+      }
+    } catch (err) {
+      console.error('Error searching CAC:', err);
+      setCacError('Failed to search CAC database');
+    } finally {
+      setCacSearching(false);
+    }
+  };
+
+  const clearCACData = () => {
+    setCacData(null);
+    setCacSearchValue('');
+    setCacError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -456,8 +574,17 @@ function OrganizationModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
+          {/* CAC Integration Banner - Updated 2024-01-27 */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg mb-6 text-center">
+            <h3 className="text-lg font-bold">🏢 CAC INTEGRATION ACTIVE!</h3>
+            <p className="text-sm">Search and verify companies with Korapay - {new Date().toLocaleTimeString()}</p>
+          </div>
+          
           <h2 className="text-xl font-semibold mb-4">
             {organization ? 'Edit Organization' : 'Create Organization'}
+            <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+              ✨ CAC Integration Added
+            </span>
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -475,6 +602,121 @@ function OrganizationModal({
               />
             </div>
 
+            {/* CAC Search Section */}
+            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 shadow-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <span className="mr-2">🏢</span>
+                CAC Registration Search
+                <span className="ml-2 text-sm text-gray-500 font-normal">(Optional)</span>
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  Powered by Korapay
+                </span>
+                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  NEW!
+                </span>
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Search Type
+                    </label>
+                    <select
+                      value={cacSearchType}
+                      onChange={(e) => setCacSearchType(e.target.value as 'rc' | 'name')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="rc">RC Number</option>
+                      <option value="name">Company Name</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {cacSearchType === 'rc' ? 'RC Number' : 'Company Name'}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={cacSearchValue}
+                        onChange={(e) => setCacSearchValue(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={cacSearchType === 'rc' ? 'Enter RC Number' : 'Enter Company Name'}
+                      />
+                      <button
+                        type="button"
+                        onClick={searchCAC}
+                        disabled={cacSearching || !cacSearchValue.trim()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {cacSearching ? 'Searching...' : 'Search'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {cacError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-600 text-sm">{cacError}</p>
+                  </div>
+                )}
+
+                {cacData && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center">
+                        <h4 className="font-medium text-green-800">Company Found!</h4>
+                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Verified by Korapay
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearCACData}
+                        className="text-green-600 hover:text-green-800 text-sm"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700">Company Name:</span>
+                        <p className="text-gray-900">{cacData.companyName}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">RC Number:</span>
+                        <p className="text-gray-900">{cacData.rcNumber}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Company Type:</span>
+                        <p className="text-gray-900">{cacData.companyType}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Status:</span>
+                        <p className="text-gray-900">{cacData.status}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-gray-700">Address:</span>
+                        <p className="text-gray-900">{cacData.address}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-gray-700">Business Activities:</span>
+                        <p className="text-gray-900">{cacData.businessActivities.join(', ')}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-green-200">
+                      <p className="text-xs text-green-600">
+                        ✓ Form has been auto-populated with CAC data. You can modify any fields as needed.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description
@@ -486,6 +728,66 @@ function OrganizationModal({
                 rows={3}
                 placeholder="Brief description of the organization"
               />
+            </div>
+
+            {/* CAC Details Section */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">CAC Registration Details</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    RC Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.rcNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, rcNumber: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Enter RC Number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Type
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.companyType}
+                    onChange={(e) => setFormData(prev => ({ ...prev, companyType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="e.g., Private Company Limited by Shares"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Registration Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.registrationDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, registrationDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Activities
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.businessActivities}
+                    onChange={(e) => setFormData(prev => ({ ...prev, businessActivities: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="e.g., General trading, Real estate development"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* President Details Section */}
@@ -559,10 +861,10 @@ function OrganizationModal({
                   Contact Email *
                 </label>
                 <div className="relative">
-                  <input
-                    type="email"
-                    required
-                    value={formData.contactEmail}
+                <input
+                  type="email"
+                  required
+                  value={formData.contactEmail}
                     onChange={(e) => {
                       setFormData(prev => ({ ...prev, contactEmail: e.target.value }));
                       // Debounce email check

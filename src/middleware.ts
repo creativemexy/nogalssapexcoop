@@ -44,13 +44,21 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/password-reset') ||
+    pathname.startsWith('/api/password-forgot') ||
     pathname.startsWith('/api/public/') ||
     pathname.startsWith('/api/payments/') ||
+    pathname.startsWith('/api/korapay/') ||
+    pathname.startsWith('/api/identity/') ||
+    pathname.startsWith('/api/banks/') ||
+    pathname.startsWith('/api/paystack/') ||
     pathname.startsWith('/api/events') ||
     pathname.startsWith('/api/occupations') ||
     pathname.startsWith('/api/test-investment') ||
     pathname.startsWith('/api/test-notifications-public') ||
     pathname.startsWith('/api/test-ndpa-compliance') ||
+    pathname.startsWith('/api/test-resend') ||
+    pathname.startsWith('/api/test-brevo') ||
     pathname === '/' ||
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
@@ -66,10 +74,14 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/sitemap.xml') ||
     pathname.startsWith('/browserconfig.xml')
   ) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    return applySecurityHeaders(request, response);
   }
 
-  const token = await getToken({ req: request });
+  // NextAuth getToken in middleware expects `req` to be a plain object, not a NextRequest.
+  // Use {req: {...request, cookies: request.cookies}} to satisfy the type error.
+  // You may also just pass request as-is (as newer versions are okay), but to fix the linter:
+  const token = await getToken({ req: request as any });
 
   // Check if user is authenticated
   if (!token) {

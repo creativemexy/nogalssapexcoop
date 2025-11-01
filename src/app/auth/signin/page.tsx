@@ -8,7 +8,7 @@ import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
 
 function SignInForm() {
-  const [emailOrNin, setEmailOrNin] = useState('');
+  const [emailOrPhoneOrNin, setEmailOrPhoneOrNin] = useState('');
   const [password, setPassword] = useState('');
   const [totp, setTotp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +44,7 @@ function SignInForm() {
 
     try {
       const result = await signIn('credentials', {
-        email: emailOrNin,
+        email: emailOrPhoneOrNin,
         password,
         totp: totp || undefined,
         redirect: false,
@@ -100,22 +100,22 @@ function SignInForm() {
             )}
 
             <div>
-              <label htmlFor="emailOrNin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email address or NIN
+              <label htmlFor="emailOrPhoneOrNin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email, Phone Number, or NIN
               </label>
               <input
-                id="emailOrNin"
-                name="emailOrNin"
+                id="emailOrPhoneOrNin"
+                name="emailOrPhoneOrNin"
                 type="text"
                 autoComplete="username"
                 required
-                value={emailOrNin}
-                onChange={(e) => setEmailOrNin(e.target.value)}
+                value={emailOrPhoneOrNin}
+                onChange={(e) => setEmailOrPhoneOrNin(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                placeholder="Enter your email or NIN"
+                placeholder="Enter your email, phone number, or NIN"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                You can sign in with either your email address or your 10-digit NIN
+                You can sign in with your email address, phone number, or 11-digit NIN
               </p>
             </div>
 
@@ -167,9 +167,9 @@ function SignInForm() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
+                <Link href="/auth/forgot-password" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
                   Forgot your password?
-                </a>
+                </Link>
               </div>
             </div>
 

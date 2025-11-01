@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { banks, states } from '@/lib/data';
+import { states } from '@/lib/data';
 import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
+import PasswordHints from '@/components/ui/PasswordHints';
 
 type RegistrationType = 'MEMBER' | 'COOPERATIVE';
 
@@ -38,6 +39,7 @@ export default function RegisterPage() {
         savingFrequency: '',
         // Cooperative fields
         cooperativeRegNo: '',
+        cooperativeRegType: 'RC', // Default to RC
         bankName: '',
         bankAccountNumber: '',
         phone: '',
@@ -50,18 +52,32 @@ export default function RegisterPage() {
         leaderPassword: '',
         leaderPhone: '',
         leaderTitle: '',
+        leaderNin: '',
         leaderBankName: '',
         leaderBankAccountNumber: '',
+        leaderBankAccountName: '',
         bankAccountName: '',
         parentOrganizationId: '',
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [acceptedTerms, setAcceptedTerms] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [ninLookupLoading, setNinLookupLoading] = useState(false);
     const [ninLookupError, setNinLookupError] = useState<string | null>(null);
-    const [registrationFee, setRegistrationFee] = useState<string>('₦500.00');
+    const [registrationFee, setRegistrationFee] = useState<string>('Loading...');
     const [ninLocked, setNinLocked] = useState(false);
+    const [ninPhoto, setNinPhoto] = useState<string>('');
+    const [cacLookupLoading, setCacLookupLoading] = useState(false);
+    const [cacLookupError, setCacLookupError] = useState<string | null>(null);
+    const [leaderNinLookupLoading, setLeaderNinLookupLoading] = useState(false);
+    const [leaderNinLookupError, setLeaderNinLookupError] = useState<string | null>(null);
+    const [leaderNinLocked, setLeaderNinLocked] = useState(false);
+    const [leaderNinPhoto, setLeaderNinPhoto] = useState<string>('');
+    const [resolvingLeaderAccount, setResolvingLeaderAccount] = useState(false);
+    const [leaderAccountResolutionError, setLeaderAccountResolutionError] = useState<string | null>(null);
+    const [cacLocked, setCacLocked] = useState(false);
     const [cooperatives, setCooperatives] = useState<{ code: string; name: string }[]>([]);
     const [loadingCooperatives, setLoadingCooperatives] = useState(false);
     const [occupations, setOccupations] = useState<{ id: string; name: string }[]>([]);
@@ -70,11 +86,16 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [parentOrganizations, setParentOrganizations] = useState<{ id: string; name: string; description?: string }[]>([]);
     const [loadingParentOrganizations, setLoadingParentOrganizations] = useState(false);
+    const [banks, setBanks] = useState<{ id: string; name: string; code: string }[]>([]);
+    const [loadingBanks, setLoadingBanks] = useState(false);
+    const [resolvingAccount, setResolvingAccount] = useState(false);
+    const [accountResolutionError, setAccountResolutionError] = useState<string | null>(null);
 
 
     useEffect(() => {
         fetchRegistrationFee();
         fetchOccupations(); // Always fetch occupations
+        fetchBanks(); // Always fetch banks
         if (registrationType === 'MEMBER') {
             fetchCooperatives();
         } else if (registrationType === 'COOPERATIVE') {
@@ -107,15 +128,69 @@ export default function RegisterPage() {
             const data = await response.json();
             if (response.ok) {
                 setRegistrationFee(data.registrationFeeFormatted);
+            } else {
+                setRegistrationFee('Fee unavailable');
             }
         } catch (err) {
             console.error('Failed to fetch registration fee:', err);
-            // Set appropriate fallback based on registration type
-            if (registrationType === 'MEMBER') {
-                setRegistrationFee('₦5,000.00'); // Member fallback
-            } else {
-                setRegistrationFee('₦50,000.00'); // Cooperative fallback
+            setRegistrationFee('Fee unavailable');
+        }
+    };
+
+    const handleCACLookup = async () => {
+        if (!formData.cooperativeRegNo) {
+            setCacLookupError('Please enter a valid RC Number');
+            return;
+        }
+
+        // Validate RC number format (should contain numeric characters)
+        const numericPart = formData.cooperativeRegNo.replace(/[^0-9]/g, '');
+        if (numericPart.length < 6) {
+            setCacLookupError('RC Number must contain at least 6 numeric characters');
+            return;
+        }
+
+        setCacLookupLoading(true);
+        setCacLookupError(null);
+
+        try {
+            const response = await fetch('/api/identity/cac/lookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    rcNumber: formData.cooperativeRegNo,
+                    registrationType: formData.cooperativeRegType 
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'CAC lookup failed');
             }
+
+            // Populate form with CAC data
+            setFormData(prev => ({
+                ...prev,
+                cooperativeName: data.data.name || '', // Use 'name' instead of 'company_name'
+                cooperativeRegNo: data.data.registration_number || '', // Use 'registration_number' instead of 'rc_number'
+                address: data.data.address || '',
+                city: data.data.city || '',
+                state: data.data.state || '', // This should now work
+                lga: data.data.lga || '', // This should now work
+                phone: data.data.phone_number || '',
+                cooperativeEmail: data.data.email || '',
+            }));
+
+            setCacLocked(true);
+            console.log('✅ CAC lookup successful:', data.data.name);
+
+        } catch (err: any) {
+            console.error('CAC lookup error:', err);
+            setCacLookupError(err.message);
+            setCacLocked(false);
+        } finally {
+            setCacLookupLoading(false);
         }
     };
 
@@ -240,6 +315,117 @@ export default function RegisterPage() {
         }
     };
 
+    const fetchBanks = async () => {
+        try {
+            setLoadingBanks(true);
+            console.log('Fetching banks...');
+            
+            const response = await fetch('/api/banks/list', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch banks');
+            }
+
+            const data = await response.json();
+            console.log('Banks fetched successfully:', data.banks.length);
+            setBanks(data.banks);
+        } catch (error) {
+            console.error('Error fetching banks:', error);
+            setError('Failed to load banks. Please refresh the page.');
+        } finally {
+            setLoadingBanks(false);
+        }
+    };
+
+    const resolveAccountName = async (bankCode: string, accountNumber: string) => {
+        try {
+            setResolvingAccount(true);
+            setAccountResolutionError(null);
+            console.log('Resolving account name for:', { bankCode, accountNumber });
+
+            const response = await fetch('/api/paystack/resolve-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    bankCode,
+                    accountNumber
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('Account name resolved:', data.accountName);
+                setFormData(prev => ({
+                    ...prev,
+                    bankAccountName: data.accountName
+                }));
+                setAccountResolutionError(null); // Clear any previous errors
+            } else {
+                // Handle fallback case where user needs to enter account name manually
+                if (data.fallback) {
+                    setAccountResolutionError('Account verification service is unavailable. Please enter your account name manually.');
+                } else {
+                    setAccountResolutionError(data.error || 'Failed to resolve account name');
+                }
+            }
+        } catch (error) {
+            console.error('Error resolving account name:', error);
+            setAccountResolutionError('Failed to resolve account name. Please try again.');
+        } finally {
+            setResolvingAccount(false);
+        }
+    };
+
+    const resolveLeaderAccountName = async (bankCode: string, accountNumber: string) => {
+        try {
+            setResolvingLeaderAccount(true);
+            setLeaderAccountResolutionError(null);
+            console.log('Resolving leader account name for:', { bankCode, accountNumber });
+
+            const response = await fetch('/api/paystack/resolve-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    bankCode,
+                    accountNumber
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('Leader account name resolved:', data.accountName);
+                setFormData(prev => ({
+                    ...prev,
+                    leaderBankAccountName: data.accountName
+                }));
+                setLeaderAccountResolutionError(null); // Clear any previous errors
+            } else {
+                // Handle fallback case where user needs to enter account name manually
+                if (data.fallback) {
+                    setLeaderAccountResolutionError('Account verification service is unavailable. Please enter your account name manually.');
+                } else {
+                    setLeaderAccountResolutionError(data.error || 'Failed to resolve account name');
+                }
+            }
+        } catch (error) {
+            console.error('Error resolving leader account name:', error);
+            setLeaderAccountResolutionError('Failed to resolve account name. Please try again.');
+        } finally {
+            setResolvingLeaderAccount(false);
+        }
+    };
+
     const handleTypeSelect = (type: RegistrationType) => {
         setRegistrationType(type);
         setError(null);
@@ -276,11 +462,17 @@ export default function RegisterPage() {
             return;
         }
 
+        if (!acceptedTerms && ((registrationType === 'COOPERATIVE' && currentStep >= 3) || (registrationType === 'MEMBER' && memberStep >= 3))) {
+            setError('You must read and agree to the Terms & Conditions to continue.');
+            setIsLoading(false);
+            return;
+        }
+
         try {
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, registrationType }),
+                body: JSON.stringify({ ...formData, registrationType, acceptedTerms: true }),
             });
             const data = await response.json();
 
@@ -449,35 +641,112 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             <div>
-                                <label htmlFor="cooperativeName" className="block text-sm font-medium">Organization Name *</label>
-                                <input type="text" id="cooperativeName" name="cooperativeName" value={formData.cooperativeName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <label htmlFor="cooperativeRegType" className="block text-sm font-medium">Registration Type *</label>
+                                <select
+                                    id="cooperativeRegType"
+                                    name="cooperativeRegType"
+                                    value={formData.cooperativeRegType}
+                                    onChange={handleChange}
+                                    disabled={cacLocked}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                >
+                                    <option value="RC">RC - Registration Certificate</option>
+                                    <option value="BN">BN - Business Name</option>
+                                    <option value="IT">IT - Incorporated Trustee</option>
+                                    <option value="LP">LP - Limited Partnership</option>
+                                    <option value="LLP">LLP - Limited Liability Partnership</option>
+                                </select>
                             </div>
                             <div>
                                 <label htmlFor="cooperativeRegNo" className="block text-sm font-medium">Organization Registration Number *</label>
-                                <input type="text" id="cooperativeRegNo" name="cooperativeRegNo" value={formData.cooperativeRegNo} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        id="cooperativeRegNo" 
+                                        name="cooperativeRegNo" 
+                                        value={formData.cooperativeRegNo} 
+                                        onChange={handleChange} 
+                                        required 
+                                        disabled={cacLocked}
+                                        placeholder="Enter registration number (e.g., RC00000011, BN123456, etc.)"
+                                        className="flex-1 mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleCACLookup}
+                                        disabled={cacLookupLoading || cacLocked || !formData.cooperativeRegNo || formData.cooperativeRegNo.replace(/[^0-9]/g, '').length < 6}
+                                        className="mt-1 px-3 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {cacLookupLoading ? 'Looking...' : 'CAC Lookup'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">Select registration type, enter your registration number, and click CAC Lookup to auto-fill organization details</p>
+                                {cacLookupLoading && <span className="text-xs text-yellow-600">Looking up CAC details...</span>}
+                                {cacLookupError && <span className="text-xs text-red-600">{cacLookupError}</span>}
+                            </div>
+                            <div>
+                                <label htmlFor="cooperativeName" className="block text-sm font-medium">Organization Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="cooperativeName" 
+                                    name="cooperativeName" 
+                                    value={formData.cooperativeName} 
+                                    onChange={handleChange} 
+                                    required 
+                                    disabled={cacLocked}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Address *</label>
-                                <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md"/>
+                                <input 
+                                    type="text" 
+                                    name="address" 
+                                    value={formData.address} 
+                                    onChange={handleChange} 
+                                    required 
+                                    disabled={cacLocked}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">City *</label>
-                                <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"/>
+                                <input 
+                                    type="text" 
+                                    name="city" 
+                                    value={formData.city} 
+                                    onChange={handleChange} 
+                                    required 
+                                    disabled={cacLocked}
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                />
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">State *</label>
-                                    <select name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md">
-                                        <option value="">Select State</option>
-                                        {states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                                    </select>
+                                    <input 
+                                        type="text" 
+                                        name="state" 
+                                        value={formData.state} 
+                                        onChange={handleChange} 
+                                        required 
+                                        disabled={cacLocked}
+                                        placeholder="Enter state"
+                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium">LGA *</label>
-                                     <select name="lga" value={formData.lga} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md" disabled={!formData.state}>
-                                        <option value="">Select LGA</option>
-                                        {selectedState && selectedState.lgas.map(lga => <option key={lga} value={lga}>{lga}</option>)}
-                                    </select>
+                                    <input 
+                                        type="text" 
+                                        name="lga" 
+                                        value={formData.lga} 
+                                        onChange={handleChange} 
+                                        required 
+                                        disabled={cacLocked}
+                                        placeholder="Enter LGA"
+                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -490,34 +759,84 @@ export default function RegisterPage() {
                         <div className="space-y-4 mt-4">
                             <div>
                                 <label className="block text-sm font-medium">Bank Name *</label>
-                                <select name="bankName" value={formData.bankName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md">
+                                <select 
+                                    name="bankName" 
+                                    value={formData.bankName} 
+                                    onChange={(e) => {
+                                        handleChange(e);
+                                        // Clear account name when bank changes
+                                        setFormData(prev => ({ ...prev, bankAccountName: '' }));
+                                        setAccountResolutionError(null);
+                                    }} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                >
                                     <option value="">Select Bank</option>
                                     {banks.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Bank Account Number *</label>
-                                <input 
-                                    type="text" 
-                                    name="bankAccountNumber" 
-                                    value={formData.bankAccountNumber} 
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                                        if (value.length <= 10) {
-                                            setFormData(prev => ({ ...prev, bankAccountNumber: value }));
-                                        }
-                                    }}
-                                    required 
-                                    minLength={10}
-                                    maxLength={10}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
-                                    placeholder="1234567890"
-                                />
-                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        name="bankAccountNumber" 
+                                        value={formData.bankAccountNumber} 
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                            if (value.length <= 10) {
+                                                setFormData(prev => ({ ...prev, bankAccountNumber: value }));
+                                            }
+                                        }}
+                                        required 
+                                        minLength={10}
+                                        maxLength={10}
+                                        className="flex-1 mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
+                                        placeholder="1234567890"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const selectedBank = banks.find(b => b.name === formData.bankName);
+                                            if (selectedBank && formData.bankAccountNumber.length === 10) {
+                                                resolveAccountName(selectedBank.code, formData.bankAccountNumber);
+                                            }
+                                        }}
+                                        disabled={resolvingAccount || !formData.bankName || formData.bankAccountNumber.length !== 10}
+                                        className="mt-1 px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {resolvingAccount ? 'Resolving...' : 'Resolve Name'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits. Click "Resolve Name" to auto-fill account holder name.</p>
+                                {accountResolutionError && (
+                                    <div className="mt-1">
+                                        <p className="text-xs text-red-600">{accountResolutionError}</p>
+                                        {accountResolutionError.includes('not supported') && (
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                💡 Try selecting a major commercial bank like Access Bank, First Bank, GTBank, or Sterling Bank.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Bank Account Name *</label>
-                                <input type="text" name="bankAccountName" value={formData.bankAccountName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"/>
+                                <input 
+                                    type="text" 
+                                    name="bankAccountName" 
+                                    value={formData.bankAccountName} 
+                                    onChange={handleChange} 
+                                    required 
+                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
+                                    placeholder={resolvingAccount ? "Resolving account name..." : "Account holder name"}
+                                />
+                                {resolvingAccount && (
+                                    <div className="flex items-center mt-1">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                                        <span className="text-xs text-blue-600">Resolving account name...</span>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Phone *</label>
@@ -544,6 +863,9 @@ export default function RegisterPage() {
                                 <input type="email" name="cooperativeEmail" value={formData.cooperativeEmail} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"/>
                             </div>
                         </div>
+                        <div className="flex justify-start pt-4">
+                            <button type="button" onClick={() => setCurrentStep(1)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
+                        </div>
                     </div>
                 );
             case 3:
@@ -552,14 +874,106 @@ export default function RegisterPage() {
                         <h3 className="text-xl font-semibold border-b pb-2">Step 3: Leader's Details</h3>
                         <p className="text-sm text-gray-500 mt-2">Create the primary leader account for this organization.</p>
                         <div className="space-y-4 mt-4">
+                            {/* NIN Lookup Section */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                <label className="block text-sm font-medium text-blue-900">Leader's NIN (Optional - for auto-fill)</label>
+                                <div className="flex gap-2 mt-1">
+                                    <input 
+                                        type="text" 
+                                        name="leaderNin" 
+                                        value={formData.leaderNin} 
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                            if (value.length <= 11) {
+                                                setFormData(prev => ({ ...prev, leaderNin: value }));
+                                            }
+                                        }}
+                                        disabled={leaderNinLocked}
+                                        maxLength={11}
+                                        className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black dark:text-black disabled:bg-gray-100"
+                                        placeholder="Enter 11-digit NIN"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setLeaderNinLookupError(null);
+                                            if (!formData.leaderNin || formData.leaderNin.length !== 11) return;
+                                            setLeaderNinLookupLoading(true);
+                                            try {
+                                                const res = await fetch('/api/identity/nin/lookup', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ nin: formData.leaderNin, provider: 'korapay' }),
+                                                });
+                                                const data = await res.json();
+                                                if (!res.ok) throw new Error(data.message || 'Korapay NIN lookup failed');
+                                                
+                                                // Populate leader form with NIN data
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    leaderFirstName: data.data.firstName || '',
+                                                    leaderLastName: data.data.lastName || '',
+                                                    leaderEmail: data.data.email || '',
+                                                    leaderPhone: data.data.phoneNumber || '',
+                                                }));
+                                                setLeaderNinPhoto(data.data.photo ? `data:image/jpeg;base64,${data.data.photo}` : '');
+                                                setLeaderNinLocked(true);
+                                            } catch (err: any) {
+                                                setLeaderNinLookupError(err.message);
+                                                setLeaderNinLocked(false);
+                                            } finally {
+                                                setLeaderNinLookupLoading(false);
+                                            }
+                                        }}
+                                        disabled={leaderNinLookupLoading || leaderNinLocked || !formData.leaderNin || formData.leaderNin.length !== 11}
+                                        className="px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {leaderNinLookupLoading ? 'Looking...' : 'Korapay Lookup'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-blue-700 mt-1">Enter leader's 11-digit NIN and click lookup to auto-fill details</p>
+                                {leaderNinLookupLoading && <span className="text-xs text-blue-600">Looking up NIN...</span>}
+                                {leaderNinLookupError && <span className="text-xs text-red-600">{leaderNinLookupError}</span>}
+                                {leaderNinLocked && (
+                                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                        <p className="text-xs text-green-700">✅ Leader NIN verified and details populated</p>
+                                        {leaderNinPhoto && (
+                                            <div className="mt-2">
+                                                <img 
+                                                    src={leaderNinPhoto} 
+                                                    alt="Leader NIN Photo" 
+                                                    className="w-16 h-16 object-cover rounded border"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium">Leader's First Name *</label>
-                                    <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
+                                    <input 
+                                        type="text" 
+                                        name="leaderFirstName" 
+                                        value={formData.leaderFirstName} 
+                                        onChange={handleChange} 
+                                        required 
+                                        disabled={leaderNinLocked}
+                                        className="w-full mt-1 p-2 border rounded-md text-black dark:text-black disabled:bg-gray-100"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium">Leader's Last Name *</label>
-                                    <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
+                                    <input 
+                                        type="text" 
+                                        name="leaderLastName" 
+                                        value={formData.leaderLastName} 
+                                        onChange={handleChange} 
+                                        required 
+                                        disabled={leaderNinLocked}
+                                        className="w-full mt-1 p-2 border rounded-md text-black dark:text-black disabled:bg-gray-100"
+                                    />
                                 </div>
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -578,7 +992,8 @@ export default function RegisterPage() {
                                         required 
                                         minLength={11}
                                         maxLength={11}
-                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
+                                        disabled={leaderNinLocked}
+                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black disabled:bg-gray-100"
                                         placeholder="08012345678"
                                     />
                                     <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
@@ -590,7 +1005,15 @@ export default function RegisterPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Leader's Email *</label>
-                                <input type="email" name="leaderEmail" value={formData.leaderEmail} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md text-black dark:text-black"/>
+                                <input 
+                                    type="email" 
+                                    name="leaderEmail" 
+                                    value={formData.leaderEmail} 
+                                    onChange={handleChange} 
+                                    required 
+                                    disabled={leaderNinLocked}
+                                    className="w-full mt-1 p-2 border rounded-md text-black dark:text-black disabled:bg-gray-100"
+                                />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Leader's Password *</label>
@@ -600,6 +1023,11 @@ export default function RegisterPage() {
                                     onChange={handleChange}
                                     placeholder="Enter leader's password"
                                     required
+                                />
+                                <PasswordHints 
+                                    password={formData.leaderPassword} 
+                                    minLength={8}
+                                    showHints={formData.leaderPassword.length > 0}
                                 />
                             </div>
                             <div>
@@ -611,24 +1039,58 @@ export default function RegisterPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Leader Bank Account Number *</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        name="leaderBankAccountNumber" 
+                                        value={formData.leaderBankAccountNumber} 
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                                            if (value.length <= 10) {
+                                                setFormData(prev => ({ ...prev, leaderBankAccountNumber: value }));
+                                            }
+                                        }}
+                                        required 
+                                        minLength={10}
+                                        maxLength={10}
+                                        className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                        placeholder="1234567890"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (formData.leaderBankName && formData.leaderBankAccountNumber) {
+                                                const selectedBank = banks.find(b => b.name === formData.leaderBankName);
+                                                if (selectedBank) {
+                                                    resolveLeaderAccountName(selectedBank.code, formData.leaderBankAccountNumber);
+                                                }
+                                            }
+                                        }}
+                                        disabled={resolvingLeaderAccount || !formData.leaderBankName || !formData.leaderBankAccountNumber || formData.leaderBankAccountNumber.length !== 10}
+                                        className="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {resolvingLeaderAccount ? 'Resolving...' : 'Resolve'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
+                                {leaderAccountResolutionError && <p className="text-xs text-red-600 mt-1">{leaderAccountResolutionError}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium">Leader Bank Account Name *</label>
                                 <input 
                                     type="text" 
-                                    name="leaderBankAccountNumber" 
-                                    value={formData.leaderBankAccountNumber} 
-                                    onChange={(e) => {
-                                        const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                                        if (value.length <= 10) {
-                                            setFormData(prev => ({ ...prev, leaderBankAccountNumber: value }));
-                                        }
-                                    }}
+                                    name="leaderBankAccountName" 
+                                    value={formData.leaderBankAccountName} 
+                                    onChange={handleChange}
                                     required 
-                                    minLength={10}
-                                    maxLength={10}
                                     className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                                    placeholder="1234567890"
+                                    placeholder="Enter account holder's name"
                                 />
-                                <p className="text-xs text-gray-600 mt-1">Must be exactly 10 digits</p>
+                                <p className="text-xs text-gray-600 mt-1">Account holder's name as it appears on the bank account</p>
                             </div>
+                        </div>
+                        <div className="flex justify-start pt-4">
+                            <button type="button" onClick={() => setCurrentStep(2)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
                         </div>
                     </div>
                 );
@@ -717,9 +1179,10 @@ export default function RegisterPage() {
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Step 2: Personal Details</h3>
                         
-                        {/* NIN Field */}
+                        {/* NIN Field with Korapay and Mono Lookup */}
                         <div>
-                            <label htmlFor="nin" className="block text-sm font-medium">NIN *</label>
+                            <label htmlFor="nin" className="block text-sm font-medium">NIN (National Identification Number) *</label>
+                            <div className="flex gap-2">
                             <input
                                 type="text"
                                 id="nin"
@@ -727,21 +1190,17 @@ export default function RegisterPage() {
                                 value={formData.nin}
                                 onChange={(e) => {
                                     const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                                    if (value.length <= 10) {
+                                        if (value.length <= 11) {
                                         setFormData(prev => ({ ...prev, nin: value }));
                                     }
                                 }}
-                                onBlur={handleNinBlur}
                                 required
-                                maxLength={10}
-                                minLength={10}
-                                className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    maxLength={11}
+                                    minLength={11}
+                                    className="flex-1 mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
                                 disabled={ninLocked}
-                                placeholder="1234567890"
+                                    placeholder="12345678901"
                             />
-                            {ninLookupLoading && <span className="text-xs text-yellow-600">Looking up NIN...</span>}
-                            {ninLookupError && <span className="text-xs text-red-600">{ninLookupError}</span>}
-                            {!ninLocked && (
                                 <button
                                     type="button"
                                     onClick={async () => {
@@ -749,34 +1208,118 @@ export default function RegisterPage() {
                                         if (!formData.nin || formData.nin.length !== 11) return;
                                         setNinLookupLoading(true);
                                         try {
-                                            const res = await fetch('/api/lookup/nin', {
+                                            const res = await fetch('/api/identity/nin/mono-lookup', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ nin: formData.nin }),
                                             });
                                             const data = await res.json();
-                                            if (!res.ok) throw new Error(data.error || 'NIN lookup failed');
+                                            if (!res.ok) throw new Error(data.message || 'Mono NIN lookup failed');
+                                            
+                                            // Populate form with NIN data
                                             setFormData(prev => ({
                                                 ...prev,
-                                                firstName: data.name?.split(' ')[0] || '',
-                                                lastName: data.name?.split(' ').slice(1).join(' ') || '',
-                                                dateOfBirth: data.dateOfBirth || '',
+                                                firstName: data.data.firstName || '',
+                                                lastName: data.data.lastName || '',
+                                                dateOfBirth: data.data.dateOfBirth || '',
+                                                phoneNumber: data.data.phoneNumber || '',
+                                                email: data.data.email || '',
+                                                address: data.data.address || '',
+                                                city: data.data.city || '',
+                                                state: data.data.state || '',
+                                                lga: data.data.lga || '',
                                             }));
+                                            setNinPhoto(data.data.photo ? `data:image/jpeg;base64,${data.data.photo}` : '');
                                             setNinLocked(true);
-                                        } catch (err) {
+                                        } catch (err: any) {
                                             setNinLookupError(err.message);
                                             setNinLocked(false);
                                         } finally {
                                             setNinLookupLoading(false);
                                         }
                                     }}
-                                    disabled={ninLookupLoading || ninLocked || !formData.nin || formData.nin.length !== 10}
-                                    className="mt-2 px-4 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 disabled:opacity-50"
+                                    disabled={ninLookupLoading || ninLocked || !formData.nin || formData.nin.length !== 11}
+                                    className="mt-1 px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {ninLookupLoading ? 'Looking up...' : 'Look Up NIN'}
+                                    {ninLookupLoading ? 'Looking...' : 'Mono Lookup'}
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        setNinLookupError(null);
+                                        if (!formData.nin || formData.nin.length !== 11) return;
+                                        setNinLookupLoading(true);
+                                        try {
+                                            const res = await fetch('/api/identity/nin/lookup', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ nin: formData.nin, provider: 'korapay' }),
+                                            });
+                                            const data = await res.json();
+                                            if (!res.ok) throw new Error(data.message || 'Korapay NIN lookup failed');
+                                            
+                                            // Populate form with NIN data
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                firstName: data.data.firstName || '',
+                                                lastName: data.data.lastName || '',
+                                                dateOfBirth: data.data.dateOfBirth || '',
+                                                phoneNumber: data.data.phoneNumber || '',
+                                                email: data.data.email || '',
+                                                address: data.data.address || '',
+                                                city: data.data.city || '',
+                                                state: data.data.state || '',
+                                                lga: data.data.lga || '',
+                                            }));
+                                            setNinPhoto(data.data.photo ? `data:image/jpeg;base64,${data.data.photo}` : '');
+                                            setNinLocked(true);
+                                        } catch (err: any) {
+                                            setNinLookupError(err.message);
+                                            setNinLocked(false);
+                                        } finally {
+                                            setNinLookupLoading(false);
+                                        }
+                                    }}
+                                    disabled={ninLookupLoading || ninLocked || !formData.nin || formData.nin.length !== 11}
+                                    className="mt-1 px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {ninLookupLoading ? 'Looking...' : 'Korapay Lookup'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1">Enter your 11-digit NIN and click a lookup button to auto-fill your details</p>
+                            {ninLookupLoading && <span className="text-xs text-blue-600">Looking up NIN...</span>}
+                            {ninLookupError && <span className="text-xs text-red-600">{ninLookupError}</span>}
+                            {ninLocked && (
+                                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                                    <p className="text-xs text-green-700">✅ NIN verified and details populated</p>
+                                </div>
                             )}
                         </div>
+
+                        {/* NIN Photo Display */}
+                        {ninLocked && ninPhoto && (
+                            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">NIN Verification Photo</h4>
+                                <div className="flex items-center space-x-4">
+                                    <img 
+                                        src={ninPhoto} 
+                                        alt="NIN Verification Photo" 
+                                        className="w-20 h-20 object-cover rounded border"
+                                        onError={(e) => {
+                                            console.error('Failed to load NIN photo:', e);
+                                            e.currentTarget.style.display = 'none';
+                                        }}
+                                        onLoad={() => {
+                                            console.log('NIN photo loaded successfully');
+                                        }}
+                                    />
+                                    <div className="text-xs text-gray-600">
+                                        <p>✅ Photo verified from NIN database</p>
+                                        <p className="text-gray-500 mt-1">This photo will be saved with your registration</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -851,7 +1394,11 @@ export default function RegisterPage() {
                                     )}
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">Minimum 6 characters</p>
+                            <PasswordHints 
+                                password={formData.password} 
+                                minLength={8}
+                                showHints={formData.password.length > 0}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Confirm Password *</label>
@@ -882,7 +1429,14 @@ export default function RegisterPage() {
                                     )}
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">Re-enter your password to confirm</p>
+                            <div className="mt-2">
+                                {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                                    <p className="text-sm text-red-600">Passwords do not match</p>
+                                )}
+                                {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                                    <p className="text-sm text-green-600">✓ Passwords match</p>
+                                )}
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Date of Birth</label>
@@ -1080,7 +1634,7 @@ export default function RegisterPage() {
                             </p>
                         </div>
 
-                        <div className="flex justify-between pt-4">
+                        <div className="flex justify-start pt-4">
                             <button type="button" onClick={() => setMemberStep(2)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
                             <button type="submit" disabled={isLoading} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center min-w-[120px]">
                                 {isLoading ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span> : null}
@@ -1113,8 +1667,9 @@ export default function RegisterPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Email</label>
-                            <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                            <label className="block text-sm font-medium">Email (Optional)</label>
+                            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                            <p className="text-xs text-gray-600 mt-1">Email is optional. You can use your phone number or NIN to login instead.</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Password</label>
@@ -1136,7 +1691,7 @@ export default function RegisterPage() {
                                 required
                             />
                         </div>
-                        <div className="flex justify-between pt-4">
+                        <div className="flex justify-start pt-4">
                             <button type="button" onClick={() => setMemberStep(3)} className="text-gray-600 hover:text-gray-900">&larr; Back</button>
                             <button type="submit" disabled={isLoading} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center min-w-[120px]">
                                 {isLoading ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span> : null}
@@ -1197,6 +1752,14 @@ export default function RegisterPage() {
 
                 {registrationType === 'COOPERATIVE' ? renderCooperativeForm() : renderMemberForm()}
 
+                {/* Terms & Conditions agreement */}
+                <div className="mt-6 border-t pt-4">
+                    <div className="flex items-start gap-3">
+                        <input id="accept-terms" type="checkbox" checked={acceptedTerms} onChange={(e)=>setAcceptedTerms(e.target.checked)} className="mt-1" />
+                        <label htmlFor="accept-terms" className="text-sm text-gray-700">I have read and agree to the <button type="button" className="text-blue-600 underline" onClick={()=>setShowTerms(true)}>Terms & Conditions</button>.</label>
+                    </div>
+                </div>
+
                 <div className="flex justify-end pt-6">
                     <button type="submit" disabled={isLoading} className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center min-w-[120px]">
                         {isLoading ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span> : null}
@@ -1230,6 +1793,60 @@ export default function RegisterPage() {
                     {renderForm()}
                 </div>
             </div>
+
+            {/* Terms & Conditions Modal */}
+            {showTerms && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+                    <div className="bg-white dark:bg-gray-900 max-w-3xl w-full rounded-lg shadow-lg p-6 max-h-[85vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Terms & Conditions</h3>
+                            <button onClick={()=>setShowTerms(false)} className="text-gray-600 hover:text-gray-900">✕</button>
+                        </div>
+                        <div className="prose prose-sm dark:prose-invert">
+                            <p><strong>Effective Date:</strong> {new Date().toLocaleDateString()}</p>
+                            <p>These Terms & Conditions (the “Terms”) govern your access to and use of the Nogalss Cooperative platform and services (“Services”). By registering or using the Services, you agree to these Terms.</p>
+                            <h4>1. Eligibility and Account</h4>
+                            <ul>
+                                <li>You must provide accurate, complete information (including NIN/CAC where required).</li>
+                                <li>If you register an organization, you confirm you’re authorized to do so.</li>
+                            </ul>
+                            <h4>2. Verification</h4>
+                            <p>You consent to identity and corporate verification via approved providers (e.g., Korapay/Mono) and to provide additional documents where required.</p>
+                            <h4>3. Fees and Payments</h4>
+                            <p>Fees are shown before payment and processed by third-party providers (e.g., Paystack). Fees are generally non-refundable once services are provisioned, except as required by law.</p>
+                            <h4>4. Wallets & Allocations</h4>
+                            <p>Virtual accounts/wallets may be created for operations. Super Admin allocations are handled per configured settings. Withdrawals may require verification and are processed by payment providers.</p>
+                            <h4>5. Communications</h4>
+                            <p>We may send service emails/SMS (e.g., confirmations, alerts). Carrier/data charges may apply.</p>
+                            <h4>6. Acceptable Use</h4>
+                            <p>No unlawful use, fraud, IP infringement, privacy breaches, or interference with the Services.</p>
+                            <h4>7. Privacy</h4>
+                            <p>Personal data is processed per our Privacy Policy and applicable law.</p>
+                            <h4>8. Availability & Changes</h4>
+                            <p>We strive for availability but do not guarantee uninterrupted service. We may modify or discontinue features.</p>
+                            <h4>9. IP</h4>
+                            <p>All platform IP remains with Nogalss/licensors. You receive a limited license to use the Services.</p>
+                            <h4>10. Suspension/Termination</h4>
+                            <p>We may suspend/terminate for violations, suspected fraud, or legal requirements.</p>
+                            <h4>11. Disclaimers</h4>
+                            <p>Services are provided “as is,” without warranties of any kind to the fullest extent permitted by law.</p>
+                            <h4>12. Limitation of Liability</h4>
+                            <p>To the maximum extent permitted by law, Nogalss shall not be liable for indirect or consequential damages. Aggregate liability is limited to fees paid in the prior 3 months for the relevant Service.</p>
+                            <h4>13. Indemnity</h4>
+                            <p>You agree to indemnify Nogalss for claims arising from your use or breach of these Terms.</p>
+                            <h4>14. Governing Law & Disputes</h4>
+                            <p>These Terms are governed by Nigerian law. Disputes will be resolved by good-faith negotiation, then binding arbitration in Nigeria where permitted by law.</p>
+                            <h4>15. Changes</h4>
+                            <p>We may update these Terms. Continued use after changes take effect indicates acceptance.</p>
+                            <h4>16. Contact</h4>
+                            <p>support@nogalssapexcoop.org</p>
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                            <button onClick={()=>setShowTerms(false)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

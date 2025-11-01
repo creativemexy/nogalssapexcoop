@@ -9,14 +9,14 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email or NIN", type: "text" },
+        email: { label: "Email, Phone, or NIN", type: "text" },
         password: { label: "Password", type: "password" },
         totp: { label: "2FA Code", type: "text" }
       },
       async authorize(credentials) {
         try {
           console.log('Auth attempt:', {
-            emailOrNin: credentials?.email,
+            emailOrPhoneOrNin: credentials?.email,
             hasPassword: !!credentials?.password,
             hasTotp: !!credentials?.totp,
             totpValue: credentials?.totp
@@ -26,8 +26,10 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Check if input is email or NIN and find user accordingly
+          // Check if input is email, phone, or NIN and find user accordingly
           const isEmail = credentials.email.includes('@');
+          const isPhone = /^(\+?234|0)?[789][01]\d{8}$/.test(credentials.email); // Nigerian phone number pattern
+          const isNIN = /^\d{11}$/.test(credentials.email); // NIN is 11 digits
           let user;
           
           if (isEmail) {
@@ -37,18 +39,31 @@ export const authOptions: NextAuthOptions = {
                 email: credentials.email
               }
             });
-          } else {
-            // Login with NIN (assuming NIN is 10 digits)
-            if (!/^\d{10}$/.test(credentials.email)) {
-              console.log('Invalid NIN format:', credentials.email);
-              return null;
+          } else if (isPhone) {
+            // Login with phone number
+            // Normalize phone number format
+            let normalizedPhone = credentials.email;
+            if (normalizedPhone.startsWith('+234')) {
+              normalizedPhone = '0' + normalizedPhone.substring(4);
+            } else if (normalizedPhone.startsWith('234')) {
+              normalizedPhone = '0' + normalizedPhone.substring(3);
             }
             
+            user = await prisma.user.findFirst({
+              where: {
+                phoneNumber: normalizedPhone
+              }
+            });
+          } else if (isNIN) {
+            // Login with NIN
             user = await prisma.user.findFirst({
               where: {
                 nin: credentials.email
               }
             });
+          } else {
+            console.log('Invalid login format:', credentials.email);
+            return null;
           }
 
           if (!user || !user.password) {

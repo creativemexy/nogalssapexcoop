@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PasswordHints from '@/components/ui/PasswordHints';
 
 export default function CreateApexUserPage() {
   const router = useRouter();
@@ -218,7 +219,11 @@ export default function CreateApexUserPage() {
                 )}
               </button>
             </div>
-            <p className="mt-1 text-sm text-gray-500">At least 12 chars with uppercase, lowercase, number, and special</p>
+            <PasswordHints 
+              password={formData.password} 
+              minLength={12}
+              showHints={formData.password.length > 0}
+            />
           </div>
 
           <div>

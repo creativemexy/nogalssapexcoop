@@ -1,27 +1,9 @@
-import nodemailer from 'nodemailer';
+import * as brevo from '@getbrevo/brevo';
 import { prisma } from '@/lib/prisma';
 
-// Create SMTP transporter with better error handling
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS_B64 ? Buffer.from(process.env.SMTP_PASS_B64, 'base64').toString() : process.env.SMTP_PASS,
-  },
-  // Add connection timeout and retry options
-  connectionTimeout: 10000,
-  greetingTimeout: 5000,
-  socketTimeout: 10000,
-  // Disable TLS verification for development (not recommended for production)
-  tls: {
-    rejectUnauthorized: false
-  },
-  // Debug mode to see what's happening
-  debug: process.env.NODE_ENV === 'development',
-  logger: process.env.NODE_ENV === 'development'
-});
+// Initialize Brevo API client
+const apiInstance = new brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY || '');
 
 interface EmailNotification {
   to: string;
@@ -136,56 +118,45 @@ export class NotificationService {
           subject,
           message: html.substring(0, 500), // Store first 500 chars
           status: 'PENDING',
-          provider: 'smtp',
+          provider: 'brevo',
         },
       });
 
-      const mailOptions = {
-        from: process.env.SMTP_FROM || 'apexcoop@nogalss.org',
-        to: to,
-        subject,
-        html,
-      };
+      if (!process.env.BREVO_API_KEY) {
+        throw new Error('BREVO_API_KEY is not configured. Please add your Brevo API key to the environment variables.');
+      }
 
-      const info = await transporter.sendMail(mailOptions);
+      if (!process.env.BREVO_API_KEY.startsWith('xkeys-') && !process.env.BREVO_API_KEY.startsWith('xkeysib-')) {
+        throw new Error('Invalid BREVO_API_KEY format. Brevo API keys should start with "xkeys-" or "xkeysib-".');
+      }
+
+      console.log('📧 Sending email via Brevo...');
+      
+      const sendSmtpEmail = new brevo.SendSmtpEmail();
+      sendSmtpEmail.subject = subject;
+      sendSmtpEmail.htmlContent = html;
+      sendSmtpEmail.textContent = html.replace(/<[^>]*>/g, ''); // Strip HTML for text content
+      sendSmtpEmail.sender = { name: 'Nogalss Cooperative', email: 'noreply@nogalss.org' };
+      sendSmtpEmail.to = [{ email: to, name: to.split('@')[0] }];
+
+      const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+      const messageId: string = (data as any)?.messageId || (data as any)?.body?.messageId || 'brevo-message';
 
       // Update log with success
       await prisma.notificationLog.update({
         where: { id: logEntry.id },
         data: {
           status: 'SENT',
-          providerId: info.messageId,
+          providerId: messageId,
           sentAt: new Date(),
         },
       });
 
-      return info;
+      console.log('✅ Email sent successfully via Brevo:', messageId);
+      return { messageId, provider: 'brevo' };
+      
     } catch (error) {
       console.error('Email notification error:', error);
-      
-      // In development, log the email content instead of failing
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📧 EMAIL WOULD BE SENT:');
-        console.log('To:', to);
-        console.log('Subject:', subject);
-        console.log('Content:', html.substring(0, 200) + '...');
-        console.log('---');
-        
-        // Update log as "sent" for development
-        if (logEntry) {
-          await prisma.notificationLog.update({
-            where: { id: logEntry.id },
-            data: {
-              status: 'SENT',
-              providerId: 'dev-log',
-              sentAt: new Date(),
-              errorMessage: 'Logged in development mode',
-            },
-          });
-        }
-        
-        return { messageId: 'dev-' + Date.now() };
-      }
       
       // Update log with error if not already updated
       if (logEntry) {
@@ -202,7 +173,7 @@ export class NotificationService {
     }
   }
 
-  // SMS notifications (using SMS Provider API)
+  // SMS notifications (using Termii API)
   static async sendSMS({ to, message }: SMSNotification) {
     let logEntry;
     
@@ -214,13 +185,16 @@ export class NotificationService {
           recipient: to,
           message: message.substring(0, 500), // Store first 500 chars
           status: 'PENDING',
-          provider: 'sms_provider',
+          provider: 'termii',
         },
       });
 
-      const username = 'mercyzrt@gmail.com';
-      const password = 'peculiar1';
-      const sender = 'Nogalss';
+      const apiKey = process.env.TERMII_API_KEY;
+      const senderId = process.env.TERMII_SENDER_ID;
+      
+      if (!apiKey || !senderId) {
+        throw new Error('Termii API key and sender ID are required');
+      }
       
       // Format phone number (remove + and ensure it starts with 234 for Nigeria)
       let formattedNumber = to.replace(/^\+/, '');
@@ -228,30 +202,39 @@ export class NotificationService {
         formattedNumber = '234' + formattedNumber.replace(/^0/, '');
       }
 
-      const response = await fetch(
-        `https://customer.smsprovider.com.ng/api/?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&message=${encodeURIComponent(message)}&sender=${encodeURIComponent(sender)}&mobiles=${formattedNumber}`,
-        {
-          method: 'GET',
-        }
-      );
+      const response = await fetch('https://api.ng.termii.com/api/sms/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: formattedNumber,
+          from: senderId,
+          sms: message,
+          type: 'plain',
+          channel: 'generic',
+          api_key: apiKey,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to send SMS');
+        throw new Error(`Termii API error: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
       
-      if (result.error) {
+      if (result.code !== 'ok') {
         // Update log with error
         await prisma.notificationLog.update({
           where: { id: logEntry.id },
           data: {
             status: 'FAILED',
-            errorMessage: result.error,
+            errorMessage: result.message || 'Unknown error',
+            cost: 0,
           },
         });
         
-        throw new Error(`SMS API Error: ${result.error}`);
+        throw new Error(`Termii API Error: ${result.message || 'Unknown error'}`);
       }
 
       // Update log with success and cost
@@ -259,13 +242,14 @@ export class NotificationService {
         where: { id: logEntry.id },
         data: {
           status: 'SENT',
-          providerId: result.status,
-          cost: result.price || 0,
+          providerId: result.messageId || result.code || 'unknown',
+          cost: result.balance || 0,
           sentAt: new Date(),
         },
       });
 
-      return result;
+      console.log('✅ SMS sent successfully via Termii:', result);
+      return { messageId: result.messageId || result.code, provider: 'termii' };
     } catch (error) {
       console.error('SMS notification error:', error);
       
@@ -276,6 +260,7 @@ export class NotificationService {
           data: {
             status: 'FAILED',
             errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            cost: 0,
           },
         });
       }
@@ -407,9 +392,26 @@ export class NotificationService {
   // Registration confirmation SMS
   static async sendRegistrationConfirmationSMS(
     phoneNumber: string,
-    registrationType: string
+    registrationType: string,
+    email?: string,
+    password?: string,
+    dashboardUrl?: string
   ) {
-    const message = `Nogalss: Welcome! Your ${registrationType} registration is complete. Sign in to access your account.`;
+    let message = `Nogalss: Welcome! Your ${registrationType} registration is complete.`;
+    
+    if (email) {
+      message += ` Login: ${email}`;
+    }
+    
+    if (password) {
+      message += ` Password: ${password}`;
+    }
+    
+    if (dashboardUrl) {
+      message += ` Dashboard: ${dashboardUrl}`;
+    }
+    
+    message += ' Sign in to access your account.';
     
     return this.sendSMS({ to: phoneNumber, message });
   }

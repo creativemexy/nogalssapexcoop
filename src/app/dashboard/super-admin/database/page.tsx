@@ -1,133 +1,241 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
-interface TableRow {
-  [key: string]: any;
+interface BackupFile {
+  filename: string;
+  size: number;
+  createdAt: string;
+  modifiedAt: string;
+  path: string;
 }
 
-export default function DatabaseAdminPage() {
+export default function DatabaseManagementPage() {
   const { data: session, status } = useSession();
-  const [tables, setTables] = useState<string[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [rows, setRows] = useState<TableRow[]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [total, setTotal] = useState(0);
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [backups, setBackups] = useState<BackupFile[]>([]);
+  const [backupName, setBackupName] = useState('');
+  const [confirmText, setConfirmText] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTables();
-  }, []);
-
-  const fetchTables = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/admin/db');
-      const data = await res.json();
-      if (res.ok) setTables(data.tables);
-      else setError(data.error || 'Failed to fetch tables');
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch tables');
-    } finally {
-      setLoading(false);
+    if (status === 'loading') return;
+    if (!session || (session.user as any)?.role !== 'SUPER_ADMIN') {
+      router.push('/dashboard');
+      return;
     }
+    fetchBackups();
+  }, [session, status]);
+
+  const fetchBackups = async () => {
+    try {
+      const res = await fetch('/api/admin/database/backups');
+      const data = await res.json();
+      if (data.success) setBackups(data.backups);
+    } catch {}
   };
 
-  const fetchTableData = async (table: string, pageNum = 1) => {
-    setLoading(true);
-    setError(null);
+  const createBackup = async () => {
     try {
-      const res = await fetch('/api/admin/db', {
+      setLoading(true);
+      setMessage(null);
+      const res = await fetch('/api/admin/database/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table, page: pageNum, pageSize }),
+        body: JSON.stringify({ backupName: backupName.trim() || undefined })
       });
       const data = await res.json();
-      if (res.ok) {
-        setRows(data.rows);
-        setColumns(data.rows[0] ? Object.keys(data.rows[0]) : []);
-        setTotal(data.total);
-        setPage(data.page);
-      } else {
-        setError(data.error || 'Failed to fetch table data');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch table data');
+      if (!res.ok) throw new Error(data.error || 'Backup failed');
+      setMessage('✅ Backup created');
+      setBackupName('');
+      fetchBackups();
+    } catch (e: any) {
+      setMessage(`❌ ${e.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTableSelect = (table: string) => {
-    setSelectedTable(table);
-    setPage(1);
-    fetchTableData(table, 1);
+  const resetDatabase = async () => {
+    if (confirmText !== 'RESET DATABASE') {
+      setMessage('❗ Type RESET DATABASE to confirm');
+      return;
+    }
+    try {
+      setLoading(true);
+      setMessage(null);
+      const res = await fetch('/api/admin/database/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alsoBackup: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      setMessage('✅ Database reset complete. Super admin preserved.');
+      setConfirmText('');
+    } catch (e: any) {
+      setMessage(`❌ ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const handlePageChange = (newPage: number) => {
-    if (selectedTable) fetchTableData(selectedTable, newPage);
-  };
-
-  if (status === 'loading') {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900"><div className="animate-spin h-10 w-10 border-b-2 border-green-600 rounded-full"></div></div>;
-  }
-  if (!session || (session.user as any).role !== 'SUPER_ADMIN') {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900"><div className="text-center"><h2 className="text-2xl font-bold text-red-600">Access Denied</h2><p className="text-gray-600 dark:text-gray-300">You do not have permission to view this page.</p></div></div>;
-  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Database Management</h1>
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Table</label>
-        <select
-          className="w-full max-w-xs p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-          value={selectedTable || ''}
-          onChange={e => handleTableSelect(e.target.value)}
-        >
-          <option value="">-- Choose a table --</option>
-          {tables.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-      </div>
-      {error && <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-      {loading && <div className="mb-4 text-gray-600 dark:text-gray-300">Loading...</div>}
-      {selectedTable && !loading && (
-        <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded shadow p-4">
-          <div className="mb-2 text-sm text-gray-700 dark:text-gray-300">Showing {rows.length} of {total} rows</div>
-          <table className="min-w-full text-xs text-left">
-            <thead>
-              <tr>
-                {columns.map(col => <th key={col} className="px-2 py-1 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">{col}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  {columns.map(col => <td key={col} className="px-2 py-1 border-b border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-200">{String(row[col])}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex justify-between items-center mt-4">
-            <button
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page <= 1}
-              className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-            >Prev</button>
-            <span className="text-gray-700 dark:text-gray-300">Page {page} of {Math.ceil(total / pageSize)}</span>
-            <button
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page * pageSize >= total}
-              className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-            >Next</button>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">🗄️ Database Management</h1>
+            <p className="mt-2 text-gray-600">Create backups and safely reset the database (super admin accounts are preserved).</p>
+          </div>
+          <Link href="/dashboard/super-admin" className="text-blue-600 hover:text-blue-700">
+            ← Back to Dashboard
+          </Link>
+        </div>
+
+        {message && (
+          <div className="mb-6 p-3 rounded border text-sm bg-white">
+            {message}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Backup Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">📦 Create Backup</h2>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={backupName}
+                onChange={(e) => setBackupName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional backup name"
+              />
+              <button
+                onClick={createBackup}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Working...' : 'Create Backup'}
+              </button>
+            </div>
+
+            <h3 className="text-md font-semibold text-gray-900 mt-6 mb-2">Existing Backups</h3>
+            <div className="max-h-64 overflow-auto border rounded">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-3 py-2">Filename</th>
+                    <th className="text-left px-3 py-2">Size</th>
+                    <th className="text-left px-3 py-2">Created</th>
+                    <th className="text-left px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backups.map((b) => (
+                    <tr key={b.filename} className="border-t">
+                      <td className="px-3 py-2">{b.filename}</td>
+                      <td className="px-3 py-2">{(b.size / 1024 / 1024).toFixed(2)} MB</td>
+                      <td className="px-3 py-2">{new Date(b.createdAt).toLocaleString()}</td>
+                      <td className="px-3 py-2 space-x-2">
+                        <a
+                          href={`/api/admin/database/backup/${encodeURIComponent(b.filename)}`}
+                          className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-900"
+                        >Download</a>
+                        <button
+                          onClick={async () => {
+                            setLoading(true);
+                            setMessage(null);
+                            try {
+                              const res = await fetch('/api/admin/database/restore', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename: b.filename })
+                              });
+                              const data = await res.json();
+                              if (!res.ok) throw new Error(data.error || 'Restore failed');
+                              setMessage('✅ Restore completed successfully');
+                            } catch (e:any) {
+                              setMessage(`❌ ${e.message}`);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                          disabled={loading}
+                        >Restore</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {backups.length === 0 && (
+                    <tr>
+                      <td className="px-3 py-4 text-gray-500" colSpan={4}>No backups yet</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Upload .sql to Restore</label>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const input = document.getElementById('restoreFile') as HTMLInputElement;
+                  if (!input?.files || input.files.length === 0) return;
+                  const form = new FormData();
+                  form.append('file', input.files[0]);
+                  setLoading(true);
+                  setMessage(null);
+                  try {
+                    const res = await fetch('/api/admin/database/restore', { method: 'POST', body: form });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Restore failed');
+                    setMessage('✅ Restore completed successfully');
+                  } catch (e:any) {
+                    setMessage(`❌ ${e.message}`);
+                  } finally {
+                    setLoading(false);
+                    (document.getElementById('restoreFile') as HTMLInputElement).value = '';
+                  }
+                }}
+                className="flex items-center gap-3"
+              >
+                <input id="restoreFile" type="file" accept=".sql" className="border border-gray-300 rounded px-3 py-2" />
+                <button type="submit" disabled={loading} className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">Upload & Restore</button>
+              </form>
+            </div>
+          </div>
+
+          {/* Reset Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">🧹 Reset Database</h2>
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-900 mb-4">
+              This will delete ALL data except super admin user accounts. A backup will be created automatically.
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm text-gray-700">Type <span className="font-semibold">RESET DATABASE</span> to confirm</label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="RESET DATABASE"
+              />
+              <button
+                onClick={resetDatabase}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {loading ? 'Resetting...' : 'Reset Database'}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
