@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -13,6 +13,7 @@ interface Contribution {
     id: string;
     name: string;
     registrationNumber: string;
+    logo?: string | null;
   };
 }
 
@@ -33,6 +34,9 @@ export default function MemberContributionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [selectedContribution, setSelectedContribution] = useState<Contribution | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const fetchContributions = useCallback(async () => {
     try {
@@ -76,6 +80,201 @@ export default function MemberContributionsPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const formatDateForReceipt = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const handleDownloadReceipt = (contribution: Contribution) => {
+    setSelectedContribution(contribution);
+    setShowReceipt(true);
+  };
+
+  const generatePDF = () => {
+    // Wait for modal to render, then trigger print (which can save as PDF)
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
+
+  const downloadAsHTML = () => {
+    if (!selectedContribution || !receiptRef.current) return;
+
+    // Helper function to get full logo URL
+    const getLogoUrl = (logo: string | null | undefined) => {
+      if (!logo) return `${window.location.origin}/logo.png`;
+      if (logo.startsWith('http://') || logo.startsWith('https://')) {
+        return logo;
+      }
+      // If it's a relative path, make it absolute
+      if (logo.startsWith('/')) {
+        return `${window.location.origin}${logo}`;
+      }
+      return logo;
+    };
+
+    const logoUrl = getLogoUrl(selectedContribution.cooperative.logo);
+
+    // Create a downloadable HTML file
+    const receiptHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Contribution Receipt - ${selectedContribution.id.slice(-8)}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      color: #333;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #333;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header img {
+      max-height: 80px;
+      max-width: 200px;
+      margin: 0 auto 20px;
+      display: block;
+      object-fit: contain;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0 0 5px 0;
+    }
+    .header p {
+      font-size: 14px;
+      color: #666;
+      margin: 0;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-label {
+      color: #666;
+      font-weight: normal;
+    }
+    .detail-value {
+      font-weight: bold;
+      text-align: right;
+    }
+    .section {
+      margin: 20px 0;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+    .amount-section {
+      border-top: 2px solid #333;
+      padding-top: 20px;
+      margin-top: 30px;
+    }
+    .amount-value {
+      font-size: 24px;
+      color: #059669;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #333;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" alt="${selectedContribution.cooperative.name} Logo" style="max-height: 80px; max-width: 200px; margin: 0 auto 20px; display: block; object-fit: contain;" />
+    <h1>${selectedContribution.cooperative.name}</h1>
+    <p>Contribution Receipt</p>
+  </div>
+  
+  <div class="detail-row">
+    <span class="detail-label">Receipt Number:</span>
+    <span class="detail-value">${selectedContribution.id.slice(-8).toUpperCase()}</span>
+  </div>
+  
+  <div class="detail-row">
+    <span class="detail-label">Date:</span>
+    <span class="detail-value">${formatDateForReceipt(selectedContribution.createdAt)}</span>
+  </div>
+  
+  <div class="section">
+    <div class="detail-row">
+      <span class="detail-label">Member Name:</span>
+      <span class="detail-value">${session?.user?.name || 'N/A'}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Email:</span>
+      <span class="detail-value">${session?.user?.email || 'N/A'}</span>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="detail-row">
+      <span class="detail-label">Cooperative:</span>
+      <span class="detail-value">${selectedContribution.cooperative.name}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Registration Number:</span>
+      <span class="detail-value">${selectedContribution.cooperative.registrationNumber}</span>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="detail-row">
+      <span class="detail-label">Description:</span>
+      <span class="detail-value">${selectedContribution.description || 'Member Contribution'}</span>
+    </div>
+  </div>
+  
+  <div class="amount-section">
+    <div class="detail-row">
+      <span class="detail-label" style="font-size: 18px;">Amount Paid:</span>
+      <span class="detail-value amount-value">${formatCurrency(selectedContribution.amount)}</span>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>Thank you for your contribution!</p>
+    <p>This is a computer-generated receipt. No signature required.</p>
+    <p>Generated on ${new Date().toLocaleString()}</p>
+  </div>
+</body>
+</html>`;
+
+    // Create blob and download
+    const blob = new Blob([receiptHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `contribution_receipt_${selectedContribution.id.slice(-8)}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setSelectedContribution(null);
   };
 
   // Filter contributions based on search term and date
@@ -300,6 +499,9 @@ export default function MemberContributionsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -333,6 +535,18 @@ export default function MemberContributionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(contribution.createdAt)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleDownloadReceipt(contribution)}
+                        className="text-green-600 hover:text-green-900 flex items-center gap-1"
+                        title="Download Receipt"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Download</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -345,6 +559,169 @@ export default function MemberContributionsPage() {
       <div className="mt-6 text-center text-sm text-gray-500">
         Last updated: {lastUpdated.toLocaleString()}
       </div>
+
+      {/* Receipt Modal */}
+      {showReceipt && selectedContribution && (
+        <>
+          {/* Receipt Styles */}
+          <style dangerouslySetInnerHTML={{__html: `
+            .receipt-overlay {
+              position: fixed;
+              inset: 0;
+              background: rgba(0, 0, 0, 0.5);
+              z-index: 50;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .receipt-container {
+              background: white;
+              max-width: 600px;
+              width: 90%;
+              max-height: 90vh;
+              overflow-y: auto;
+              border-radius: 8px;
+              padding: 24px;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            }
+            .receipt-container.hidden {
+              position: absolute;
+              left: -9999px;
+              top: -9999px;
+            }
+            @media print {
+              body * {
+                visibility: hidden;
+              }
+              .receipt-container, .receipt-container * {
+                visibility: visible;
+              }
+              .receipt-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                box-shadow: none;
+              }
+              .receipt-overlay {
+                background: white;
+                position: fixed;
+                inset: 0;
+              }
+            }
+          `}} />
+
+          {/* Overlay */}
+          <div className="receipt-overlay" onClick={handleCloseReceipt}>
+            <div className={`receipt-container ${showReceipt ? '' : 'hidden'}`} onClick={(e) => e.stopPropagation()} ref={receiptRef}>
+              {/* Receipt Header */}
+              <div className="text-center mb-6 pb-4 border-b-2 border-gray-300">
+                <div className="mb-4 flex justify-center">
+                  <img 
+                    src={
+                      selectedContribution.cooperative.logo 
+                        ? (selectedContribution.cooperative.logo.startsWith('http') 
+                            ? selectedContribution.cooperative.logo 
+                            : selectedContribution.cooperative.logo.startsWith('/')
+                            ? selectedContribution.cooperative.logo
+                            : `/${selectedContribution.cooperative.logo}`)
+                        : '/logo.png'
+                    } 
+                    alt={`${selectedContribution.cooperative.name} Logo`}
+                    className="h-20 w-auto object-contain max-w-[200px]"
+                    onError={(e) => {
+                      // Fallback to default logo if image fails to load
+                      e.currentTarget.src = '/logo.png';
+                    }}
+                  />
+                </div>
+                <div className="text-2xl font-bold text-gray-900 mb-2">{selectedContribution.cooperative.name}</div>
+                <div className="text-sm text-gray-600">Contribution Receipt</div>
+              </div>
+
+              {/* Receipt Details */}
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Receipt Number:</span>
+                  <span className="font-semibold">{selectedContribution.id.slice(-8).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Date:</span>
+                  <span className="font-semibold">{formatDateForReceipt(selectedContribution.createdAt)}</span>
+                </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="mb-2">
+                    <span className="text-gray-600">Member Name:</span>
+                    <div className="font-semibold text-lg">{session?.user?.name || 'N/A'}</div>
+                  </div>
+                  <div className="mb-2">
+                    <span className="text-gray-600">Email:</span>
+                    <div className="font-semibold">{session?.user?.email || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="mb-2">
+                    <span className="text-gray-600">Cooperative:</span>
+                    <div className="font-semibold text-lg">{selectedContribution.cooperative.name}</div>
+                  </div>
+                  <div className="mb-2">
+                    <span className="text-gray-600">Registration Number:</span>
+                    <div className="font-semibold">{selectedContribution.cooperative.registrationNumber}</div>
+                  </div>
+                </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="mb-2">
+                    <span className="text-gray-600">Description:</span>
+                    <div className="font-semibold">{selectedContribution.description || 'Member Contribution'}</div>
+                  </div>
+                </div>
+                <div className="border-t-2 border-gray-300 pt-4 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold text-gray-900">Amount Paid:</span>
+                    <span className="text-2xl font-bold text-green-600">{formatCurrency(selectedContribution.amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Receipt Footer */}
+              <div className="border-t-2 border-gray-300 pt-4 mt-6 text-center">
+                <div className="text-sm text-gray-600 mb-2">
+                  Thank you for your contribution!
+                </div>
+                <div className="text-xs text-gray-500">
+                  This is a computer-generated receipt. No signature required.
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Generated on {new Date().toLocaleString()}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={generatePDF}
+                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Save as PDF
+                </button>
+                <button
+                  onClick={downloadAsHTML}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Download HTML
+                </button>
+                <button
+                  onClick={handleCloseReceipt}
+                  className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

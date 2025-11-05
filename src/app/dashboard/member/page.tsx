@@ -18,6 +18,13 @@ export default function MemberDashboard() {
     const [memberAmount, setMemberAmount] = useState<number>(0);
     const [showFeePreview, setShowFeePreview] = useState(false);
     const [feeCalculation, setFeeCalculation] = useState<FeeCalculation | null>(null);
+    const [showAmountInput, setShowAmountInput] = useState(false);
+    const [loanEligibility, setLoanEligibility] = useState<{
+        isEligible: boolean;
+        maxLoanAmount: number;
+        reason?: string;
+    } | null>(null);
+    const [loadingLoanEligibility, setLoadingLoanEligibility] = useState(false);
 
     useEffect(() => {
         const fetchVirtualAccount = async () => {
@@ -37,14 +44,68 @@ export default function MemberDashboard() {
     useEffect(() => {
         const fetchContributions = async () => {
             setLoading(true);
-            const res = await fetch('/api/member/contributions');
-            const data = await res.json();
-            setSavings(data.stats?.totalAmount || 0);
-            setTransactions(data.contributions || []);
-            setLoading(false);
+            try {
+                const res = await fetch('/api/member/contributions');
+                const data = await res.json();
+                if (res.ok) {
+                    setSavings(data.stats?.totalAmount || 0);
+                    setTransactions(data.contributions || []);
+                } else {
+                    console.error('Error fetching contributions:', data.error);
+                    setSavings(0);
+                    setTransactions([]);
+                }
+            } catch (error) {
+                console.error('Error fetching contributions:', error);
+                setSavings(0);
+                setTransactions([]);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchContributions();
     }, []);
+
+    useEffect(() => {
+        const fetchLoanEligibility = async () => {
+            setLoadingLoanEligibility(true);
+            try {
+                const res = await fetch('/api/member/loan-eligibility');
+                const data = await res.json();
+                if (res.ok && data.maxLoanAmount !== undefined) {
+                    // Use API response if available
+                    setLoanEligibility({
+                        isEligible: data.isEligible || false,
+                        maxLoanAmount: data.maxLoanAmount || 0,
+                        reason: data.reason
+                    });
+                } else {
+                    // Fallback: calculate based on savings (6x)
+                    const availableLoanAmount = savings * 6;
+                    setLoanEligibility({
+                        isEligible: savings > 0,
+                        maxLoanAmount: availableLoanAmount,
+                        reason: savings > 0 ? 'Based on your contributions' : 'Make contributions to become eligible'
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching loan eligibility:', error);
+                // Fallback calculation
+                const availableLoanAmount = savings * 6;
+                setLoanEligibility({
+                    isEligible: savings > 0,
+                    maxLoanAmount: availableLoanAmount,
+                    reason: 'Unable to verify eligibility'
+                });
+            } finally {
+                setLoadingLoanEligibility(false);
+            }
+        };
+        // Only fetch if we have savings to calculate
+        if (savings >= 0) {
+            fetchLoanEligibility();
+        }
+    }, [savings]);
 
     // Check for payment verification on page load
     useEffect(() => {
@@ -87,14 +148,17 @@ export default function MemberDashboard() {
                 const data = await response.json();
                 if (data.cooperative) {
                     setCooperatives([data.cooperative]);
-                    // Set default amount from member's registration (you can adjust this logic)
-                    setMemberAmount(data.memberAmount || 1000); // Default to 1000 if not specified
                 }
             } catch (error) {
                 console.error('Error fetching user cooperative:', error);
             }
         };
         fetchUserCooperative();
+        
+        // Set default amount if not set
+        if (memberAmount === 0) {
+            setMemberAmount(1000); // Default to 1000 if not specified
+        }
     }, []);
 
     const showFeePreviewModal = () => {
@@ -109,8 +173,13 @@ export default function MemberDashboard() {
     };
 
     const handleDirectContribution = async () => {
+        if (memberAmount <= 0) {
+            alert('Please enter a valid contribution amount');
+            return;
+        }
+
         if (cooperatives.length === 0) {
-            alert('No cooperative associated with your account');
+            alert('No cooperative associated with your account. Please contact support.');
             return;
         }
 
@@ -199,14 +268,53 @@ export default function MemberDashboard() {
                         </p>
                     </div>
                 )}
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Total Contributions Card */}
+                    <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+                        <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Contributions</h2>
+                        {loading ? (
+                            <div className="text-gray-500">Loading...</div>
+                        ) : (
+                            <div className="text-3xl font-bold text-green-700">
+                                ₦{savings.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        )}
+                        <p className="text-sm text-gray-500 mt-2">Your total savings</p>
+                    </div>
+
+                    {/* Available Loan Amount Card */}
+                    <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+                        <h2 className="text-lg font-semibold text-gray-700 mb-2">Available Loan Amount</h2>
+                        {loadingLoanEligibility ? (
+                            <div className="text-gray-500">Loading...</div>
+                        ) : loanEligibility ? (
+                            <>
+                                <div className="text-3xl font-bold text-blue-700">
+                                    ₦{loanEligibility.maxLoanAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-2">
+                                    {loanEligibility.isEligible 
+                                        ? 'Up to 6x your contributions'
+                                        : loanEligibility.reason || 'Based on your contributions'
+                                    }
+                                </p>
+                                {!loanEligibility.isEligible && loanEligibility.reason && (
+                                    <p className="text-xs text-yellow-600 mt-1">
+                                        {loanEligibility.reason}
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-2xl font-bold text-blue-700">
+                                ₦{(savings * 6).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Contribution History Section */}
                 <div className="mt-8">
-                    <h2 className="text-xl font-bold text-green-700 mb-2">Total Contributions</h2>
-                    {loading ? (
-                        <div className="text-gray-500">Loading...</div>
-                    ) : (
-                        <div className="text-3xl font-bold text-green-700 mb-4">₦{savings.toLocaleString()}</div>
-                    )}
-                    <div className="flex justify-between items-center mt-8 mb-2">
+                    <div className="flex justify-between items-center mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">Contribution History</h3>
                         <span className="text-sm text-gray-500">Showing last 3 contributions</span>
                     </div>
@@ -229,7 +337,9 @@ export default function MemberDashboard() {
                                     transactions.slice(0, 3).map(contrib => (
                                         <tr key={contrib.id}>
                                             <td className="px-4 py-2 whitespace-nowrap">{new Date(contrib.createdAt).toLocaleDateString()}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap">₦{contrib.amount.toLocaleString()}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                ₦{Number(contrib.amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
                                             <td className="px-4 py-2 whitespace-nowrap">
                                                 <div className="text-sm">
                                                     <div className="font-medium">{contrib.cooperative.name}</div>
@@ -260,9 +370,11 @@ export default function MemberDashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Make Contribution Button */}
                         <div className="space-y-2">
+                            {!showAmountInput ? (
+                                <>
                             <button
-                                onClick={showFeePreviewModal}
-                                disabled={isSubmitting || cooperatives.length === 0}
+                                        onClick={() => setShowAmountInput(true)}
+                                        disabled={isSubmitting}
                                 className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center w-full"
                             >
                                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,9 +382,47 @@ export default function MemberDashboard() {
                                 </svg>
                                 💰 Make a Contribution
                             </button>
+                                    {memberAmount > 0 && (
                             <p className="text-xs text-gray-500 text-center">
-                                Amount: ₦{memberAmount.toLocaleString()} • Click to see fees
-                            </p>
+                                            Amount: ₦{memberAmount.toLocaleString()} • Click to change
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="space-y-2 w-full">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={memberAmount || ''}
+                                        onChange={(e) => setMemberAmount(Number(e.target.value) || 0)}
+                                        placeholder="Enter amount (₦)"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-black mb-2"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                if (memberAmount > 0) {
+                                                    setShowAmountInput(false);
+                                                    showFeePreviewModal();
+                                                } else {
+                                                    alert('Please enter a valid amount');
+                                                }
+                                            }}
+                                            disabled={isSubmitting || memberAmount <= 0}
+                                            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                        >
+                                            Continue
+                                        </button>
+                                        <button
+                                            onClick={() => setShowAmountInput(false)}
+                                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Withdrawal Button */}

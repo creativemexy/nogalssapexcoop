@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma, checkDatabaseConnection } from '@/lib/database';
+import { prisma } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check database connection first
-    const isConnected = await checkDatabaseConnection();
-    if (!isConnected) {
-      if (process.env.NODE_ENV === 'development') {
-        return NextResponse.json({
-          cooperative: null,
-          message: 'Database connection unavailable'
-        });
-      }
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 503 });
-    }
-
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
