@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 const ResolveAccountSchema = z.object({
   bankCode: z.string().min(1, 'Bank code is required'),
@@ -12,12 +10,12 @@ const ResolveAccountSchema = z.object({
 /**
  * Bank Account Name Resolution API
  * 
- * This endpoint resolves bank account names using Paystack.
+ * This endpoint resolves bank account names using NubAPI.
  * 
  * Required Environment Variables:
- * - PAYSTACK_SECRET_KEY: Your Paystack secret key
+ * - NUBAPI_KEY: Your NubAPI authentication key
  * 
- * API Documentation: https://nubapi.com/docs
+ * API Documentation: https://nubapi.com/api/verify
  */
 
 export async function POST(request: NextRequest) {
@@ -25,61 +23,102 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { bankCode, accountNumber } = ResolveAccountSchema.parse(body);
 
+    // Normalize bank code (trim whitespace, ensure consistent format)
+    const normalizedBankCode = bankCode.trim();
+    
     // Fetch bank information from database
-    const bank = await prisma.bank.findFirst({
+    // Try multiple lookup strategies
+    let bank = await prisma.bank.findFirst({
       where: {
-        code: bankCode
+        code: normalizedBankCode
       }
     });
 
+    // If not found by code, try paystackCode field (may contain alternate code format)
     if (!bank) {
+      bank = await prisma.bank.findFirst({
+        where: {
+          paystackCode: normalizedBankCode
+        }
+      });
+    }
+
+    // If still not found, try with padded zeros (in case code is stored as "4" instead of "000004")
+    if (!bank && normalizedBankCode.startsWith('00000')) {
+      const shortCode = normalizedBankCode.replace(/^0+/, '');
+      if (shortCode !== normalizedBankCode) {
+        bank = await prisma.bank.findFirst({
+          where: {
+            OR: [
+              { code: shortCode },
+              { paystackCode: shortCode }
+            ]
+          }
+        });
+      }
+    }
+
+    if (!bank) {
+      console.error('❌ Bank not found for code:', normalizedBankCode);
+      // Log available banks for debugging (first 5 only)
+      const sampleBanks = await prisma.bank.findMany({
+        take: 5,
+        select: { name: true, code: true, paystackCode: true }
+      });
+      console.log('📋 Sample banks in database:', sampleBanks);
+      
       return NextResponse.json({
         success: false,
-        error: 'Bank not found. Please select a valid bank.',
-        bankSupported: false
+        error: `Bank not found for code: ${normalizedBankCode}. Please select a valid bank.`,
+        bankSupported: false,
+        searchedCode: normalizedBankCode
       }, { status: 400 });
     }
 
-    // Use the bank code from database
-    const paystackBankCode = bank.code;
+    // Use the bank code from database for NubAPI
+    const nubapiBankCode = bank.code;
     const bankName = bank.name;
     
     console.log('🔍 Resolving account name for:', { 
-      bankCode: bankCode, 
-      paystackBankCode, 
+      requestedBankCode: bankCode,
+      normalizedBankCode: normalizedBankCode,
+      databaseBankCode: bank.code,
+      nubapiBankCode, 
       bankName,
       accountNumber
     });
 
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    const base = process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co';
-    if (!paystackSecret) {
-      return NextResponse.json({ success: false, error: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 });
+    const nubapiKey = process.env.NUBAPI_KEY;
+    const base = process.env.NUBAPI_BASE_URL || 'https://nubapi.com';
+    if (!nubapiKey) {
+      return NextResponse.json({ success: false, error: 'NUBAPI_KEY not configured' }, { status: 500 });
     }
 
-    const url = `${base}/bank/resolve?account_number=${accountNumber}&bank_code=${paystackBankCode}`;
-    const psRes = await fetch(url, {
+    // Use NubAPI endpoint: https://nubapi.com/api/verify
+    const url = `${base}/api/verify?account_number=${accountNumber}&bank_code=${nubapiBankCode}`;
+    const nubapiRes = await fetch(url, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${paystackSecret}`,
+        Authorization: `Bearer ${nubapiKey}`,
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(7000),
     });
 
-    const psData = await psRes.json().catch(() => ({} as any));
-    if (!psRes.ok || psData.status === false) {
-      const msg = psData.message || psRes.statusText || 'Unable to resolve account';
+    const nubapiData = await nubapiRes.json().catch(() => ({} as any));
+    if (!nubapiRes.ok || nubapiData.status === false) {
+      const msg = nubapiData.message || nubapiRes.statusText || 'Unable to resolve account';
       return NextResponse.json({ success: false, error: msg, bankSupported: true, bankName }, { status: 400 });
     }
 
-    const resolvedName = psData.data?.account_name || psData.account_name;
-    const resolvedNumber = psData.data?.account_number || psData.account_number || accountNumber;
+    // NubAPI response format may vary, handle both possible structures
+    const resolvedName = nubapiData.data?.account_name || nubapiData.account_name || nubapiData.name;
+    const resolvedNumber = nubapiData.data?.account_number || nubapiData.account_number || accountNumber;
     return NextResponse.json({
       success: true,
       accountName: resolvedName || 'Account name not available',
       accountNumber: resolvedNumber,
-      bankCode: paystackBankCode,
+      bankCode: nubapiBankCode,
       bankName,
       bankSupported: true,
     });
@@ -125,7 +164,5 @@ export async function POST(request: NextRequest) {
       bankSupported: true,
       bankName: 'Unknown Bank'
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

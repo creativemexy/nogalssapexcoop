@@ -693,8 +693,8 @@ export default function RegisterPage() {
                                     value={formData.cooperativeName} 
                                     onChange={handleChange} 
                                     required 
-                                    disabled={cacLocked}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    readOnly={cacLocked}
+                                    className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 />
                             </div>
                              <div>
@@ -705,8 +705,8 @@ export default function RegisterPage() {
                                     value={formData.address} 
                                     onChange={handleChange} 
                                     required 
-                                    disabled={cacLocked}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    readOnly={cacLocked}
+                                    className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 />
                             </div>
                             <div>
@@ -717,8 +717,8 @@ export default function RegisterPage() {
                                     value={formData.city} 
                                     onChange={handleChange} 
                                     required 
-                                    disabled={cacLocked}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                    readOnly={cacLocked}
+                                    className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 />
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -730,9 +730,9 @@ export default function RegisterPage() {
                                         value={formData.state} 
                                         onChange={handleChange} 
                                         required 
-                                        disabled={cacLocked}
+                                        readOnly={cacLocked}
                                         placeholder="Enter state"
-                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                        className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     />
                                 </div>
                                 <div>
@@ -743,9 +743,9 @@ export default function RegisterPage() {
                                         value={formData.lga} 
                                         onChange={handleChange} 
                                         required 
-                                        disabled={cacLocked}
+                                        readOnly={cacLocked}
                                         placeholder="Enter LGA"
-                                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                        className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     />
                                 </div>
                             </div>
@@ -845,6 +845,7 @@ export default function RegisterPage() {
                                     name="phone" 
                                     value={formData.phone} 
                                     onChange={(e) => {
+                                        if (cacLocked) return;
                                         const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
                                         if (value.length <= 11) {
                                             setFormData(prev => ({ ...prev, phone: value }));
@@ -853,14 +854,15 @@ export default function RegisterPage() {
                                     required 
                                     minLength={11}
                                     maxLength={11}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"
+                                    readOnly={cacLocked}
+                                    className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     placeholder="08012345678"
                                 />
                                 <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Organization Email *</label>
-                                <input type="email" name="cooperativeEmail" value={formData.cooperativeEmail} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black"/>
+                                <input type="email" name="cooperativeEmail" value={formData.cooperativeEmail} onChange={handleChange} required readOnly={cacLocked} className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black ${cacLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}/>
                             </div>
                         </div>
                         <div className="flex justify-start pt-4">
@@ -1324,11 +1326,11 @@ export default function RegisterPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">First Name</label>
-                                <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
+                                <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} readOnly={ninLocked} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">Last Name</label>
-                                <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" disabled={ninLocked} />
+                                <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} readOnly={ninLocked} />
                             </div>
                         </div>
                         <div>
@@ -1340,7 +1342,8 @@ export default function RegisterPage() {
                                 value={formData.email} 
                                 onChange={handleChange} 
                                 required 
-                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
+                                readOnly={ninLocked && formData.email !== ''}
+                                className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked && formData.email !== '' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                             />
                             <p className="text-xs text-gray-600 mt-1">This will be used for login and notifications</p>
                         </div>
@@ -1352,6 +1355,7 @@ export default function RegisterPage() {
                                     name="phoneNumber" 
                                     value={formData.phoneNumber} 
                                     onChange={(e) => {
+                                        if (ninLocked) return;
                                         const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
                                         if (value.length <= 11) {
                                             setFormData(prev => ({ ...prev, phoneNumber: value }));
@@ -1360,7 +1364,8 @@ export default function RegisterPage() {
                                     required 
                                     minLength={11}
                                     maxLength={11}
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" 
+                                    readOnly={ninLocked}
+                                    className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     placeholder="08012345678"
                                 />
                             <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
@@ -1447,8 +1452,8 @@ export default function RegisterPage() {
                                 onChange={handleChange} 
                                 required 
                                 max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
-                                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" 
-                                disabled={ninLocked} 
+                                readOnly={ninLocked}
+                                className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                             />
                             <p className="text-xs text-gray-600 mt-1">Minimum age: 16 years</p>
                         </div>
@@ -1486,16 +1491,16 @@ export default function RegisterPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Address</label>
-                            <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" />
+                            <input type="text" name="address" value={formData.address} onChange={handleChange} required readOnly={ninLocked} className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">City</label>
-                                <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black" />
+                                <input type="text" name="city" value={formData.city} onChange={handleChange} required readOnly={ninLocked} className={`w-full mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-black dark:text-black ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium">State</label>
-                                <select name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black">
+                                <select name="state" value={formData.state} onChange={handleChange} required disabled={ninLocked} className={`w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
                                     <option value="">Select State</option>
                                     {states.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                                 </select>
@@ -1504,7 +1509,7 @@ export default function RegisterPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">LGA</label>
-                                <select name="lga" value={formData.lga} onChange={handleChange} required className="w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black" disabled={!formData.state}>
+                                <select name="lga" value={formData.lga} onChange={handleChange} required disabled={!formData.state || ninLocked} className={`w-full mt-1 p-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 text-black dark:text-black ${ninLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
                                     <option value="">Select LGA</option>
                                     {selectedState && selectedState.lgas.map(lga => <option key={lga} value={lga}>{lga}</option>)}
                                 </select>

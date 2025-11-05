@@ -405,6 +405,8 @@ function OrganizationModal({
   const [cacSearching, setCacSearching] = useState(false);
   const [cacData, setCacData] = useState<any>(null);
   const [cacError, setCacError] = useState<string | null>(null);
+  const [cacLocked, setCacLocked] = useState(false);
+  const [skipLookup, setSkipLookup] = useState(false);
 
   useEffect(() => {
     console.log('🏢 CAC Integration loaded in OrganizationModal');
@@ -512,8 +514,10 @@ function OrganizationModal({
           presidentFirstName: data.data.directors[0]?.name?.split(' ')[0] || '',
           presidentLastName: data.data.directors[0]?.name?.split(' ').slice(1).join(' ') || '',
         }));
+        setCacLocked(true);
       } else {
         setCacError(data.error || 'Company not found in CAC database');
+        setCacLocked(false);
       }
     } catch (err) {
       console.error('Error searching CAC:', err);
@@ -527,6 +531,7 @@ function OrganizationModal({
     setCacData(null);
     setCacSearchValue('');
     setCacError(null);
+    setCacLocked(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -588,6 +593,30 @@ function OrganizationModal({
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Skip Lookup Toggle */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={skipLookup}
+                  onChange={(e) => {
+                    setSkipLookup(e.target.checked);
+                    if (e.target.checked) {
+                      setCacLocked(false);
+                    }
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm font-medium text-gray-700">
+                  Skip CAC Lookup - Allow Direct Input
+                </span>
+                <span className="ml-2 text-xs text-gray-500">(Super Admin only)</span>
+              </label>
+              <p className="text-xs text-gray-600 mt-1 ml-6">
+                When enabled, you can directly input data without performing CAC lookup
+              </p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Organization Name *
@@ -597,13 +626,15 @@ function OrganizationModal({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Enter organization name"
               />
             </div>
 
             {/* CAC Search Section */}
-            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 shadow-lg">
+            {!skipLookup && (
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 shadow-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <span className="mr-2">🏢</span>
                 CAC Registration Search
@@ -716,6 +747,7 @@ function OrganizationModal({
                 )}
               </div>
             </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -743,7 +775,8 @@ function OrganizationModal({
                     type="text"
                     value={formData.rcNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, rcNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    readOnly={cacLocked && !skipLookup}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="Enter RC Number"
                   />
                 </div>
@@ -756,7 +789,8 @@ function OrganizationModal({
                     type="text"
                     value={formData.companyType}
                     onChange={(e) => setFormData(prev => ({ ...prev, companyType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    readOnly={cacLocked && !skipLookup}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="e.g., Private Company Limited by Shares"
                   />
                 </div>
@@ -771,7 +805,8 @@ function OrganizationModal({
                     type="date"
                     value={formData.registrationDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, registrationDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    readOnly={cacLocked && !skipLookup}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
@@ -783,7 +818,8 @@ function OrganizationModal({
                     type="text"
                     value={formData.businessActivities}
                     onChange={(e) => setFormData(prev => ({ ...prev, businessActivities: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    readOnly={cacLocked && !skipLookup}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     placeholder="e.g., General trading, Real estate development"
                   />
                 </div>
@@ -799,28 +835,30 @@ function OrganizationModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     President First Name *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.presidentFirstName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, presidentFirstName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Enter president's first name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    President Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.presidentLastName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, presidentLastName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Enter president's last name"
-                  />
+                    <input
+                      type="text"
+                      required
+                      value={formData.presidentFirstName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, presidentFirstName: e.target.value }))}
+                      readOnly={cacLocked && !skipLookup}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      placeholder="Enter president's first name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      President Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.presidentLastName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, presidentLastName: e.target.value }))}
+                      readOnly={cacLocked && !skipLookup}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      placeholder="Enter president's last name"
+                    />
                 </div>
               </div>
 
@@ -908,7 +946,8 @@ function OrganizationModal({
               <textarea
                 value={formData.address}
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 rows={2}
               />
             </div>

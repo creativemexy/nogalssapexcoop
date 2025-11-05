@@ -109,6 +109,8 @@ export default function CreateOrganizationPage() {
   const [cacSearching, setCacSearching] = useState(false);
   const [cacData, setCacData] = useState<CACCompanyData | null>(null);
   const [cacError, setCacError] = useState<string | null>(null);
+  const [cacLocked, setCacLocked] = useState(false);
+  const [skipLookup, setSkipLookup] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -267,8 +269,10 @@ export default function CreateOrganizationPage() {
           shareholder1Address: shareholders[0]?.address || '',
           shareholder1Nationality: shareholders[0]?.nationality || '',
         }));
+        setCacLocked(true);
       } else {
         setCacError(data.error || 'Company not found in CAC database');
+        setCacLocked(false);
       }
     } catch (err) {
       console.error('Error searching CAC:', err);
@@ -349,21 +353,46 @@ export default function CreateOrganizationPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Skip Lookup Toggle */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={skipLookup}
+              onChange={(e) => {
+                setSkipLookup(e.target.checked);
+                if (e.target.checked) {
+                  setCacLocked(false);
+                }
+              }}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">
+              Skip CAC Lookup - Allow Direct Input
+            </span>
+            <span className="ml-2 text-xs text-gray-500">(Super Admin only)</span>
+          </label>
+          <p className="text-xs text-gray-600 mt-1 ml-6">
+            When enabled, you can directly input data without performing CAC lookup
+          </p>
+        </div>
+
         {/* CAC Search Section */}
-        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 shadow-lg">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-            <span className="mr-2">🔍</span>
-            CAC Registration Search
-            <span className="ml-2 text-sm text-gray-500 font-normal">(Optional but Recommended)</span>
-            <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-              Powered by Korapay
-            </span>
-            <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-              NEW!
-            </span>
-          </h2>
-          
-          <div className="space-y-6">
+        {!skipLookup && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 shadow-lg">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <span className="mr-2">🔍</span>
+              CAC Registration Search
+              <span className="ml-2 text-sm text-gray-500 font-normal">(Optional but Recommended)</span>
+              <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                Powered by Korapay
+              </span>
+              <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                NEW!
+              </span>
+            </h2>
+            
+            <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -476,6 +505,7 @@ export default function CreateOrganizationPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* Organization Details */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow">
@@ -491,7 +521,8 @@ export default function CreateOrganizationPage() {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Enter organization name"
               />
             </div>
@@ -506,14 +537,16 @@ export default function CreateOrganizationPage() {
                   required
                   value={formData.contactEmail}
                   onChange={(e) => {
+                    if (cacLocked) return;
                     setFormData(prev => ({ ...prev, contactEmail: e.target.value }));
                     setTimeout(() => checkEmailAvailability(e.target.value), 500);
                   }}
+                  readOnly={cacLocked && !skipLookup}
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
                     emailError 
                       ? 'border-red-300 focus:ring-red-500' 
                       : 'border-gray-300 focus:ring-blue-500'
-                  }`}
+                  } ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter organization contact email"
                 />
                 {checkingEmail && (
@@ -525,6 +558,43 @@ export default function CreateOrganizationPage() {
               {emailError && (
                 <p className="text-red-600 text-sm mt-1">{emailError}</p>
               )}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Organization Phone *
+              </label>
+              <input
+                type="tel"
+                required
+                value={formData.contactPhone}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                  if (value.length <= 11) {
+                    setFormData(prev => ({ ...prev, contactPhone: value }));
+                  }
+                }}
+                minLength={11}
+                maxLength={11}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="08012345678"
+              />
+              <p className="text-xs text-gray-600 mt-1">Must be exactly 11 digits (e.g., 08012345678)</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Address
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter organization address"
+              />
             </div>
           </div>
 
@@ -555,7 +625,8 @@ export default function CreateOrganizationPage() {
                 type="text"
                 value={formData.rcNumber}
                 onChange={(e) => setFormData(prev => ({ ...prev, rcNumber: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Enter RC Number"
               />
             </div>
@@ -568,7 +639,8 @@ export default function CreateOrganizationPage() {
                 type="text"
                 value={formData.companyType}
                 onChange={(e) => setFormData(prev => ({ ...prev, companyType: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="e.g., Private Company Limited by Shares"
               />
             </div>
@@ -581,7 +653,8 @@ export default function CreateOrganizationPage() {
                 type="date"
                 value={formData.registrationDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, registrationDate: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -593,7 +666,8 @@ export default function CreateOrganizationPage() {
                 type="text"
                 value={formData.businessActivities}
                 onChange={(e) => setFormData(prev => ({ ...prev, businessActivities: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="e.g., General trading, Real estate development"
               />
             </div>
@@ -612,7 +686,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.tin}
                   onChange={(e) => setFormData(prev => ({ ...prev, tin: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter TIN"
                 />
               </div>
@@ -625,7 +700,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.vatNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, vatNumber: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter VAT Number"
                 />
               </div>
@@ -638,7 +714,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.registryNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, registryNumber: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter Registry Number"
                 />
               </div>
@@ -651,7 +728,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.companyStatus}
                   onChange={(e) => setFormData(prev => ({ ...prev, companyStatus: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="e.g., ACTIVE, INACTIVE"
                 />
               </div>
@@ -664,7 +742,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter city"
                 />
               </div>
@@ -677,7 +756,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.lga}
                   onChange={(e) => setFormData(prev => ({ ...prev, lga: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter LGA"
                 />
               </div>
@@ -690,7 +770,8 @@ export default function CreateOrganizationPage() {
               <textarea
                 value={formData.branchAddress}
                 onChange={(e) => setFormData(prev => ({ ...prev, branchAddress: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 rows={2}
                 placeholder="Enter branch address"
               />
@@ -703,7 +784,8 @@ export default function CreateOrganizationPage() {
               <textarea
                 value={formData.objectives}
                 onChange={(e) => setFormData(prev => ({ ...prev, objectives: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 rows={3}
                 placeholder="Enter company objectives"
               />
@@ -723,7 +805,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareCapitalInWords}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareCapitalInWords: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="e.g., TEN MILLION NAIRA"
                 />
               </div>
@@ -736,7 +819,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.paidUpCapital}
                   onChange={(e) => setFormData(prev => ({ ...prev, paidUpCapital: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter paid up capital"
                 />
               </div>
@@ -749,7 +833,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.subscribedShareCapital}
                   onChange={(e) => setFormData(prev => ({ ...prev, subscribedShareCapital: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter subscribed share capital"
                 />
               </div>
@@ -762,7 +847,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.sharesIssued}
                   onChange={(e) => setFormData(prev => ({ ...prev, sharesIssued: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter shares issued"
                 />
               </div>
@@ -775,7 +861,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.sharesValue}
                   onChange={(e) => setFormData(prev => ({ ...prev, sharesValue: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="e.g., 0.01 NGN"
                 />
               </div>
@@ -795,7 +882,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.companyContactName}
                   onChange={(e) => setFormData(prev => ({ ...prev, companyContactName: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter contact person name"
                 />
               </div>
@@ -808,7 +896,8 @@ export default function CreateOrganizationPage() {
                   type="email"
                   value={formData.companyContactEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, companyContactEmail: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter contact person email"
                 />
               </div>
@@ -821,7 +910,8 @@ export default function CreateOrganizationPage() {
                   type="tel"
                   value={formData.companyContactPhone}
                   onChange={(e) => setFormData(prev => ({ ...prev, companyContactPhone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter contact person phone"
                 />
               </div>
@@ -841,7 +931,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.secretaryName}
                   onChange={(e) => setFormData(prev => ({ ...prev, secretaryName: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter secretary name"
                 />
               </div>
@@ -854,7 +945,8 @@ export default function CreateOrganizationPage() {
                   type="email"
                   value={formData.secretaryEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, secretaryEmail: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter secretary email"
                 />
               </div>
@@ -867,7 +959,8 @@ export default function CreateOrganizationPage() {
                   type="tel"
                   value={formData.secretaryPhone}
                   onChange={(e) => setFormData(prev => ({ ...prev, secretaryPhone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter secretary phone"
                 />
               </div>
@@ -880,7 +973,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.secretaryAddress}
                   onChange={(e) => setFormData(prev => ({ ...prev, secretaryAddress: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter secretary address"
                 />
               </div>
@@ -900,7 +994,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.director1Name}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director name"
                 />
               </div>
@@ -913,7 +1008,8 @@ export default function CreateOrganizationPage() {
                   type="email"
                   value={formData.director1Email}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Email: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director email"
                 />
               </div>
@@ -926,7 +1022,8 @@ export default function CreateOrganizationPage() {
                   type="tel"
                   value={formData.director1Phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Phone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director phone"
                 />
               </div>
@@ -939,7 +1036,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.director1Address}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Address: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director address"
                 />
               </div>
@@ -952,7 +1050,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.director1Occupation}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Occupation: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director occupation"
                 />
               </div>
@@ -965,7 +1064,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.director1Nationality}
                   onChange={(e) => setFormData(prev => ({ ...prev, director1Nationality: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter director nationality"
                 />
               </div>
@@ -985,7 +1085,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareholder1Name}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareholder1Name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter shareholder name"
                 />
               </div>
@@ -998,7 +1099,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareholder1Shares}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareholder1Shares: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter number of shares"
                 />
               </div>
@@ -1011,7 +1113,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareholder1Percentage}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareholder1Percentage: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter percentage ownership"
                 />
               </div>
@@ -1024,7 +1127,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareholder1Address}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareholder1Address: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter shareholder address"
                 />
               </div>
@@ -1037,7 +1141,8 @@ export default function CreateOrganizationPage() {
                   type="text"
                   value={formData.shareholder1Nationality}
                   onChange={(e) => setFormData(prev => ({ ...prev, shareholder1Nationality: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={cacLocked && !skipLookup}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter shareholder nationality"
                 />
               </div>
@@ -1059,7 +1164,8 @@ export default function CreateOrganizationPage() {
                 required
                 value={formData.presidentFirstName}
                 onChange={(e) => setFormData(prev => ({ ...prev, presidentFirstName: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Enter president's first name"
               />
             </div>
@@ -1073,7 +1179,8 @@ export default function CreateOrganizationPage() {
                 required
                 value={formData.presidentLastName}
                 onChange={(e) => setFormData(prev => ({ ...prev, presidentLastName: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                readOnly={cacLocked && !skipLookup}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="Enter president's last name"
               />
             </div>

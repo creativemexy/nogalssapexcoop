@@ -212,6 +212,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate phone number format (11 digits) if provided
+    if (contactPhone && !/^\d{11}$/.test(contactPhone)) {
+      return NextResponse.json({ 
+        error: 'Organization phone number must be exactly 11 digits (e.g., 08012345678)' 
+      }, { status: 400 });
+    }
+
     // Check if parent organization exists (if parentId is provided)
     if (parentId) {
       const parentOrg = await prisma.parentOrganization.findUnique({

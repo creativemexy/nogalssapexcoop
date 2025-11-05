@@ -41,8 +41,11 @@ export default function CreateCooperativePage() {
 
   const [cacSearching, setCacSearching] = useState(false);
   const [cacError, setCacError] = useState<string | null>(null);
+  const [cacLocked, setCacLocked] = useState(false);
   const [ninSearching, setNinSearching] = useState(false);
   const [ninError, setNinError] = useState<string | null>(null);
+  const [ninLocked, setNinLocked] = useState(false);
+  const [skipLookup, setSkipLookup] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -78,6 +81,7 @@ export default function CreateCooperativePage() {
           tin: d.tin || prev.tin,
           vatNumber: d.vat_number || prev.vatNumber,
         }));
+        setCacLocked(true);
       } else {
         setCacError(data?.error || 'Company not found');
       }
@@ -161,6 +165,7 @@ export default function CreateCooperativePage() {
           city: prev.city || d.city || prev.city,
           state: prev.state || d.state || prev.state,
         }));
+        setNinLocked(true);
       } else {
         setNinError(data?.message || 'NIN not found');
       }
@@ -183,56 +188,83 @@ export default function CreateCooperativePage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded shadow p-6">
-        <div className="p-3 bg-green-50 border border-green-200 rounded">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">RC Number (optional)</label>
-              <input type="text" name="rcNumber" value={formData.rcNumber} onChange={handleChange} placeholder="e.g., RC00000011 or 00000011" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
-            </div>
-            <div className="md:col-span-2 flex gap-2">
-              <button type="button" onClick={searchCAC} disabled={cacSearching || !formData.rcNumber} className="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-50">
-                {cacSearching ? 'Searching…' : 'Lookup CAC'}
-              </button>
-              {cacError && <span className="text-sm text-red-600">{cacError}</span>}
+        {/* Skip Lookup Toggle */}
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={skipLookup}
+              onChange={(e) => {
+                setSkipLookup(e.target.checked);
+                if (e.target.checked) {
+                  setCacLocked(false);
+                  setNinLocked(false);
+                }
+              }}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">
+              Skip CAC/NIN Lookup - Allow Direct Input
+            </span>
+            <span className="ml-2 text-xs text-gray-500">(Super Admin only)</span>
+          </label>
+          <p className="text-xs text-gray-600 mt-1 ml-6">
+            When enabled, you can directly input data without performing CAC or NIN lookups
+          </p>
+        </div>
+
+        {!skipLookup && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">RC Number (optional)</label>
+                <input type="text" name="rcNumber" value={formData.rcNumber} onChange={handleChange} placeholder="e.g., RC00000011 or 00000011" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+              </div>
+              <div className="md:col-span-2 flex gap-2">
+                <button type="button" onClick={searchCAC} disabled={cacSearching || !formData.rcNumber} className="px-4 py-2 bg-green-600 text-white rounded-md disabled:opacity-50">
+                  {cacSearching ? 'Searching…' : 'Lookup CAC'}
+                </button>
+                {cacError && <span className="text-sm text-red-600">{cacError}</span>}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Cooperative Name *</label>
-            <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="text" name="name" value={formData.name} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Registration Number *</label>
-            <input type="text" name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="text" name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Address *</label>
-          <input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+          <input type="text" name="address" value={formData.address} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">City *</label>
-            <input type="text" name="city" value={formData.city} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="text" name="city" value={formData.city} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">State *</label>
-            <input type="text" name="state" value={formData.state} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="text" name="state" value={formData.state} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Phone Number *</label>
-            <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email *</label>
-            <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="email" name="email" value={formData.email} onChange={handleChange} required readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Website</label>
@@ -247,11 +279,11 @@ export default function CreateCooperativePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Contact Email</label>
-            <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleChange} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleChange} readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
-            <input type="text" name="contactPhone" value={formData.contactPhone} onChange={handleChange} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+            <input type="text" name="contactPhone" value={formData.contactPhone} onChange={handleChange} readOnly={cacLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${cacLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
           </div>
         </div>
 
@@ -279,26 +311,28 @@ export default function CreateCooperativePage() {
 
         <div className="mt-6 p-4 border rounded">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Leader Details</h3>
-          <div className="p-3 mb-3 bg-blue-50 border border-blue-200 rounded">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Leader NIN</label>
-                <input type="text" name="leaderNIN" value={(formData as any).leaderNIN || ''} onChange={(e)=>setFormData(prev=>({ ...prev, leaderNIN: e.target.value }))} placeholder="11-digit NIN" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
-              </div>
-              <div className="md:col-span-2 flex gap-2">
-                <button type="button" onClick={searchNIN} disabled={ninSearching || !(formData as any).leaderNIN} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">{ninSearching ? 'Verifying…' : 'Lookup NIN'}</button>
-                {ninError && <span className="text-sm text-red-600">{ninError}</span>}
+          {!skipLookup && (
+            <div className="p-3 mb-3 bg-blue-50 border border-blue-200 rounded">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Leader NIN</label>
+                  <input type="text" name="leaderNIN" value={(formData as any).leaderNIN || ''} onChange={(e)=>setFormData(prev=>({ ...prev, leaderNIN: e.target.value }))} placeholder="11-digit NIN" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+                </div>
+                <div className="md:col-span-2 flex gap-2">
+                  <button type="button" onClick={searchNIN} disabled={ninSearching || !(formData as any).leaderNIN} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">{ninSearching ? 'Verifying…' : 'Lookup NIN'}</button>
+                  {ninError && <span className="text-sm text-red-600">{ninError}</span>}
+                </div>
               </div>
             </div>
-          </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">First Name *</label>
-              <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+              <input type="text" name="leaderFirstName" value={formData.leaderFirstName} onChange={handleChange} required readOnly={ninLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Last Name *</label>
-              <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+              <input type="text" name="leaderLastName" value={formData.leaderLastName} onChange={handleChange} required readOnly={ninLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Title</label>
@@ -312,7 +346,7 @@ export default function CreateCooperativePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Phone *</label>
-              <input type="text" name="leaderPhone" value={formData.leaderPhone} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500" />
+              <input type="text" name="leaderPhone" value={formData.leaderPhone} onChange={handleChange} required readOnly={ninLocked && !skipLookup} className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 ${ninLocked && !skipLookup ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Password *</label>
