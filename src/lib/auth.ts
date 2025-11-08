@@ -203,11 +203,14 @@ export const authOptions: NextAuthOptions = {
         if (!dbUser && profile.email) {
           // Create user from Auth0 profile if doesn't exist
           // You may want to handle this differently based on your requirements
+          // Auth0 profile has given_name and family_name, but Profile type doesn't include them
+          const auth0Profile = profile as any;
+          const nameParts = (profile.name || '').split(' ');
           dbUser = await prisma.user.create({
             data: {
               email: profile.email,
-              firstName: profile.given_name || profile.name?.split(' ')[0] || 'User',
-              lastName: profile.family_name || profile.name?.split(' ').slice(1).join(' ') || '',
+              firstName: auth0Profile.given_name || nameParts[0] || 'User',
+              lastName: auth0Profile.family_name || nameParts.slice(1).join(' ') || '',
               password: '', // Auth0 users don't have passwords in our DB
               role: 'MEMBER', // Default role, adjust as needed
               isActive: true,

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         requestedAt: true,
         processedAt: true,
         processedBy: true,
-        rejectionReason: true,
+        notes: true,
       },
       orderBy: { requestedAt: 'desc' }
     });
@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
     // Format withdrawals
     const formattedWithdrawals = withdrawals.map((withdrawal) => ({
       id: withdrawal.id,
-      amount: Number(withdrawal.amount), // Amount in kobo
+      amount: Number(withdrawal.amount) / 100, // Convert from kobo to naira
       reason: withdrawal.reason,
       status: withdrawal.status,
       requestedAt: withdrawal.requestedAt?.toISOString(),
       processedAt: withdrawal.processedAt?.toISOString(),
       processedBy: withdrawal.processedBy,
-      rejectionReason: withdrawal.rejectionReason,
+      notes: withdrawal.notes, // Notes may contain rejection reason or other info
     }));
 
     return NextResponse.json({
