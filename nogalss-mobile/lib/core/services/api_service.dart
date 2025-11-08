@@ -20,6 +20,9 @@ class ApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+      validateStatus: (status) {
+        return status != null && status < 500; // Accept all status codes < 500
+      },
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -133,7 +136,29 @@ class ApiService {
         }
         throw Exception(error);
       }
-      throw Exception('Login failed: ${e.message ?? 'Network error'}');
+      
+      // Handle network errors with better messages
+      String errorMessage = 'Network error';
+      if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Connection timeout. Please check your internet connection.';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Request timeout. Please try again.';
+      } else if (e.type == DioExceptionType.sendTimeout) {
+        errorMessage = 'Send timeout. Please check your internet connection.';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = 'Connection error. Please check your internet connection and try again.';
+      } else if (e.type == DioExceptionType.badCertificate) {
+        errorMessage = 'SSL certificate error. Please contact support.';
+      } else if (e.type == DioExceptionType.cancel) {
+        errorMessage = 'Request cancelled.';
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        // Clean up the error message
+        errorMessage = e.message!.replaceAll('XMLHttpRequest', '').replaceAll('onError', '').trim();
+        if (errorMessage.isEmpty) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+      }
+      throw Exception('Login failed: $errorMessage');
     }
   }
 
