@@ -37,6 +37,40 @@ export async function GET(request: NextRequest) {
     const totalRegistrationFees = Number(registrationFees._sum.amount || 0) / 100; // Convert from kobo to naira
     const totalTransactions = registrationFees._count.id || 0;
     
+    // Get super admin wallet allocation amounts
+    const [memberAllocSetting, coopAllocSetting] = await Promise.all([
+      prisma.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_MEMBER_AMOUNT' } }),
+      prisma.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_COOP_AMOUNT' } })
+    ]);
+    const memberAllocationAmount = parseFloat(memberAllocSetting?.value || '0');
+    const coopAllocationAmount = parseFloat(coopAllocSetting?.value || '0');
+    
+    // Count member and cooperative registrations for this cooperative
+    const [memberRegCount, coopRegCount] = await Promise.all([
+      prisma.transaction.count({
+        where: {
+          user: { cooperativeId },
+          reference: { startsWith: 'REG_' },
+          status: 'SUCCESSFUL',
+          description: { contains: 'Member registration' }
+        }
+      }),
+      prisma.transaction.count({
+        where: {
+          user: { cooperativeId },
+          reference: { startsWith: 'REG_' },
+          status: 'SUCCESSFUL',
+          description: { contains: 'Cooperative registration' }
+        }
+      })
+    ]);
+    
+    // Calculate total super admin wallet allocation
+    const totalSuperAdminAllocation = (memberRegCount * memberAllocationAmount) + (coopRegCount * coopAllocationAmount);
+    
+    // Calculate remaining amount after super admin wallet allocation
+    const remainingAmount = Math.max(0, totalRegistrationFees - totalSuperAdminAllocation);
+    
     // Get allocation percentages from system settings
     const allocationSettings = await prisma.systemSettings.findMany({
       where: {
@@ -61,8 +95,8 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Calculate Cooperative's allocation based on settings
-    const cooperativeAllocation = totalRegistrationFees * (allocations.cooperativeShare / 100);
+    // Calculate Cooperative's allocation based on remaining amount (after super admin wallet allocation)
+    const cooperativeAllocation = remainingAmount * (allocations.cooperativeShare / 100);
     
     // Get recent transactions from cooperative members
     const recentTransactions = await prisma.transaction.findMany({
@@ -113,7 +147,34 @@ export async function GET(request: NextRequest) {
       });
       
       const monthTotal = Number(monthFees._sum.amount || 0) / 100; // Convert from kobo to naira
-      const monthCooperativeAllocation = monthTotal * (allocations.cooperativeShare / 100);
+      
+      // Count registrations in this month
+      const [monthMemberRegCount, monthCoopRegCount] = await Promise.all([
+        prisma.transaction.count({
+          where: {
+            user: { cooperativeId },
+            reference: { startsWith: 'REG_' },
+            status: 'SUCCESSFUL',
+            description: { contains: 'Member registration' },
+            createdAt: { gte: monthStart, lte: monthEnd }
+          }
+        }),
+        prisma.transaction.count({
+          where: {
+            user: { cooperativeId },
+            reference: { startsWith: 'REG_' },
+            status: 'SUCCESSFUL',
+            description: { contains: 'Cooperative registration' },
+            createdAt: { gte: monthStart, lte: monthEnd }
+          }
+        })
+      ]);
+      
+      // Calculate super admin allocation for this month
+      const monthSuperAdminAllocation = (monthMemberRegCount * memberAllocationAmount) + (monthCoopRegCount * coopAllocationAmount);
+      const monthRemainingAmount = Math.max(0, monthTotal - monthSuperAdminAllocation);
+      
+      const monthCooperativeAllocation = monthRemainingAmount * (allocations.cooperativeShare / 100);
       
       monthlyData.push({
         month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -139,7 +200,16 @@ export async function GET(request: NextRequest) {
         reference: tx.reference,
         createdAt: tx.createdAt,
         description: tx.description,
-        cooperativeAllocation: (Number(tx.amount) / 100) * (allocations.cooperativeShare / 100), // Dynamic percentage of this transaction
+        cooperativeAllocation: (() => {
+          // For each transaction, calculate allocation based on remaining after super admin allocation
+          const txAmount = Number(tx.amount) / 100;
+          // Determine if this is a member or cooperative registration
+          const isMemberReg = tx.description?.includes('Member registration');
+          const isCoopReg = tx.description?.includes('Cooperative registration');
+          const superAdminAlloc = isMemberReg ? memberAllocationAmount : (isCoopReg ? coopAllocationAmount : 0);
+          const remaining = Math.max(0, txAmount - superAdminAlloc);
+          return remaining * (allocations.cooperativeShare / 100);
+        })(),
       })),
       
       // Monthly breakdown

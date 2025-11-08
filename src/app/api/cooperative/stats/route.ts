@@ -88,16 +88,13 @@ export async function GET(request: NextRequest) {
         }
       }),
 
-      // Total registration fees paid by members
+      // Total registration fees paid by members (using reference prefix like allocations route)
       prisma.transaction.aggregate({
         where: {
           user: { cooperativeId },
-          type: 'FEE',
-          description: {
-            contains: 'registration fee',
-            mode: 'insensitive'
-          },
-          status: 'SUCCESSFUL'
+          reference: { startsWith: 'REG_' },
+          status: 'SUCCESSFUL',
+          amount: { gt: 0 }
         },
         _sum: { amount: true }
       }),
@@ -184,9 +181,80 @@ export async function GET(request: NextRequest) {
     const [activeMembers, newMembersThisMonth, averageContributionResult] = memberStats;
     const averageContribution = averageContributionResult._avg.amount || 0;
 
-    // Calculate 20% allocation
+    // Get allocation percentages from system settings
+    const allocationSettings = await prisma.systemSettings.findMany({
+      where: {
+        category: 'allocation',
+        isActive: true
+      }
+    });
+
+    // Default allocation percentages
+    const defaultAllocations = {
+      cooperativeShare: 20
+    };
+
+    // Parse current settings or use defaults
+    const allocations = { ...defaultAllocations };
+    allocationSettings.forEach(setting => {
+      const value = parseFloat(setting.value);
+      if (!isNaN(value) && setting.key === 'cooperativeShare') {
+        allocations.cooperativeShare = value;
+      }
+    });
+
+    // Calculate allocation based on registration fees (not total contributions)
     const totalContributionsAmount = (Number(totalContributions._sum.amount || 0) + Number(totalContributionsFromTable._sum.amount || 0)) / 100;
-    const allocation20Percent = totalContributionsAmount * 0.2;
+    const registrationFeesAmount = Number(totalExpenses._sum.amount || 0) / 100; // Convert from kobo to naira
+    
+    // Get super admin wallet allocation amounts
+    const [memberAllocSetting, coopAllocSetting] = await Promise.all([
+      prisma.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_MEMBER_AMOUNT' } }),
+      prisma.setting.findUnique({ where: { key: 'SUPER_ADMIN_ALLOCATION_COOP_AMOUNT' } })
+    ]);
+    const memberAllocationAmount = parseFloat(memberAllocSetting?.value || '0');
+    const coopAllocationAmount = parseFloat(coopAllocSetting?.value || '0');
+    
+    // Count member and cooperative registrations for this cooperative
+    const [memberRegCount, coopRegCount] = await Promise.all([
+      prisma.transaction.count({
+        where: {
+          user: { cooperativeId },
+          reference: { startsWith: 'REG_' },
+          status: 'SUCCESSFUL',
+          description: { contains: 'Member registration' }
+        }
+      }),
+      prisma.transaction.count({
+        where: {
+          user: { cooperativeId },
+          reference: { startsWith: 'REG_' },
+          status: 'SUCCESSFUL',
+          description: { contains: 'Cooperative registration' }
+        }
+      })
+    ]);
+    
+    // Calculate total super admin wallet allocation
+    const totalSuperAdminAllocation = (memberRegCount * memberAllocationAmount) + (coopRegCount * coopAllocationAmount);
+    
+    // Calculate remaining amount after super admin wallet allocation
+    const remainingAmount = Math.max(0, registrationFeesAmount - totalSuperAdminAllocation);
+    
+    const allocationPercentage = allocations.cooperativeShare || 20; // Ensure we have a percentage
+    const allocationAmount = remainingAmount > 0 && allocationPercentage > 0 
+      ? remainingAmount * (allocationPercentage / 100) 
+      : 0;
+
+    // Debug logging
+    console.log('Cooperative Stats Calculation:', {
+      registrationFeesRaw: totalExpenses._sum.amount,
+      registrationFeesAmount,
+      allocationPercentage,
+      calculatedAllocation: registrationFeesAmount * (allocationPercentage / 100),
+      allocationAmount,
+      allocationSettingsCount: allocationSettings.length
+    });
 
     const stats = {
       totalMembers,
@@ -194,8 +262,9 @@ export async function GET(request: NextRequest) {
       totalLoans: Number(totalLoans._sum.amount || 0) / 100, // Convert from kobo to naira
       activeLoans,
       pendingLoans,
-      registrationFees: Number(totalExpenses._sum.amount || 0) / 100, // Convert from kobo to naira
-      allocation20Percent: Math.round(allocation20Percent),
+      registrationFees: registrationFeesAmount,
+      allocationPercentage: allocationPercentage,
+      allocationAmount: Math.round(allocationAmount),
       recentTransactions: formattedTransactions,
       memberStats: {
         activeMembers,

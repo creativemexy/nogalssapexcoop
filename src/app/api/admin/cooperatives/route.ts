@@ -96,12 +96,22 @@ export async function POST(request: NextRequest) {
       email, 
       bankName, 
       bankAccountNumber,
-      bankAccountName
+      bankAccountName,
+      parentOrganizationId
     } = body;
 
     // Validate required fields
-    if (!name || !registrationNumber || !address || !city || !state || !phoneNumber || !email || !bankName || !bankAccountNumber || !bankAccountName) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    if (!name || !registrationNumber || !address || !city || !state || !phoneNumber || !email || !bankName || !bankAccountNumber || !bankAccountName || !parentOrganizationId) {
+      return NextResponse.json({ error: 'All fields are required, including parent organization' }, { status: 400 });
+    }
+
+    // Verify parent organization exists
+    const parentOrganization = await prisma.parentOrganization.findUnique({
+      where: { id: parentOrganizationId }
+    });
+
+    if (!parentOrganization) {
+      return NextResponse.json({ error: 'Invalid parent organization' }, { status: 404 });
     }
 
     // Check if registration number already exists
@@ -126,6 +136,9 @@ export async function POST(request: NextRequest) {
         bankName,
         bankAccountNumber,
         bankAccountName,
+        parentOrganization: {
+          connect: { id: parentOrganizationId }
+        },
         isActive: true
       }
     });

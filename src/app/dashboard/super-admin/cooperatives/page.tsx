@@ -89,7 +89,7 @@ export default function CooperativesPage() {
         leaderBankName: formData.leaderBankName,
         leaderBankAccountNumber: formData.leaderBankAccountNumber,
         leaderBankAccountName: formData.leaderBankAccountName,
-        parentOrganizationId: formData.parentOrganizationId || undefined,
+        parentOrganizationId: formData.parentOrganizationId,
       };
       const response = await fetch('/api/auth/register', {
         method: 'POST',

@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const search = searchParams.get('search') || '';
 
     // Get the parent organization for this user
     const parentOrganization = await prisma.parentOrganization.findFirst({
@@ -27,38 +31,68 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Parent organization not found' }, { status: 404 });
     }
 
-    // Get all cooperatives under this parent organization
-    const cooperatives = await prisma.cooperative.findMany({
-      where: {
-        parentOrganizationId: parentOrganization.id
-      },
-      include: {
-        leader: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                email: true
+    // Build where clause
+    const where: any = {
+      parentOrganizationId: parentOrganization.id
+    };
+
+    // Add search filter
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { registrationNumber: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    // Get cooperatives with pagination
+    const [cooperatives, totalCooperatives] = await prisma.$transaction([
+      prisma.cooperative.findMany({
+        where,
+        include: {
+          leader: {
+            include: {
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true
+                }
               }
+            }
+          },
+          _count: {
+            select: {
+              members: true,
+              contributions: true
             }
           }
         },
-        _count: {
-          select: {
-            members: true,
-            contributions: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take
+      }),
+      prisma.cooperative.count({ where })
+    ]);
+
+    const totalPages = Math.ceil(totalCooperatives / pageSize);
 
     return NextResponse.json({
       success: true,
-      cooperatives
+      cooperatives,
+      pagination: {
+        page,
+        pageSize,
+        total: totalCooperatives,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
     });
 
   } catch (error) {

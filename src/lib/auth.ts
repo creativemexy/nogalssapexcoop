@@ -1,11 +1,28 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import Auth0Provider from "next-auth/providers/auth0";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTOTPToken } from "@/lib/utils";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    // Auth0 Provider (shared identity for web and mobile)
+    ...(process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET && process.env.AUTH0_ISSUER
+      ? [
+          Auth0Provider({
+            clientId: process.env.AUTH0_CLIENT_ID,
+            clientSecret: process.env.AUTH0_CLIENT_SECRET,
+            issuer: process.env.AUTH0_ISSUER,
+            authorization: {
+              params: {
+                scope: "openid profile email",
+              },
+            },
+          }),
+        ]
+      : []),
+    // Credentials Provider (for direct email/password login)
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -175,8 +192,38 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account, profile }) {
+      // Handle Auth0 login
+      if (account?.provider === 'auth0' && profile) {
+        // Find or create user in database from Auth0 profile
+        let dbUser = await prisma.user.findUnique({
+          where: { email: profile.email as string }
+        });
+        
+        if (!dbUser && profile.email) {
+          // Create user from Auth0 profile if doesn't exist
+          // You may want to handle this differently based on your requirements
+          dbUser = await prisma.user.create({
+            data: {
+              email: profile.email,
+              firstName: profile.given_name || profile.name?.split(' ')[0] || 'User',
+              lastName: profile.family_name || profile.name?.split(' ').slice(1).join(' ') || '',
+              password: '', // Auth0 users don't have passwords in our DB
+              role: 'MEMBER', // Default role, adjust as needed
+              isActive: true,
+              isVerified: true,
+            }
+          });
+        }
+        
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.id = dbUser.id;
+          token.cooperativeId = dbUser.cooperativeId;
+          token.businessId = dbUser.businessId;
+        }
+      } else if (user) {
+        // Handle credentials login
         token.role = (user as any).role;
         token.id = user.id;
         token.cooperativeId = (user as any).cooperativeId;

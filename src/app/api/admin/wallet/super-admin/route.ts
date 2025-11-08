@@ -20,12 +20,25 @@ export async function GET() {
       }),
     ]);
 
-    const balance = balSetting ? Number(balSetting.value) : 0;
+    // Ensure balance is initialized if it doesn't exist
+    let balance = 0;
+    if (balSetting) {
+      balance = Number(balSetting.value) || 0;
+    } else {
+      // Initialize balance to 0 if it doesn't exist
+      await prisma.setting.upsert({
+        where: { key: BAL_KEY },
+        update: {},
+        create: { key: BAL_KEY, value: '0' },
+      });
+    }
+
     const memberAmount = memberSetting ? Number(memberSetting.value) : 0;
     const cooperativeAmount = coopSetting ? Number(coopSetting.value) : 0;
 
     return NextResponse.json({ success: true, balance, memberAmount, cooperativeAmount, withdrawals });
   } catch (error) {
+    console.error('Error fetching super admin wallet:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch wallet' }, { status: 500 });
   }
 }

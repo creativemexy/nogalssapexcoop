@@ -2,198 +2,98 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/routing/app_router.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _setupAnimations();
-    _checkAuthStatus();
+    _checkAuth();
   }
 
-  void _setupAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.5,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.5, curve: Curves.elasticOut),
-    ));
-
-    _animationController.forward();
-  }
-
-  Future<void> _checkAuthStatus() async {
-    await Future.delayed(const Duration(seconds: 3));
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(seconds: 2));
     
-    if (mounted) {
-      try {
-        final authProvider = context.read<AuthProvider>();
-        
-        if (authProvider.isAuthenticated) {
-          final user = authProvider.user;
-          if (user != null) {
-            AppRouter.goToDashboard(context, user.role);
-          } else {
-            AppRouter.goToLogin(context);
-          }
+    if (!mounted) return;
+    
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.isAuthenticated) {
+      final user = authProvider.user;
+      if (user != null) {
+        if (user.role == 'MEMBER') {
+          context.go('/dashboard/member');
+        } else if (user.role == 'LEADER') {
+          context.go('/dashboard/leader');
         } else {
-          AppRouter.goToLogin(context);
+          context.go('/login');
         }
-      } catch (e) {
-        print('Auth check error: $e');
-        // Fallback to login screen
-        AppRouter.goToLogin(context);
+      } else {
+        context.go('/login');
       }
+    } else {
+      context.go('/login');
     }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Color(0xFF2E7D32),
-              Color(0xFF1B5E20),
+              Color(0xFFF0FDF4), // green-50
+              Color(0xFFFEFCE8), // yellow-50
             ],
           ),
         ),
         child: Center(
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // App Logo
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(60),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(60),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.account_balance,
-                                size: 60,
-                                color: Color(0xFF2E7D32),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      
-                      // App Name
-                      const Text(
-                        'NOGALSS',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Subtitle
-                      const Text(
-                        'NATIONAL APEX COOPERATIVE',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      
-                      // Tagline
-                      const Text(
-                        'SOCIETY LTD',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white60,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 50),
-                      
-                      // Loading Indicator
-                      const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 3,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Loading Text
-                      const Text(
-                        'Loading...',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo.png',
+                width: 120,
+                height: 120,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.account_balance,
+                    size: 120,
+                    color: Color(0xFF16A34A), // green-600
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Nogalss Mobile',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937), // gray-900
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'National Apex Cooperative Society Ltd',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF6B7280), // gray-600
+                ),
+              ),
+              const SizedBox(height: 48),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF16A34A)),
+              ),
+            ],
           ),
         ),
       ),

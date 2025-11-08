@@ -8,7 +8,7 @@
 PRODUCT_NAME = nogalss_mobile
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.nogalss.cooperative.nogalssMobile
+PRODUCT_BUNDLE_IDENTIFIER = com.nogalss.nogalssMobile
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.nogalss.cooperative. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 com.nogalss. All rights reserved.

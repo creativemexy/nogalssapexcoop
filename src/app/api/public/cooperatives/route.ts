@@ -26,8 +26,10 @@ export async function GET() {
 
     // Format the response
     const formattedCooperatives = cooperatives.map(coop => ({
+      id: coop.id,
       code: coop.registrationNumber,
       name: coop.name,
+      registrationNumber: coop.registrationNumber,
       location: `${coop.city}, ${coop.state}`
     }));
 

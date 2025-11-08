@@ -12,7 +12,8 @@ interface CooperativeStats {
   activeLoans: number;
   pendingLoans: number;
   registrationFees: number;
-  allocation20Percent: number;
+  allocationPercentage: number;
+  allocationAmount: number;
   recentTransactions: Array<{
     id: string;
     type: string;
@@ -94,23 +95,29 @@ export default function CooperativeDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Cooperative Dashboard</h1>
-        <div className="flex space-x-4">
-          <Link 
-            href="/dashboard/cooperative/members" 
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Manage Members
-          </Link>
-          <Link 
-            href="/dashboard/cooperative/transactions" 
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            View Transactions
-          </Link>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Cooperative Dashboard</h1>
+          <div className="flex space-x-4">
+            <Link 
+              href="/dashboard/cooperative/members" 
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Manage Members
+            </Link>
+            <Link 
+              href="/dashboard/cooperative/transactions" 
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              View Transactions
+            </Link>
+            <Link 
+              href="/dashboard/cooperative/withdraw" 
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+            >
+              Withdraw Allocation
+            </Link>
+          </div>
         </div>
-      </div>
 
       {/* Key Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -197,8 +204,8 @@ export default function CooperativeDashboard() {
               <span className="font-semibold text-red-600">₦{(stats?.registrationFees || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600 dark:text-gray-300">20% Allocation</span>
-              <span className="font-semibold text-green-600">₦{(stats?.allocation20Percent || 0).toLocaleString()}</span>
+              <span className="text-gray-600 dark:text-gray-300">{stats?.allocationPercentage || 20}% Allocation</span>
+              <span className="font-semibold text-green-600">₦{(stats?.allocationAmount || 0).toLocaleString()}</span>
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">

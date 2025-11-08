@@ -1,19 +1,21 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
-import '../utils/app_constants.dart';
 
+/// API Service that makes HTTP requests to Next.js backend
+/// Uses the same API endpoints as the web version
 class ApiService {
   late Dio _dio;
   String? _authToken;
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl: AppConfig.baseUrl,
-      connectTimeout: Duration(milliseconds: AppConstants.connectTimeout),
-      receiveTimeout: Duration(milliseconds: AppConstants.receiveTimeout),
-      sendTimeout: Duration(milliseconds: AppConstants.sendTimeout),
+      connectTimeout: const Duration(milliseconds: 30000),
+      receiveTimeout: const Duration(milliseconds: 30000),
+      sendTimeout: const Duration(milliseconds: 30000),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -32,264 +34,302 @@ class ApiService {
       },
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
-          // Handle unauthorized access
           _authToken = null;
+          _storage.delete(key: AppConfig.tokenKey);
         }
         handler.next(error);
       },
     ));
   }
 
-  void setAuthToken(String token) {
+  /// Load token from secure storage
+  Future<void> loadToken() async {
+    try {
+      final token = await _storage.read(key: AppConfig.tokenKey);
+      if (token != null && token.isNotEmpty) {
+        _authToken = token;
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  /// Set auth token
+  Future<void> setAuthToken(String token) async {
     _authToken = token;
+    await _storage.write(key: AppConfig.tokenKey, value: token);
   }
 
-  void clearAuthToken() {
+  /// Clear auth token
+  Future<void> clearAuthToken() async {
     _authToken = null;
+    await _storage.delete(key: AppConfig.tokenKey);
   }
 
-  // Authentication Methods
+  /// Parse response data safely
+  Map<String, dynamic> _parseResponse(dynamic data) {
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    } else if (data is String) {
+      try {
+        return Map<String, dynamic>.from(json.decode(data));
+      } catch (e) {
+        return {'error': data};
+      }
+    }
+    return {};
+  }
+
+  // ==================== AUTHENTICATION ====================
+
+  /// Login - uses NextAuth mobile login endpoint
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-    String? totpCode,
+    String? totp,
   }) async {
     try {
-      final response = await _dio.post(AppConfig.loginEndpoint, data: {
-        'email': email,
-        'password': password,
-        if (totpCode != null) 'totpCode': totpCode,
-      });
+      await loadToken();
+      final response = await _dio.post(
+        AppConfig.loginEndpoint,
+        data: {
+          'email': email,
+          'password': password,
+          if (totp != null && totp.isNotEmpty) 'totp': totp,
+        },
+      );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['token'] != null) {
-          setAuthToken(data['token']);
+      final data = _parseResponse(response.data);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final token = data['token']?.toString();
+        if (token != null && token.isNotEmpty) {
+          await setAuthToken(token);
         }
-        return data;
-      } else {
-        throw Exception('Login failed: ${response.data['message'] ?? 'Unknown error'}');
+
+        return {
+          'success': true,
+          'user': data['user'] ?? {},
+          'token': token,
+        };
       }
+
+      throw Exception(data['error']?.toString() ?? 'Login failed');
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      if (e.response != null) {
+        final errorData = _parseResponse(e.response!.data);
+        final error = errorData['error']?.toString() ?? 'Login failed';
+
+        if (errorData['requires2FA'] == true || error == '2FA_REQUIRED') {
+          throw Exception('2FA_REQUIRED');
+        } else if (error == '2FA_INVALID') {
+          throw Exception('2FA_INVALID');
+        } else if (error == '2FA_NOT_SETUP') {
+          throw Exception('2FA_NOT_SETUP');
+        } else if (error == '2FA_REQUIRED_GLOBAL') {
+          throw Exception('2FA_REQUIRED_GLOBAL');
+        } else if (e.response!.statusCode == 401) {
+          throw Exception('Invalid email or password');
+        }
+        throw Exception(error);
+      }
+      throw Exception('Login failed: ${e.message ?? 'Network error'}');
     }
   }
 
-  Future<Map<String, dynamic>> register({
-    required String firstName,
-    required String lastName,
-    required String email,
-    required String password,
-    required String phoneNumber,
-    required String cooperativeCode,
-    String? nin,
-    String? address,
-    DateTime? dateOfBirth,
-    String? nextOfKinName,
-    String? nextOfKinPhone,
-  }) async {
-    try {
-      final response = await _dio.post(AppConfig.registerEndpoint, data: {
-        'firstName': firstName,
-        'lastName': lastName,
-        'email': email,
-        'password': password,
-        'phoneNumber': phoneNumber,
-        'cooperativeCode': cooperativeCode,
-        if (nin != null) 'nin': nin,
-        if (address != null) 'address': address,
-        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth.toIso8601String(),
-        if (nextOfKinName != null) 'nextOfKinName': nextOfKinName,
-        if (nextOfKinPhone != null) 'nextOfKinPhone': nextOfKinPhone,
-      });
-
-      if (response.statusCode == 201) {
-        return response.data;
-      } else {
-        throw Exception('Registration failed: ${response.data['message'] ?? 'Unknown error'}');
-      }
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
+  /// Logout
   Future<void> logout() async {
     try {
+      await loadToken();
       await _dio.post(AppConfig.logoutEndpoint);
     } catch (e) {
-      // Logout even if API call fails
+      // Continue with logout even if API call fails
     } finally {
-      clearAuthToken();
+      await clearAuthToken();
     }
   }
 
-  // User Methods
-  Future<Map<String, dynamic>> getUserProfile() async {
-    try {
-      final response = await _dio.get(AppConfig.profileEndpoint);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  // ==================== MEMBER APIs ====================
+
+  /// Get member contributions
+  Future<Map<String, dynamic>> getMemberContributions() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberContributionsEndpoint);
+    return _parseResponse(response.data);
   }
 
-  Future<Map<String, dynamic>> updateUserProfile(Map<String, dynamic> profileData) async {
-    try {
-      final response = await _dio.put(AppConfig.profileEndpoint, data: profileData);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get member virtual account
+  Future<Map<String, dynamic>> getMemberVirtualAccount() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberVirtualAccountEndpoint);
+    return _parseResponse(response.data);
   }
 
-  // Dashboard Methods
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    try {
-      final response = await _dio.get(AppConfig.dashboardEndpoint);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get member cooperative
+  Future<Map<String, dynamic>> getMemberCooperative() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberCooperativeEndpoint);
+    return _parseResponse(response.data);
   }
 
-  // Contribution Methods
-  Future<List<Map<String, dynamic>>> getContributions({
-    int page = 1,
-    int limit = 20,
-    String? status,
-  }) async {
-    try {
-      final response = await _dio.get(AppConfig.contributionsEndpoint, queryParameters: {
-        'page': page,
-        'limit': limit,
-        if (status != null) 'status': status,
-      });
-      return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get member loan eligibility
+  Future<Map<String, dynamic>> getMemberLoanEligibility() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberLoanEligibilityEndpoint);
+    return _parseResponse(response.data);
   }
 
+  /// Get member loans
+  Future<Map<String, dynamic>> getMemberLoans() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberLoansEndpoint);
+    return _parseResponse(response.data);
+  }
+
+  /// Make contribution
   Future<Map<String, dynamic>> makeContribution({
     required double amount,
-    required String description,
-    String? paymentMethod,
+    required String cooperativeId,
   }) async {
-    try {
-      final response = await _dio.post(AppConfig.contributionsEndpoint, data: {
+    await loadToken();
+    final response = await _dio.post(
+      AppConfig.memberContributeEndpoint,
+      data: {
         'amount': amount,
-        'description': description,
-        if (paymentMethod != null) 'paymentMethod': paymentMethod,
-      });
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+        'cooperativeId': cooperativeId,
+      },
+    );
+    return _parseResponse(response.data);
   }
 
-  // Loan Methods
-  Future<List<Map<String, dynamic>>> getLoans({
-    int page = 1,
-    int limit = 20,
-    String? status,
+  /// Request withdrawal
+  Future<Map<String, dynamic>> requestWithdrawal({
+    required double amount,
+    required String bankAccount,
+    required String bankName,
+    required String accountName,
   }) async {
-    try {
-      final response = await _dio.get(AppConfig.loansEndpoint, queryParameters: {
-        'page': page,
-        'limit': limit,
-        if (status != null) 'status': status,
-      });
-      return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+    await loadToken();
+    final response = await _dio.post(
+      AppConfig.memberWithdrawEndpoint,
+      data: {
+        'amount': amount,
+        'bankAccount': bankAccount,
+        'bankName': bankName,
+        'accountName': accountName,
+      },
+    );
+    return _parseResponse(response.data);
   }
 
+  /// Get member withdrawals
+  Future<Map<String, dynamic>> getMemberWithdrawals() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.memberWithdrawalsEndpoint);
+    return _parseResponse(response.data);
+  }
+
+  /// Apply for loan
   Future<Map<String, dynamic>> applyForLoan({
     required double amount,
     required String purpose,
-    required int durationMonths,
-    String? collateral,
   }) async {
-    try {
-      final response = await _dio.post(AppConfig.loansEndpoint, data: {
+    await loadToken();
+    final response = await _dio.post(
+      AppConfig.memberApplyLoanEndpoint,
+      data: {
         'amount': amount,
         'purpose': purpose,
-        'durationMonths': durationMonths,
-        if (collateral != null) 'collateral': collateral,
-      });
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+      },
+    );
+    return _parseResponse(response.data);
   }
 
-  // Generic GET request
-  Future<Map<String, dynamic>> get(String endpoint, {Map<String, dynamic>? queryParameters}) async {
-    try {
-      final response = await _dio.get(endpoint, queryParameters: queryParameters);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  // ==================== LEADER APIs ====================
+
+  /// Get leader dashboard stats
+  Future<Map<String, dynamic>> getLeaderDashboardStats() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.leaderDashboardStatsEndpoint);
+    return _parseResponse(response.data);
   }
 
-  // Generic POST request
-  Future<Map<String, dynamic>> post(String endpoint, {Map<String, dynamic>? data}) async {
-    try {
-      final response = await _dio.post(endpoint, data: data);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get leader allocations
+  Future<Map<String, dynamic>> getLeaderAllocations() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.leaderAllocationsEndpoint);
+    return _parseResponse(response.data);
   }
 
-  // Generic PUT request
-  Future<Map<String, dynamic>> put(String endpoint, {Map<String, dynamic>? data}) async {
-    try {
-      final response = await _dio.put(endpoint, data: data);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get leader contributions
+  Future<Map<String, dynamic>> getLeaderContributions() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.leaderContributionsEndpoint);
+    return _parseResponse(response.data);
   }
 
-  // Generic DELETE request
-  Future<Map<String, dynamic>> delete(String endpoint) async {
-    try {
-      final response = await _dio.delete(endpoint);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
+  /// Get leader loans
+  Future<Map<String, dynamic>> getLeaderLoans() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.leaderLoansEndpoint);
+    return _parseResponse(response.data);
   }
 
-  Exception _handleDioError(DioException error) {
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return Exception(AppConstants.networkErrorMessage);
-      case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        switch (statusCode) {
-          case 401:
-            return Exception(AppConstants.unauthorizedMessage);
-          case 403:
-            return Exception(AppConstants.forbiddenMessage);
-          case 404:
-            return Exception(AppConstants.notFoundMessage);
-          case 422:
-            return Exception(AppConstants.validationErrorMessage);
-          default:
-            return Exception(AppConstants.serverErrorMessage);
-        }
-      case DioExceptionType.cancel:
-        return Exception('Request cancelled');
-      case DioExceptionType.connectionError:
-        return Exception(AppConstants.networkErrorMessage);
-      default:
-        return Exception(AppConstants.serverErrorMessage);
-    }
+  /// Get leader members
+  Future<Map<String, dynamic>> getLeaderMembers() async {
+    await loadToken();
+    final response = await _dio.get(AppConfig.leaderMembersEndpoint);
+    return _parseResponse(response.data);
+  }
+
+  /// Approve loan
+  Future<Map<String, dynamic>> approveLoan(String loanId) async {
+    await loadToken();
+    final response = await _dio.post(
+      '${AppConfig.leaderLoansEndpoint}/$loanId/approve',
+    );
+    return _parseResponse(response.data);
+  }
+
+  /// Reject loan
+  Future<Map<String, dynamic>> rejectLoan(String loanId, String reason) async {
+    await loadToken();
+    final response = await _dio.post(
+      '${AppConfig.leaderLoansEndpoint}/$loanId/reject',
+      data: {'reason': reason},
+    );
+    return _parseResponse(response.data);
+  }
+
+  /// Leader personal contribution
+  Future<Map<String, dynamic>> leaderPersonalContribute({
+    required double amount,
+    required String cooperativeId,
+  }) async {
+    await loadToken();
+    final response = await _dio.post(
+      AppConfig.leaderPersonalContributeEndpoint,
+      data: {
+        'amount': amount,
+        'cooperativeId': cooperativeId,
+      },
+    );
+    return _parseResponse(response.data);
+  }
+
+  /// Leader personal apply loan
+  Future<Map<String, dynamic>> leaderPersonalApplyLoan({
+    required double amount,
+    required String purpose,
+  }) async {
+    await loadToken();
+    final response = await _dio.post(
+      AppConfig.leaderPersonalApplyLoanEndpoint,
+      data: {
+        'amount': amount,
+        'purpose': purpose,
+      },
+    );
+    return _parseResponse(response.data);
   }
 }

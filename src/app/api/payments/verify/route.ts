@@ -337,6 +337,9 @@ async function handleCooperativeRegistration(reference: string, paystackData: an
           city: registrationData.city,
           phoneNumber: registrationData.phone,
           email: registrationData.cooperativeEmail,
+          parentOrganization: {
+            connect: { id: registrationData.parentOrganizationId }
+          },
         },
       });
       console.log('✅ Cooperative created:', cooperative.id);

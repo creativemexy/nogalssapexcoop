@@ -79,12 +79,12 @@ model Cooperative {
   lgaId              String?
   stateId            String?
   type               String?
-  parentOrganizationId String?
+  parentOrganizationId String
   contributions      Contribution[]
   bank               Bank?          @relation(fields: [bankId], references: [id])
   lga                Lga?           @relation(fields: [lgaId], references: [id])
   state              State?         @relation(fields: [stateId], references: [id])
-  parentOrganization ParentOrganization? @relation(fields: [parentOrganizationId], references: [id])
+  parentOrganization ParentOrganization @relation(fields: [parentOrganizationId], references: [id])
   leader             Leader?
   loans              Loan[]
   payments           Payment[]

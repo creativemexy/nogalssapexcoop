@@ -83,25 +83,25 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Calculate summary data
+    // Calculate summary data (convert from kobo to naira)
     const totalMembers = cooperatives.reduce((sum, coop) => sum + coop._count.members, 0);
     const totalContributions = cooperatives.reduce((sum, coop) => 
       sum + coop.contributions.reduce((contribSum, contrib) => contribSum + Number(contrib.amount), 0), 0
-    );
+    ) / 100; // Convert from kobo to naira
     const totalLoans = cooperatives.reduce((sum, coop) => 
       sum + coop.loans.reduce((loanSum, loan) => loanSum + Number(loan.amount), 0), 0
-    );
+    ) / 100; // Convert from kobo to naira
     const activeLoans = cooperatives.reduce((sum, coop) => 
       sum + coop.loans.filter(loan => loan.status === 'APPROVED').length, 0
     );
 
-    // Format cooperative data for the report
+    // Format cooperative data for the report (convert from kobo to naira)
     const cooperativeData = cooperatives.map(coop => ({
       id: coop.id,
       name: coop.name,
       memberCount: coop._count.members,
-      contributionTotal: coop.contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0),
-      loanTotal: coop.loans.reduce((sum, loan) => sum + Number(loan.amount), 0),
+      contributionTotal: coop.contributions.reduce((sum, contrib) => sum + Number(contrib.amount), 0) / 100, // Convert from kobo to naira
+      loanTotal: coop.loans.reduce((sum, loan) => sum + Number(loan.amount), 0) / 100, // Convert from kobo to naira
       activeLoans: coop.loans.filter(loan => loan.status === 'APPROVED').length
     }));
 
@@ -157,8 +157,8 @@ export async function GET(request: NextRequest) {
 
       monthlyData.push({
         month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        contributions: monthContributions._sum.amount || 0,
-        loans: monthLoans._sum.amount || 0,
+        contributions: Number(monthContributions._sum.amount || 0) / 100, // Convert from kobo to naira
+        loans: Number(monthLoans._sum.amount || 0) / 100, // Convert from kobo to naira
         members: monthMembers
       });
     }

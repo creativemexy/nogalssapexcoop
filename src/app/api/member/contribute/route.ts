@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { authenticateRequest } from '@/lib/mobile-auth';
 import { prisma, checkDatabaseConnection } from '@/lib/database';
 import { initializePayment } from '@/lib/paystack';
 import { calculateTransactionFees } from '@/lib/fee-calculator';
@@ -20,12 +21,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection failed' }, { status: 503 });
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    // Try mobile auth first (JWT), fallback to NextAuth session
+    let userId: string | undefined;
+    let userEmail: string | undefined;
+    
+    const mobileUser = await authenticateRequest(request);
+    if (mobileUser) {
+      userId = mobileUser.id;
+      userEmail = mobileUser.email;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      userId = (session.user as any).id;
+      userEmail = session.user.email || undefined;
+    }
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userId = (session.user as any).id;
     const { amount, cooperativeId } = await request.json();
 
     // Validate input
@@ -93,9 +108,18 @@ export async function POST(request: NextRequest) {
     // Generate unique reference
     const reference = `CONTRIB_${userId}_${Date.now()}`;
 
+            // Get user email if not already available
+            if (!userEmail) {
+              const dbUser = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { email: true }
+              });
+              userEmail = dbUser?.email || '';
+            }
+            
             // Initialize Paystack payment
             const paymentData = {
-              email: session.user.email || '',
+              email: userEmail || '',
               amount: amountInKobo,
               reference: reference,
               callback_url: `${process.env.NEXTAUTH_URL}/dashboard/member?type=contribution&reference=${reference}`,

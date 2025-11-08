@@ -45,11 +45,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { firstName, lastName, phone, email, bankName, bankAccountNumber, bankAccountName, cooperative } = await req.json();
+    const { firstName, lastName, phone, email, bankName, bankAccountNumber, bankAccountName, cooperative, parentOrganizationId } = await req.json();
 
     // Validate required fields
-    if (!firstName || !lastName || !phone || !email || !bankName || !bankAccountNumber || !bankAccountName || !cooperative) {
-      return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
+    if (!firstName || !lastName || !phone || !email || !bankName || !bankAccountNumber || !bankAccountName || !cooperative || !parentOrganizationId) {
+      return NextResponse.json({ error: 'All fields are required, including parent organization' }, { status: 400 });
     }
 
     // Check if user with this email already exists
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
           bankAccountName: '',
           description: '',
           isActive: true,
+          parentOrganizationId: parentOrganizationId,
         },
       });
     }

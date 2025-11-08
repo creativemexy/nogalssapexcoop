@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { authenticateRequest } from '@/lib/mobile-auth';
 import { prisma } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    // Try mobile auth first (JWT), fallback to NextAuth session
+    let userId: string | undefined;
+    let userRole: string | undefined;
+    
+    const mobileUser = await authenticateRequest(request);
+    if (mobileUser) {
+      userId = mobileUser.id;
+      userRole = mobileUser.role;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      userId = (session.user as any).id;
+      userRole = (session.user as any).role;
+    }
+    
+    if (!userId || !userRole) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
 
     if (userRole !== 'MEMBER') {
       return NextResponse.json({ error: 'Access denied. Member role required.' }, { status: 403 });

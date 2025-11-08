@@ -1,28 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma, checkDatabaseConnection } from '@/lib/database';
+import { authenticateRequest } from '@/lib/mobile-auth';
+import { prisma } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check database connection first
-    const isConnected = await checkDatabaseConnection();
-    if (!isConnected) {
-      if (process.env.NODE_ENV === 'development') {
-        return NextResponse.json({
-          error: 'Database connection unavailable',
-          message: 'Please try again later'
-        }, { status: 503 });
+    // Try mobile auth first (JWT), fallback to NextAuth session
+    let userId: string | undefined;
+    
+    const mobileUser = await authenticateRequest(request);
+    if (mobileUser) {
+      userId = mobileUser.id;
+    } else {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 503 });
+      userId = (session.user as any).id;
     }
-
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userId = (session.user as any).id;
     const { amount, reason } = await request.json();
 
     // Validate input

@@ -12,6 +12,7 @@ export default function LeaderDashboard() {
     const [stats, setStats] = useState<{ totalMembers: number; totalContributions: number; pendingLoans: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [allocationPercentage, setAllocationPercentage] = useState<number | null>(null);
 
     const socket = useSocket();
     useEffect(() => {
@@ -54,6 +55,30 @@ export default function LeaderDashboard() {
         fetchStats();
     }, []);
 
+    useEffect(() => {
+        const fetchAllocationPercentage = async () => {
+            try {
+                // Check for impersonation data
+                const impersonationData = localStorage.getItem('impersonationData');
+                const headers: Record<string, string> = {};
+                
+                if (impersonationData) {
+                    headers['x-impersonation-data'] = impersonationData;
+                }
+                
+                const res = await fetch('/api/leader/allocations', { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    setAllocationPercentage(data.allocationPercentage || 15);
+                }
+            } catch (err) {
+                console.error('Error fetching allocation percentage:', err);
+                setAllocationPercentage(15); // Default fallback
+            }
+        };
+        fetchAllocationPercentage();
+    }, []);
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col items-center mb-6">
@@ -86,13 +111,7 @@ export default function LeaderDashboard() {
                     <div className="bg-white rounded-lg shadow p-6 mb-8">
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Your Personal Account</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-green-50 rounded-lg p-4">
-                                <h3 className="text-lg font-semibold text-green-800 mb-2">Your Allocations</h3>
-                                <p className="text-green-700">View your 20% share of registration fees from your cooperative members</p>
-                                <Link href="/dashboard/leader/allocations" className="inline-block mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                                    View Allocations
-                                </Link>
-                            </div>
+                            <AllocationCard />
                             <div className="bg-blue-50 rounded-lg p-4">
                                 <h3 className="text-lg font-semibold text-blue-800 mb-2">Personal Services</h3>
                                 <p className="text-blue-700">Make contributions, apply for loans, and manage investments as a cooperative member</p>
@@ -105,6 +124,9 @@ export default function LeaderDashboard() {
                                     </Link>
                                     <Link href="/dashboard/leader/personal/investment" className="inline-block bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
                                         Investment
+                                    </Link>
+                                    <Link href="/dashboard/leader/allocations" className="inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                        Withdraw
                                     </Link>
                                 </div>
                             </div>
@@ -133,6 +155,48 @@ const StatCard = ({ title, value, color, isCurrency }: { title: string; value: n
         <p className="text-2xl font-semibold text-gray-900">{isCurrency ? `₦${value.toLocaleString()}` : value}</p>
     </div>
 );
+
+const AllocationCard = () => {
+    const [percentage, setPercentage] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchPercentage = async () => {
+            try {
+                const impersonationData = localStorage.getItem('impersonationData');
+                const headers: Record<string, string> = {};
+                
+                if (impersonationData) {
+                    headers['x-impersonation-data'] = impersonationData;
+                }
+                
+                const res = await fetch('/api/leader/allocations', { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    setPercentage(data.allocationPercentage || 15);
+                }
+            } catch (err) {
+                console.error('Error fetching allocation percentage:', err);
+                setPercentage(15); // Default fallback
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPercentage();
+    }, []);
+
+    return (
+        <div className="bg-green-50 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-green-800 mb-2">Your Allocations</h3>
+            <p className="text-green-700">
+                View your {loading ? '...' : `${percentage || 15}%`} share of registration fees from your cooperative members
+            </p>
+            <Link href="/dashboard/leader/allocations" className="inline-block mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                View Allocations
+            </Link>
+        </div>
+    );
+};
 
 const ActionCard = ({ title, description, href }: { title: string; description: string; href: string }) => (
     <Link href={href} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-green-500 block">

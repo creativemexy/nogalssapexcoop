@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { states } from '@/lib/data';
+import PasswordInput from '@/components/ui/PasswordInput';
 
 interface User {
     id: string;
@@ -43,6 +45,38 @@ export default function ManageUsersPage() {
     const [bulkAction, setBulkAction] = useState('');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState<string | null>(null);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [isCreatingMember, setIsCreatingMember] = useState(false);
+    const [createMemberError, setCreateMemberError] = useState<string | null>(null);
+    const [createMemberSuccess, setCreateMemberSuccess] = useState<string | null>(null);
+    const [cooperatives, setCooperatives] = useState<{ id: string; name: string; registrationNumber: string }[]>([]);
+    const [loadingCooperatives, setLoadingCooperatives] = useState(false);
+    const [occupations, setOccupations] = useState<{ id: string; name: string }[]>([]);
+    const [loadingOccupations, setLoadingOccupations] = useState(false);
+    const [memberFormData, setMemberFormData] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        cooperativeId: '',
+        nin: '',
+        dateOfBirth: '',
+        occupation: '',
+        address: '',
+        city: '',
+        lga: '',
+        state: '',
+        phoneNumber: '',
+        nextOfKinName: '',
+        nextOfKinPhone: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        savingAmount: '',
+        savingFrequency: 'MONTHLY',
+    });
+    const [selectedState, setSelectedState] = useState('');
+    const [availableLgas, setAvailableLgas] = useState<string[]>([]);
 
     const itemsPerPage = 10;
 
@@ -50,6 +84,21 @@ export default function ManageUsersPage() {
         fetchUsers();
         fetchStats();
     }, [currentPage, searchTerm, roleFilter, statusFilter, sortBy, sortOrder]);
+
+    useEffect(() => {
+        if (showAddMemberModal) {
+            fetchCooperatives();
+            fetchOccupations();
+        }
+    }, [showAddMemberModal]);
+
+    useEffect(() => {
+        if (selectedState) {
+            const stateData = states.find(s => s.name === selectedState);
+            setAvailableLgas(stateData?.lgas || []);
+            setMemberFormData(prev => ({ ...prev, lga: '' }));
+        }
+    }, [selectedState]);
 
     const fetchUsers = async () => {
         try {
@@ -160,6 +209,118 @@ export default function ManageUsersPage() {
         setSelectedUsers([]);
     };
 
+    const fetchCooperatives = async () => {
+        try {
+            setLoadingCooperatives(true);
+            const response = await fetch('/api/public/cooperatives');
+            if (response.ok) {
+                const data = await response.json();
+                setCooperatives((data.cooperatives || []).map((coop: any) => ({
+                    id: coop.id,
+                    name: coop.name,
+                    registrationNumber: coop.registrationNumber || coop.code
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching cooperatives:', error);
+        } finally {
+            setLoadingCooperatives(false);
+        }
+    };
+
+    const fetchOccupations = async () => {
+        try {
+            setLoadingOccupations(true);
+            const response = await fetch('/api/occupations');
+            if (response.ok) {
+                const data = await response.json();
+                setOccupations(data.occupations || []);
+            }
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
+        } finally {
+            setLoadingOccupations(false);
+        }
+    };
+
+    const handleCreateMember = async () => {
+        setCreateMemberError(null);
+        setCreateMemberSuccess(null);
+
+        // Validate required fields (NIN is optional)
+        if (!memberFormData.firstName || !memberFormData.lastName || !memberFormData.password ||
+            !memberFormData.cooperativeId || !memberFormData.dateOfBirth ||
+            !memberFormData.occupation || !memberFormData.address || !memberFormData.city ||
+            !memberFormData.lga || !memberFormData.state || !memberFormData.phoneNumber ||
+            !memberFormData.nextOfKinName || !memberFormData.nextOfKinPhone ||
+            !memberFormData.emergencyContact || !memberFormData.emergencyPhone ||
+            !memberFormData.savingAmount || !memberFormData.savingFrequency) {
+            setCreateMemberError('All required fields must be filled');
+            return;
+        }
+
+        // Validate NIN format if provided
+        if (memberFormData.nin && memberFormData.nin.trim() !== '' && !/^\d{11}$/.test(memberFormData.nin)) {
+            setCreateMemberError('NIN must be exactly 11 digits if provided');
+            return;
+        }
+
+        if (memberFormData.password !== memberFormData.confirmPassword) {
+            setCreateMemberError('Passwords do not match');
+            return;
+        }
+
+        try {
+            setIsCreatingMember(true);
+            const response = await fetch('/api/admin/users/create-member', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(memberFormData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setCreateMemberSuccess('Member created successfully!');
+                setMemberFormData({
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    cooperativeId: '',
+                    nin: '',
+                    dateOfBirth: '',
+                    occupation: '',
+                    address: '',
+                    city: '',
+                    lga: '',
+                    state: '',
+                    phoneNumber: '',
+                    nextOfKinName: '',
+                    nextOfKinPhone: '',
+                    emergencyContact: '',
+                    emergencyPhone: '',
+                    savingAmount: '',
+                    savingFrequency: 'MONTHLY',
+                });
+                setSelectedState('');
+                fetchUsers();
+                fetchStats();
+                setTimeout(() => {
+                    setShowAddMemberModal(false);
+                    setCreateMemberSuccess(null);
+                }, 2000);
+            } else {
+                setCreateMemberError(data.error || 'Failed to create member');
+            }
+        } catch (error) {
+            setCreateMemberError('An error occurred while creating the member');
+        } finally {
+            setIsCreatingMember(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -194,9 +355,17 @@ export default function ManageUsersPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-900">Manage Users</h1>
-                <Link href="/dashboard/super-admin" className="text-[#0D5E42] hover:text-[#0A4A35]">
-                    &larr; Back to Dashboard
-                </Link>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowAddMemberModal(true)}
+                        className="bg-[#0D5E42] text-white px-4 py-2 rounded-md hover:bg-[#0A4A35] transition-colors"
+                    >
+                        + Add Member
+                    </button>
+                    <Link href="/dashboard/super-admin" className="text-[#0D5E42] hover:text-[#0A4A35]">
+                        &larr; Back to Dashboard
+                    </Link>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -544,6 +713,344 @@ export default function ManageUsersPage() {
                                     Delete
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Member Modal */}
+            {showAddMemberModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-10 mx-auto p-6 border w-full max-w-4xl shadow-lg rounded-md bg-white mb-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-bold text-gray-900">Add New Member</h3>
+                            <button
+                                onClick={() => {
+                                    setShowAddMemberModal(false);
+                                    setCreateMemberError(null);
+                                    setCreateMemberSuccess(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {createMemberError && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                                {createMemberError}
+                            </div>
+                        )}
+
+                        {createMemberSuccess && (
+                            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
+                                {createMemberSuccess}
+                            </div>
+                        )}
+
+                        <div className="max-h-[70vh] overflow-y-auto pr-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Personal Information */}
+                                <div className="md:col-span-2">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Personal Information</h4>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.firstName}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.lastName}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={memberFormData.email}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, email: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                                    <input
+                                        type="tel"
+                                        maxLength={11}
+                                        value={memberFormData.phoneNumber}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="08012345678"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">NIN (Optional)</label>
+                                    <input
+                                        type="text"
+                                        maxLength={11}
+                                        value={memberFormData.nin}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, nin: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="11 digits (optional)"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">NIN verification is optional when creating members as super admin</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                                    <input
+                                        type="date"
+                                        value={memberFormData.dateOfBirth}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Occupation *</label>
+                                    <select
+                                        value={memberFormData.occupation}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, occupation: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                        disabled={loadingOccupations}
+                                    >
+                                        <option value="">Select Occupation</option>
+                                        {occupations.map(occ => (
+                                            <option key={occ.id} value={occ.id}>{occ.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Cooperative *</label>
+                                    <select
+                                        value={memberFormData.cooperativeId}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, cooperativeId: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                        disabled={loadingCooperatives}
+                                    >
+                                        <option value="">Select Cooperative</option>
+                                        {cooperatives.map(coop => (
+                                            <option key={coop.id} value={coop.id}>{coop.name} ({coop.registrationNumber})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Address Information */}
+                                <div className="md:col-span-2 mt-4">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Address Information</h4>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.address}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, address: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.city}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, city: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+                                    <select
+                                        value={selectedState}
+                                        onChange={(e) => {
+                                            setSelectedState(e.target.value);
+                                            setMemberFormData(prev => ({ ...prev, state: e.target.value }));
+                                        }}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    >
+                                        <option value="">Select State</option>
+                                        {states.map(state => (
+                                            <option key={state.name} value={state.name}>{state.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">LGA *</label>
+                                    <select
+                                        value={memberFormData.lga}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, lga: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                        disabled={!selectedState}
+                                    >
+                                        <option value="">Select LGA</option>
+                                        {availableLgas.map(lga => (
+                                            <option key={lga} value={lga}>{lga}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Next of Kin */}
+                                <div className="md:col-span-2 mt-4">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Next of Kin</h4>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Next of Kin Name *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.nextOfKinName}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, nextOfKinName: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Next of Kin Phone *</label>
+                                    <input
+                                        type="tel"
+                                        maxLength={11}
+                                        value={memberFormData.nextOfKinPhone}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, nextOfKinPhone: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="08012345678"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Emergency Contact */}
+                                <div className="md:col-span-2 mt-4">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Emergency Contact</h4>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name *</label>
+                                    <input
+                                        type="text"
+                                        value={memberFormData.emergencyContact}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Phone *</label>
+                                    <input
+                                        type="tel"
+                                        maxLength={11}
+                                        value={memberFormData.emergencyPhone}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, emergencyPhone: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="08012345678"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Saving Preferences */}
+                                <div className="md:col-span-2 mt-4">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Saving Preferences</h4>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Saving Amount (₦) *</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={memberFormData.savingAmount}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, savingAmount: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Saving Frequency *</label>
+                                    <select
+                                        value={memberFormData.savingFrequency}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, savingFrequency: e.target.value }))}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        required
+                                    >
+                                        <option value="DAILY">Daily</option>
+                                        <option value="WEEKLY">Weekly</option>
+                                        <option value="MONTHLY">Monthly</option>
+                                    </select>
+                                </div>
+
+                                {/* Password */}
+                                <div className="md:col-span-2 mt-4">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Account Password</h4>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                                    <PasswordInput
+                                        value={memberFormData.password}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, password: e.target.value }))}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+                                    <PasswordInput
+                                        value={memberFormData.confirmPassword}
+                                        onChange={(e) => setMemberFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-4 mt-6 pt-4 border-t">
+                            <button
+                                onClick={() => {
+                                    setShowAddMemberModal(false);
+                                    setCreateMemberError(null);
+                                    setCreateMemberSuccess(null);
+                                }}
+                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                disabled={isCreatingMember}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateMember}
+                                disabled={isCreatingMember}
+                                className="px-4 py-2 bg-[#0D5E42] text-white rounded-md hover:bg-[#0A4A35] disabled:opacity-50"
+                            >
+                                {isCreatingMember ? 'Creating...' : 'Create Member'}
+                            </button>
                         </div>
                     </div>
                 </div>
