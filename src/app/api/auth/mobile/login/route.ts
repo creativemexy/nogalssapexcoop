@@ -13,12 +13,15 @@ import { verifyTOTPToken } from '@/lib/utils';
 
 // Handle CORS preflight requests
 export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || '*';
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+      'Access-Control-Allow-Credentials': 'true',
     },
   });
 }
@@ -151,6 +154,7 @@ export async function POST(request: NextRequest) {
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 
+    const origin = request.headers.get('origin') || '*';
     return NextResponse.json({
       success: true,
       user: {
@@ -164,22 +168,25 @@ export async function POST(request: NextRequest) {
       token: token, // NextAuth JWT token
     }, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true',
       },
     });
 
   } catch (error: any) {
     console.error('Mobile login error:', error);
+    const origin = request.headers.get('origin') || '*';
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { 
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': origin,
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Credentials': 'true',
         },
       }
     );

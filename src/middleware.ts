@@ -30,6 +30,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Handle CORS preflight requests (using default config to avoid Edge Runtime issues)
+  // For mobile login endpoint, let the route handler handle OPTIONS
+  if (request.method === 'OPTIONS' && pathname === '/api/auth/mobile/login') {
+    // Let the route handler's OPTIONS function handle it
+    return NextResponse.next();
+  }
+  
   const corsResponse = handleCORSRequest(request);
   if (corsResponse) {
     return corsResponse;

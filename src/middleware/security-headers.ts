@@ -112,6 +112,8 @@ const defaultSecurityConfig: SecurityHeadersConfig = {
       'http://localhost:3000',
       'https://nogalssapexcoop.org',
       'https://www.nogalssapexcoop.org',
+      // Allow any localhost origin for development/testing
+      ...(process.env.NODE_ENV === 'development' ? ['http://localhost:*', 'https://localhost:*'] : []),
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -169,18 +171,48 @@ export function generateCSPHeader(config: SecurityHeadersConfig['csp']): string 
 }
 
 // Generate CORS headers
-export function generateCORSHeaders(config: SecurityHeadersConfig['cors'], origin?: string): Record<string, string> {
+export function generateCORSHeaders(config: SecurityHeadersConfig['cors'], origin?: string, request?: any): Record<string, string> {
   const headers: Record<string, string> = {};
   
   // Check if origin is allowed
-  const isAllowedOrigin = !origin || config.origin.includes(origin) || config.origin.includes('*');
+  let isAllowedOrigin = !origin || config.origin.includes(origin) || config.origin.includes('*');
+  
+  // In development, allow all localhost origins
+  if (!isAllowedOrigin && process.env.NODE_ENV === 'development' && origin) {
+    const isLocalhost = origin.startsWith('http://localhost:') || 
+                       origin.startsWith('https://localhost:') ||
+                       origin.startsWith('http://127.0.0.1:') ||
+                       origin.startsWith('https://127.0.0.1:');
+    if (isLocalhost) {
+      isAllowedOrigin = true;
+    }
+  }
+  
+  // For mobile apps and API endpoints, be more permissive
+  // Allow access from any origin for mobile login endpoint (mobile apps don't have a fixed origin)
+  const isMobileEndpoint = request?.nextUrl?.pathname?.includes('/api/auth/mobile/') || 
+                           request?.nextUrl?.pathname?.includes('/api/member/') ||
+                           request?.nextUrl?.pathname?.includes('/api/leader/');
+  
+  if (isMobileEndpoint) {
+    // Allow all origins for mobile endpoints
+    isAllowedOrigin = true;
+  }
   
   if (isAllowedOrigin) {
-    headers['Access-Control-Allow-Origin'] = origin || config.origin[0];
+    headers['Access-Control-Allow-Origin'] = origin || '*';
     headers['Access-Control-Allow-Methods'] = config.methods.join(', ');
     headers['Access-Control-Allow-Headers'] = config.allowedHeaders.join(', ');
     headers['Access-Control-Allow-Credentials'] = config.credentials.toString();
     headers['Access-Control-Max-Age'] = config.maxAge.toString();
+  } else {
+    // For mobile apps and other origins, allow with wildcard in development
+    if (process.env.NODE_ENV === 'development') {
+      headers['Access-Control-Allow-Origin'] = '*';
+      headers['Access-Control-Allow-Methods'] = config.methods.join(', ');
+      headers['Access-Control-Allow-Headers'] = config.allowedHeaders.join(', ');
+      headers['Access-Control-Max-Age'] = config.maxAge.toString();
+    }
   }
   
   return headers;
@@ -225,11 +257,25 @@ export function applySecurityHeaders(
   const securityConfig = config || (process.env.NODE_ENV === 'development' ? developmentSecurityConfig : defaultSecurityConfig);
   const origin = request.headers.get('origin');
   
+  // Check if this is a mobile endpoint - be more permissive
+  const isMobileEndpoint = request.nextUrl.pathname.includes('/api/auth/mobile/') || 
+                           request.nextUrl.pathname.includes('/api/member/') ||
+                           request.nextUrl.pathname.includes('/api/leader/');
+  
   // Apply CORS headers
-  const corsHeaders = generateCORSHeaders(securityConfig.cors, origin || undefined);
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
+  const corsHeaders = generateCORSHeaders(securityConfig.cors, origin || undefined, request);
+  
+  // For mobile endpoints, always set CORS headers
+  if (isMobileEndpoint) {
+    response.headers.set('Access-Control-Allow-Origin', origin || '*');
+    response.headers.set('Access-Control-Allow-Methods', securityConfig.cors.methods.join(', '));
+    response.headers.set('Access-Control-Allow-Headers', securityConfig.cors.allowedHeaders.join(', '));
+    response.headers.set('Access-Control-Max-Age', securityConfig.cors.maxAge.toString());
+  } else {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+  }
   
   // Apply HTTPS enforcement headers
   const httpsHeaders = generateHTTPSHeaders(securityConfig.https);
@@ -286,13 +332,36 @@ export function getHTTPSRedirectURL(request: NextRequest): string {
 export function handleCORSRequest(request: NextRequest, config?: SecurityHeadersConfig): NextResponse | null {
   if (request.method === 'OPTIONS') {
     const origin = request.headers.get('origin');
-    const corsConfig = config?.cors || defaultSecurityConfig.cors;
-    const corsHeaders = generateCORSHeaders(corsConfig, origin || undefined);
+    const securityConfig = config || (process.env.NODE_ENV === 'development' ? developmentSecurityConfig : defaultSecurityConfig);
+    const corsConfig = securityConfig.cors;
     
+    // Check if this is a mobile endpoint - be more permissive
+    const isMobileEndpoint = request.nextUrl.pathname.includes('/api/auth/mobile/') || 
+                             request.nextUrl.pathname.includes('/api/member/') ||
+                             request.nextUrl.pathname.includes('/api/leader/');
+    
+    const corsHeaders = generateCORSHeaders(corsConfig, origin || undefined, request);
+
+    // Always return a response for OPTIONS
     const response = new NextResponse(null, { status: 200 });
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.headers.set(key, value);
-    });
+    // For mobile endpoints, always allow CORS
+    if (isMobileEndpoint) {
+      response.headers.set('Access-Control-Allow-Origin', origin || '*');
+      response.headers.set('Access-Control-Allow-Methods', corsConfig.methods.join(', '));
+      response.headers.set('Access-Control-Allow-Headers', corsConfig.allowedHeaders.join(', '));
+      response.headers.set('Access-Control-Max-Age', corsConfig.maxAge.toString());
+    } else if (Object.keys(corsHeaders).length === 0 && process.env.NODE_ENV === 'development') {
+      // If no headers were set (origin not allowed), set default CORS headers for development
+      const devCors = defaultSecurityConfig.cors;
+      response.headers.set('Access-Control-Allow-Origin', origin || '*');
+      response.headers.set('Access-Control-Allow-Methods', devCors.methods.join(', '));
+      response.headers.set('Access-Control-Allow-Headers', devCors.allowedHeaders.join(', '));
+      response.headers.set('Access-Control-Max-Age', devCors.maxAge.toString());
+    } else {
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+    }
     
     return response;
   }
