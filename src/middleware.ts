@@ -12,6 +12,7 @@ import {
   handleCORSRequest,
   createSecurityHeadersMiddleware 
 } from '@/middleware/security-headers';
+import { SessionManager } from '@/lib/session-manager';
 // Note: securityConfig will be imported dynamically to avoid Edge Runtime issues
 
 // Run environment validation once on startup
@@ -99,6 +100,24 @@ export async function middleware(request: NextRequest) {
   if (token.exp && Date.now() / 1000 > (token.exp as number)) {
     const response = NextResponse.redirect(new URL('/auth/signin?error=SessionExpired', request.url));
     return applySecurityHeaders(request, response);
+  }
+
+  // Validate session in database for inactivity timeout enforcement
+  const sessionId = (token as any).sessionId;
+  if (sessionId && token.id) {
+    try {
+      const sessionInfo = await SessionManager.validateSession(sessionId);
+      if (!sessionInfo) {
+        // Session expired or invalidated, force logout
+        const response = NextResponse.redirect(new URL('/auth/signin?error=SessionExpired', request.url));
+        response.cookies.delete('next-auth.session-token');
+        response.cookies.delete('__Secure-next-auth.session-token');
+        return applySecurityHeaders(request, response);
+      }
+    } catch (error) {
+      console.error('Session validation error in middleware:', error);
+      // On error, allow request to continue but log it
+    }
   }
 
   // Role-based access control

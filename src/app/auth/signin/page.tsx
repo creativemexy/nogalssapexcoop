@@ -63,7 +63,16 @@ function SignInForm() {
             setError('Invalid email or password');
         }
       } else if (result?.ok) {
-        // Successful login
+        // Successful login - register session with IP and user agent
+        try {
+          await fetch('/api/auth/register-session', {
+            method: 'POST',
+            credentials: 'include',
+          });
+        } catch (sessionError) {
+          console.error('Failed to register session:', sessionError);
+          // Continue with login even if session registration fails
+        }
         router.push('/dashboard');
       } else {
         setError('Login failed. Please try again.');

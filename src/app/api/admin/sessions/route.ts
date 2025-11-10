@@ -73,8 +73,20 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
     const userId = searchParams.get('userId');
     const sessionId = searchParams.get('sessionId');
+
+    // Handle invalidate all action
+    if (action === 'invalidateAll') {
+      const result = await prisma.userSession.updateMany({
+        where: {
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+      return NextResponse.json({ success: true, invalidatedSessions: result.count });
+    }
 
     if (userId) {
       const count = await SessionManager.invalidateAllUserSessions(userId);
@@ -83,7 +95,7 @@ export async function DELETE(req: NextRequest) {
       const success = await SessionManager.invalidateSession(sessionId);
       return NextResponse.json({ success });
     } else {
-      return NextResponse.json({ error: 'userId or sessionId required' }, { status: 400 });
+      return NextResponse.json({ error: 'userId, sessionId, or action=invalidateAll required' }, { status: 400 });
     }
   } catch (error) {
     console.error('Error invalidating sessions:', error);

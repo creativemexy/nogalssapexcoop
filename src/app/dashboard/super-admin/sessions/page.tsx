@@ -23,9 +23,19 @@ export default function SessionManagementPage() {
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cleanupStats, setCleanupStats] = useState<any>(null);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [lastCleanup, setLastCleanup] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSessionStats();
+    fetchCleanupStats();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchSessionStats();
+      fetchCleanupStats();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchSessionStats = async () => {
@@ -44,6 +54,38 @@ export default function SessionManagementPage() {
     }
   };
 
+  const fetchCleanupStats = async () => {
+    try {
+      const response = await fetch('/api/admin/sessions/cleanup');
+      if (response.ok) {
+        const data = await response.json();
+        setCleanupStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch cleanup stats:', err);
+    }
+  };
+
+  const handleCleanupSessions = async () => {
+    setCleaningUp(true);
+    try {
+      const response = await fetch('/api/admin/sessions/cleanup', { method: 'POST' });
+      const data = await response.json();
+      if (response.ok) {
+        setLastCleanup(new Date().toLocaleString());
+        alert(`Cleanup completed: ${data.expiredSessionsCleaned} expired sessions cleaned, ${data.excessSessionsInvalidated} excess sessions invalidated`);
+        fetchSessionStats();
+        fetchCleanupStats();
+      } else {
+        alert(data.error || 'Failed to cleanup sessions');
+      }
+    } catch (err) {
+      alert('Failed to cleanup sessions');
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
   const handleInvalidateAllSessions = async () => {
     if (!confirm('Are you sure you want to invalidate all active sessions? This will log out all users.')) {
       return;
@@ -55,6 +97,7 @@ export default function SessionManagementPage() {
       if (response.ok) {
         alert(`Invalidated ${data.invalidatedSessions} sessions`);
         fetchSessionStats();
+        fetchCleanupStats();
       } else {
         alert(data.error || 'Failed to invalidate sessions');
       }
@@ -154,10 +197,32 @@ export default function SessionManagementPage() {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900">Concurrent Session Limit</h3>
                   <p className="text-sm text-gray-600">Maximum 3 sessions per user</p>
+                  {cleanupStats && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {cleanupStats.expiredSessions || 0} expired sessions pending cleanup
+                    </p>
+                  )}
                 </div>
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                   Enforced
                 </span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Automatic Cleanup</h3>
+                  <p className="text-sm text-gray-600">Clean up expired sessions and enforce limits</p>
+                  {lastCleanup && (
+                    <p className="text-xs text-gray-500 mt-1">Last cleanup: {lastCleanup}</p>
+                  )}
+                </div>
+                <button
+                  onClick={handleCleanupSessions}
+                  disabled={cleaningUp}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cleaningUp ? 'Cleaning...' : 'Run Cleanup Now'}
+                </button>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
@@ -182,20 +247,61 @@ export default function SessionManagementPage() {
               <div className="space-y-3">
                 <h3 className="text-lg font-medium text-gray-900">Session Timeout</h3>
                 <ul className="space-y-2 text-sm text-gray-600">
-                  <li>• Sessions expire after 30 minutes of inactivity</li>
-                  <li>• Automatic cleanup of expired sessions</li>
-                  <li>• Users must re-authenticate after timeout</li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Sessions expire after 30 minutes of inactivity</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Automatic cleanup of expired sessions</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Users must re-authenticate after timeout</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Session validation on every request</span>
+                  </li>
                 </ul>
               </div>
               <div className="space-y-3">
                 <h3 className="text-lg font-medium text-gray-900">Concurrent Sessions</h3>
                 <ul className="space-y-2 text-sm text-gray-600">
-                  <li>• Maximum 3 active sessions per user</li>
-                  <li>• Oldest sessions are automatically invalidated</li>
-                  <li>• Prevents session hijacking and abuse</li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Maximum 3 active sessions per user</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Oldest sessions are automatically invalidated</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Prevents session hijacking and abuse</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span>Enforced on login and session validation</span>
+                  </li>
                 </ul>
               </div>
             </div>
+            {cleanupStats && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-md font-medium text-gray-900 mb-2">Cleanup Statistics</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Active Sessions:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{cleanupStats.activeSessions || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Expired Sessions:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{cleanupStats.expiredSessions || 0}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

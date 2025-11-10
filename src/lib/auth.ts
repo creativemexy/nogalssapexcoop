@@ -4,6 +4,7 @@ import Auth0Provider from "next-auth/providers/auth0";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTOTPToken } from "@/lib/utils";
+import { SessionManager } from "@/lib/session-manager";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -189,10 +190,10 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 60, // 30 minutes in seconds (inactivity timeout)
   },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger }) {
       // Handle Auth0 login
       if (account?.provider === 'auth0' && profile) {
         // Find or create user in database from Auth0 profile
@@ -224,6 +225,20 @@ export const authOptions: NextAuthOptions = {
           token.id = dbUser.id;
           token.cooperativeId = dbUser.cooperativeId;
           token.businessId = dbUser.businessId;
+          
+          // Create session in database for Auth0 login
+          if (account && !token.sessionId) {
+            try {
+              const sessionInfo = await SessionManager.createSession(
+                dbUser.id,
+                undefined, // IP address not available in this context
+                undefined  // User agent not available in this context
+              );
+              token.sessionId = sessionInfo.sessionId;
+            } catch (error) {
+              console.error('Failed to create session for Auth0 user:', error);
+            }
+          }
         }
       } else if (user) {
         // Handle credentials login
@@ -231,7 +246,41 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.cooperativeId = (user as any).cooperativeId;
         token.businessId = (user as any).businessId;
+        
+        // Create session in database for credentials login
+        if (account && !token.sessionId) {
+          try {
+            const sessionInfo = await SessionManager.createSession(
+              user.id,
+              undefined, // IP address not available in this context
+              undefined  // User agent not available in this context
+            );
+            token.sessionId = sessionInfo.sessionId;
+          } catch (error) {
+            console.error('Failed to create session for credentials user:', error);
+          }
+        }
       }
+      
+      // On each request, validate and update session expiration
+      if (token.sessionId && token.id) {
+        try {
+          const sessionInfo = await SessionManager.validateSession(token.sessionId as string);
+          if (!sessionInfo) {
+            // Session expired or invalid, clear token
+            token.sessionId = undefined;
+            token.exp = 0; // Force expiration
+          } else {
+            // Update token expiration based on session expiration
+            token.exp = Math.floor(sessionInfo.expiresAt.getTime() / 1000);
+          }
+        } catch (error) {
+          console.error('Failed to validate session:', error);
+          token.sessionId = undefined;
+          token.exp = 0;
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {
@@ -240,6 +289,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role;
         (session.user as any).cooperativeId = token.cooperativeId;
         (session.user as any).businessId = token.businessId;
+        (session.user as any).sessionId = token.sessionId;
       }
       return session;
     },
