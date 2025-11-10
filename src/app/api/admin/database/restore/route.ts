@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
     const host = url.hostname;
     const port = url.port || '5432';
     const database = url.pathname.slice(1);
-    const username = url.username;
-    const password = url.password;
+    const username = decodeURIComponent(url.username);
+    // Decode password - it's already URL-decoded by the URL parser, but be explicit
+    const password = decodeURIComponent(url.password || '');
 
     // Support two modes: from existing filename (JSON) or uploaded file (multipart)
     if (contentType.includes('application/json')) {
@@ -33,8 +34,15 @@ export async function POST(request: NextRequest) {
       const filePath = path.join(process.cwd(), 'backups', safe);
       if (!fs.existsSync(filePath)) return NextResponse.json({ error: 'Backup not found' }, { status: 404 });
 
-      const cmd = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${filePath}"`;
-      const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 50 });
+      // Pass password via environment variable to avoid shell escaping issues
+      const cmd = `psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${filePath}"`;
+      const { stdout, stderr } = await execAsync(cmd, { 
+        maxBuffer: 1024 * 1024 * 50,
+        env: {
+          ...process.env,
+          PGPASSWORD: password
+        }
+      });
       return NextResponse.json({ success: true, message: 'Restore complete', stdout, stderr });
     }
 
@@ -54,8 +62,15 @@ export async function POST(request: NextRequest) {
     fs.writeFileSync(tempPath, buffer);
 
     try {
-      const cmd = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${tempPath}"`;
-      const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 1024 * 1024 * 50 });
+      // Pass password via environment variable to avoid shell escaping issues
+      const cmd = `psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${tempPath}"`;
+      const { stdout, stderr } = await execAsync(cmd, { 
+        maxBuffer: 1024 * 1024 * 50,
+        env: {
+          ...process.env,
+          PGPASSWORD: password
+        }
+      });
       return NextResponse.json({ success: true, message: 'Restore complete', stdout, stderr });
     } finally {
       // Clean up uploaded file

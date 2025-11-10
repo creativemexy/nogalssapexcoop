@@ -57,6 +57,10 @@ export function getWelcomeEmailHtml({ name, email, password, resetLink, role, da
       roleDescription = 'You are a Member. You can make savings, apply for loans, and view your transaction history.';
       dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
       break;
+    case 'PARENT_ORGANIZATION':
+      roleDescription = 'You are a Parent Organization admin. You can manage your organization, view cooperatives under your organization, oversee financial activities, and manage your organization settings.';
+      dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;
+      break;
     default:
       roleDescription = 'You have been granted access to the Nogalss platform.';
       dashboardUsage = `Access your dashboard here: <a href="${dashboardUrl}">${dashboardUrl}</a>`;

@@ -3,9 +3,19 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { authenticateRequest } from '@/lib/mobile-auth';
 import { prisma } from '@/lib/database';
+import { isWithdrawalEnabled } from '@/lib/withdrawal-permissions';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if withdrawals are enabled for MEMBER role
+    const withdrawalsEnabled = await isWithdrawalEnabled('MEMBER');
+    if (!withdrawalsEnabled) {
+      return NextResponse.json({ 
+        error: 'Withdrawals are currently disabled for members',
+        code: 'WITHDRAWAL_DISABLED'
+      }, { status: 403 });
+    }
+
     // Try mobile auth first (JWT), fallback to NextAuth session
     let userId: string | undefined;
     

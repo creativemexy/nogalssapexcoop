@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { banks as fallbackBanks } from '@/lib/data';
 
 interface CACCompanyData {
   companyName: string;
@@ -129,9 +130,19 @@ export default function CreateOrganizationPage() {
       const response = await fetch('/api/banks/list');
       if (!response.ok) throw new Error('Failed to fetch banks');
       const data = await response.json();
-      setBanks(data.banks || []);
+      
+      // If database has banks, use them; otherwise use fallback static list
+      if (data.banks && data.banks.length > 0) {
+        setBanks(data.banks);
+      } else {
+        // Fallback to static bank list if database is empty
+        console.warn('No banks found in database, using fallback static list');
+        setBanks(fallbackBanks);
+      }
     } catch (err) {
       console.error('Error fetching banks:', err);
+      // Use fallback static list on error
+      setBanks(fallbackBanks);
     } finally {
       setLoadingBanks(false);
     }

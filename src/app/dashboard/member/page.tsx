@@ -5,10 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { useWithdrawalPermission } from '@/hooks/useWithdrawalPermission';
 import { calculateTransactionFees, formatFeeBreakdown, FeeCalculation } from '@/lib/fee-calculator';
 
 export default function MemberDashboard() {
     const { data: session } = useSession();
+    const { enabled: withdrawalEnabled } = useWithdrawalPermission('MEMBER');
     const [virtualAccount, setVirtualAccount] = useState<any>(null);
     const [savings, setSavings] = useState<number>(0);
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -426,15 +428,17 @@ export default function MemberDashboard() {
                         </div>
 
                         {/* Withdrawal Button */}
-                        <Link 
-                            href="/dashboard/member/withdraw"
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
-                        >
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m16 0l-4-4m4 4l-4 4" />
-                            </svg>
-                            💸 Request Withdrawal
-                        </Link>
+                        {withdrawalEnabled && (
+                            <Link 
+                                href="/dashboard/member/withdraw"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
+                            >
+                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m16 0l-4-4m4 4l-4 4" />
+                                </svg>
+                                💸 Request Withdrawal
+                            </Link>
+                        )}
 
                         {/* Apply for Loan Button */}
                         <Link 

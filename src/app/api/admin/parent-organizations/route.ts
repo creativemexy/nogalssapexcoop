@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createLog } from '@/lib/logger';
-import { NotificationService } from '@/lib/notifications';
+import { NotificationService, getWelcomeEmailHtml } from '@/lib/notifications';
 import bcrypt from 'bcryptjs';
 
 // GET - Fetch all parent organizations
@@ -30,9 +30,14 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {
-      isActive: true,
-    };
+    // For super admin, show all organizations (active and inactive)
+    // For apex, only show active ones
+    const where: any = {};
+    
+    // Only filter by isActive for APEX users, SUPER_ADMIN sees all
+    if (userRole === 'APEX') {
+      where.isActive = true;
+    }
 
     if (search) {
       where.OR = [
@@ -50,6 +55,13 @@ export async function GET(request: NextRequest) {
 
     // Check if the parentOrganization table exists
     try {
+      // First, let's check if there are any organizations at all
+      const totalCount = await prisma.parentOrganization.count({ where: {} });
+      console.log(`Total parent organizations in database (no filters): ${totalCount}`);
+      
+      const whereCount = await prisma.parentOrganization.count({ where });
+      console.log(`Parent organizations matching filters: ${whereCount}`, where);
+      
       const [organizations, total] = await Promise.all([
         prisma.parentOrganization.findMany({
           where,
@@ -82,6 +94,16 @@ export async function GET(request: NextRequest) {
         }),
         prisma.parentOrganization.count({ where }),
       ]);
+      
+      console.log(`Found ${organizations.length} parent organizations (total: ${total})`);
+      if (organizations.length > 0) {
+        console.log('Sample organization:', {
+          id: organizations[0].id,
+          name: organizations[0].name,
+          isActive: organizations[0].isActive,
+          createdBy: organizations[0].createdBy
+        });
+      }
 
       return NextResponse.json({
         organizations,
@@ -97,6 +119,7 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
       // If the table doesn't exist yet, return empty results
       if (error.message?.includes('parentOrganization') || error.code === 'P2021') {
+        console.error('Parent organization table does not exist:', error.message);
         return NextResponse.json({
           organizations: [],
           pagination: {
@@ -109,12 +132,21 @@ export async function GET(request: NextRequest) {
           },
         });
       }
+      console.error('Error querying parent organizations:', error);
       throw error;
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching parent organizations:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 
@@ -130,6 +162,26 @@ export async function POST(request: NextRequest) {
     // Check if user is super admin or apex
     const userRole = (session.user as any).role;
     if (userRole !== 'SUPER_ADMIN' && userRole !== 'APEX') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get the actual user from database to ensure we have a valid ID
+    const sessionUserEmail = session.user.email;
+    if (!sessionUserEmail) {
+      return NextResponse.json({ error: 'User email not found in session' }, { status: 401 });
+    }
+
+    const sessionUser = await prisma.user.findUnique({
+      where: { email: sessionUserEmail },
+      select: { id: true, role: true }
+    });
+
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 401 });
+    }
+
+    // Double-check role from database
+    if (sessionUser.role !== 'SUPER_ADMIN' && sessionUser.role !== 'APEX') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -274,7 +326,7 @@ export async function POST(request: NextRequest) {
           website,
           logo,
           parentId: parentId || null,
-          createdBy: (session.user as any).id,
+          createdBy: sessionUser.id,
           userId: organizationUser.id,
           defaultPassword: defaultPassword,
           // CAC Registration Details
@@ -353,42 +405,50 @@ export async function POST(request: NextRequest) {
       });
 
       // Send email and SMS notifications
+      let emailSent = false;
+      let smsSent = false;
+
       try {
+        // Send email notification using standardized welcome email template
+        const dashboardUrl = `${process.env.NEXTAUTH_URL}/dashboard/parent-organization`;
+        const emailHtml = getWelcomeEmailHtml({
+          name: name,
+          email: contactEmail,
+          password: defaultPassword,
+          role: 'PARENT_ORGANIZATION',
+          dashboardUrl: dashboardUrl,
+        });
 
-        // Send email notification
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to Nogalss Parent Organization Dashboard</h2>
-            <p>Dear ${name} Team,</p>
-            <p>Your parent organization account has been created successfully. You can now access your dashboard using the following credentials:</p>
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-              <p><strong>Email:</strong> ${contactEmail}</p>
-              <p><strong>Password:</strong> ${defaultPassword}</p>
-              <p><strong>Dashboard URL:</strong> <a href="${process.env.NEXTAUTH_URL}/dashboard/parent-organization">${process.env.NEXTAUTH_URL}/dashboard/parent-organization</a></p>
-            </div>
-            <p>Please change your password after your first login for security purposes.</p>
-            <p>Best regards,<br>Nogalss Team</p>
-          </div>
-        `;
-
+        console.log(`📧 Sending welcome email to parent organization: ${contactEmail}`);
         await NotificationService.sendEmail({
           to: contactEmail,
           subject: 'Welcome to Nogalss Parent Organization Dashboard',
           html: emailHtml,
         });
+        emailSent = true;
+        console.log(`✅ Welcome email sent successfully to ${contactEmail}`);
 
         // Send SMS notification if phone number is provided
         if (contactPhone) {
-          const smsMessage = `Welcome to Nogalss! Your parent organization dashboard is ready. Login: ${contactEmail}, Password: ${defaultPassword}. Dashboard: ${process.env.NEXTAUTH_URL}/dashboard/parent-organization`;
+          const smsMessage = `Welcome to Nogalss! Your parent organization dashboard is ready. Login: ${contactEmail}, Password: ${defaultPassword}. Dashboard: ${dashboardUrl}`;
           
+          console.log(`📱 Sending welcome SMS to parent organization: ${contactPhone}`);
           await NotificationService.sendSMS({
             to: contactPhone,
             message: smsMessage,
           });
+          smsSent = true;
+          console.log(`✅ Welcome SMS sent successfully to ${contactPhone}`);
         }
       } catch (notificationError) {
-        console.error('Error sending notifications:', notificationError);
-        // Don't fail the organization creation if notifications fail
+        console.error('❌ Error sending notifications:', notificationError);
+        // Log the error but don't fail the organization creation
+        // The organization is already created, so we just log the notification failure
+        console.error('⚠️  Parent organization created but notifications failed:', {
+          emailSent,
+          smsSent,
+          error: notificationError instanceof Error ? notificationError.message : 'Unknown error'
+        });
       }
 
       // Log the action

@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
+import { useWithdrawalPermission } from '@/hooks/useWithdrawalPermission';
 
 interface CooperativeStats {
   totalMembers: number;
@@ -43,6 +44,7 @@ export default function CooperativeDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const socket = useSocket();
+  const { enabled: withdrawalEnabled } = useWithdrawalPermission('COOPERATIVE');
 
   useEffect(() => {
     fetchCooperativeStats();
@@ -110,12 +112,21 @@ export default function CooperativeDashboard() {
             >
               View Transactions
             </Link>
-            <Link 
-              href="/dashboard/cooperative/withdraw" 
-              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
-            >
-              Withdraw Allocation
-            </Link>
+            {withdrawalEnabled ? (
+              <Link 
+                href="/dashboard/cooperative/withdraw"
+                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+              >
+                Withdraw Allocation
+              </Link>
+            ) : (
+              <button
+                disabled
+                className="bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed opacity-50"
+              >
+                Withdraw Allocation (Disabled)
+              </button>
+            )}
           </div>
         </div>
 

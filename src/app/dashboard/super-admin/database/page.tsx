@@ -49,19 +49,21 @@ export default function DatabaseManagementPage() {
         body: JSON.stringify({ backupName: backupName.trim() || undefined })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Backup failed');
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Backup failed');
+      }
       setMessage('✅ Backup created');
       setBackupName('');
       fetchBackups();
     } catch (e: any) {
-      setMessage(`❌ ${e.message}`);
+      setMessage(`❌ ${e.message || 'Internal server error'}`);
     } finally {
       setLoading(false);
     }
   };
 
   const resetDatabase = async () => {
-    if (confirmText !== 'RESET DATABASE') {
+    if (confirmText.trim().toUpperCase() !== 'RESET DATABASE') {
       setMessage('❗ Type RESET DATABASE to confirm');
       return;
     }
@@ -168,6 +170,30 @@ export default function DatabaseManagementPage() {
                           className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                           disabled={loading}
                         >Restore</button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Are you sure you want to delete "${b.filename}"? This action cannot be undone.`)) {
+                              return;
+                            }
+                            setLoading(true);
+                            setMessage(null);
+                            try {
+                              const res = await fetch(`/api/admin/database/backup/${encodeURIComponent(b.filename)}`, {
+                                method: 'DELETE'
+                              });
+                              const data = await res.json();
+                              if (!res.ok) throw new Error(data.error || 'Delete failed');
+                              setMessage('✅ Backup deleted successfully');
+                              fetchBackups();
+                            } catch (e:any) {
+                              setMessage(`❌ ${e.message}`);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                          disabled={loading}
+                        >Delete</button>
                       </td>
                     </tr>
                   ))}

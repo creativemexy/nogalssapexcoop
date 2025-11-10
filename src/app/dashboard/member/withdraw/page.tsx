@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useWithdrawalPermission } from '@/hooks/useWithdrawalPermission';
 
 export default function MemberWithdrawPage() {
     const { data: session } = useSession();
@@ -12,6 +13,7 @@ export default function MemberWithdrawPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availableBalance, setAvailableBalance] = useState(0);
     const [loading, setLoading] = useState(true);
+    const { enabled: withdrawalEnabled, loading: permissionLoading } = useWithdrawalPermission('MEMBER');
 
     useEffect(() => {
         const fetchBalance = async () => {
@@ -76,12 +78,36 @@ export default function MemberWithdrawPage() {
         }
     };
 
-    if (loading) {
+    if (loading || permissionLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!withdrawalEnabled) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+                    <div className="mb-4">
+                        <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Withdrawals Disabled</h2>
+                    <p className="text-gray-600 mb-6">
+                        Withdrawal functionality is currently disabled for members. Please contact support if you need assistance.
+                    </p>
+                    <button
+                        onClick={() => router.push('/dashboard/member')}
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        Return to Dashboard
+                    </button>
                 </div>
             </div>
         );

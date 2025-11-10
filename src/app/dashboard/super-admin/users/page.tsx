@@ -182,14 +182,21 @@ export default function ManageUsersPage() {
             const response = await fetch(`/api/admin/users/${userToDelete}`, {
                 method: 'DELETE',
             });
+            
+            const data = await response.json();
+            
             if (response.ok) {
                 setShowDeleteModal(false);
                 setUserToDelete(null);
                 fetchUsers();
                 fetchStats();
+            } else {
+                alert(data.error || 'Failed to delete user');
+                console.error('Delete user error:', data);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error deleting user:', error);
+            alert(error.message || 'Failed to delete user. Please try again.');
         }
     };
 
@@ -431,10 +438,15 @@ export default function ManageUsersPage() {
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0D5E42]"
                         >
                             <option value="all">All Roles</option>
-                            <option value="MEMBER">Members</option>
-                            <option value="LEADER">Leaders</option>
+                            <option value="SUPER_ADMIN">Super Admin</option>
                             <option value="APEX">Apex</option>
+                            <option value="FINANCE">Finance</option>
+                            <option value="APEX_FUNDS">Apex Funds</option>
+                            <option value="NOGALSS_FUNDS">Nogalss Funds</option>
+                            <option value="PARENT_ORGANIZATION">Parent Organization</option>
+                            <option value="LEADER">Leaders</option>
                             <option value="COOPERATIVE">Cooperatives</option>
+                            <option value="MEMBER">Members</option>
                             <option value="BUSINESS">Business</option>
                         </select>
                     </div>
@@ -629,7 +641,10 @@ export default function ManageUsersPage() {
                                                 {user.isVerified ? 'Unverify' : 'Verify'}
                                             </button>
                                             <button
-                                                onClick={() => setUserToDelete(user.id)}
+                                                onClick={() => {
+                                                    setUserToDelete(user.id);
+                                                    setShowDeleteModal(true);
+                                                }}
                                                 className="px-3 py-1 rounded-md text-xs bg-red-100 text-red-700 hover:bg-red-200"
                                             >
                                                 Delete
@@ -701,7 +716,10 @@ export default function ManageUsersPage() {
                             </p>
                             <div className="flex justify-center space-x-4">
                                 <button
-                                    onClick={() => setShowDeleteModal(false)}
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setUserToDelete(null);
+                                    }}
                                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                 >
                                     Cancel

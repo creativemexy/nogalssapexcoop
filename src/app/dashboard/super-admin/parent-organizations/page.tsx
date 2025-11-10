@@ -71,6 +71,7 @@ export default function ParentOrganizationsPage() {
   const fetchOrganizations = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
@@ -78,13 +79,32 @@ export default function ParentOrganizationsPage() {
       });
 
       const response = await fetch(`/api/admin/parent-organizations?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch organizations');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API Error:', response.status, errorData);
+        throw new Error(errorData.error || `Failed to fetch organizations: ${response.status}`);
+      }
       
       const data: OrganizationsResponse = await response.json();
-      setOrganizations(data.organizations);
-      setPagination(data.pagination);
+      console.log('Organizations data received:', {
+        count: data.organizations?.length || 0,
+        total: data.pagination?.total || 0,
+        organizations: data.organizations
+      });
+      
+      setOrganizations(data.organizations || []);
+      setPagination(data.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      });
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error fetching organizations:', err);
+      setError(err.message || 'Failed to load organizations');
     } finally {
       setLoading(false);
     }
