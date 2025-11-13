@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { isWithdrawalEnabled } from '@/lib/withdrawal-permissions';
+import { notifyFinanceUsersOfWithdrawal } from '@/lib/finance-notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -171,6 +172,15 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ Parent organization withdrawal request created:', withdrawal.id);
+
+    // Notify finance users
+    await notifyFinanceUsersOfWithdrawal({
+      id: withdrawal.id,
+      userId: withdrawal.userId,
+      amount: Number(withdrawal.amount),
+      reason: withdrawal.reason,
+      status: withdrawal.status,
+    });
 
     return NextResponse.json({
       success: true,

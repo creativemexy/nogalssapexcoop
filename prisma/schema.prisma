@@ -52,6 +52,7 @@ model User {
   parentOrganization ParentOrganization? @relation("OrganizationUser")
   chargeRecords ChargeRecord[]
   supportTickets SupportTicket[]
+  notifications InAppNotification[]
 
   @@map("users")
 }
@@ -364,6 +365,23 @@ model NotificationLog {
   createdAt     DateTime          @default(now())
   
   @@map("notification_logs")
+}
+
+model InAppNotification {
+  id            String   @id @default(cuid())
+  userId        String   // User who should see this notification (FINANCE user)
+  type          String   // 'WITHDRAWAL_REQUEST', 'EXPENSE_APPROVAL', etc.
+  title         String
+  message       String
+  relatedId     String?  // ID of related entity (e.g., withdrawal ID)
+  relatedType   String?  // Type of related entity (e.g., 'WITHDRAWAL')
+  isRead        Boolean  @default(false)
+  readAt        DateTime?
+  metadata      Json?    // Additional data
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("in_app_notifications")
 }
 
 enum NotificationType {

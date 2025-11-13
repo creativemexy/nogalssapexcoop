@@ -325,6 +325,30 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
+      {/* Withdrawal Permissions - Prominent Card */}
+      <div className="mb-8">
+        <Link href="/dashboard/super-admin/withdrawal-permissions" className="block bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-xl p-6 hover:shadow-2xl transition-all transform hover:scale-[1.02]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-4 bg-white bg-opacity-20 rounded-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+              <div className="ml-6">
+                <h3 className="text-2xl font-bold text-white">Withdrawal Permissions</h3>
+                <p className="text-purple-100 mt-1">Enable or disable withdrawal buttons for Members, Leaders, Cooperatives, and Parent Organizations</p>
+              </div>
+            </div>
+            <div className="text-white">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </Link>
+      </div>
+
       {/* Loan Status Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Link href="/dashboard/super-admin/pending-loans" className="block bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
@@ -800,7 +824,24 @@ export default function SuperAdminDashboard() {
       )}
 
       {/* Quick Actions */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Link href="/dashboard/super-admin/withdrawal-permissions" className="bg-gradient-to-r from-purple-50 to-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border-l-4 border-purple-500 transform hover:scale-105">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Withdrawal Permissions</h3>
+              <p className="text-sm text-gray-500">Enable/disable withdrawal buttons for user roles</p>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/dashboard/super-admin/users" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -967,19 +1008,6 @@ export default function SuperAdminDashboard() {
           </div>
         </Link>
 
-        <Link href="/dashboard/super-admin/withdrawal-permissions" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Withdrawal Permissions</h3>
-              <p className="text-sm text-gray-500">Manage withdrawal access for user roles</p>
-            </div>
-          </div>
-        </Link>
         <Link href="/dashboard/super-admin/settings" className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-2 bg-gray-100 rounded-lg">
