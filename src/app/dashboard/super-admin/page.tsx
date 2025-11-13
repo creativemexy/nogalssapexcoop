@@ -96,6 +96,18 @@ interface NotificationStats {
   };
 }
 
+interface InAppNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  relatedId?: string;
+  relatedType?: string;
+  isRead: boolean;
+  createdAt: string;
+  metadata?: any;
+}
+
 export default function SuperAdminDashboard() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -105,6 +117,9 @@ export default function SuperAdminDashboard() {
   const [registrationFee, setRegistrationFee] = useState<number | null>(null);
   const [global2FAEnabled, setGlobal2FAEnabled] = useState<boolean | null>(null);
   const [notificationPage, setNotificationPage] = useState(1);
+  const [withdrawalNotifications, setWithdrawalNotifications] = useState<InAppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const socket = useSocket();
 
@@ -125,7 +140,58 @@ export default function SuperAdminDashboard() {
     fetchNotificationStats();
     fetchRegistrationFee();
     fetch2FAStatus();
+    fetchWithdrawalNotifications();
+    // Auto-refresh notifications every 30 seconds
+    const interval = setInterval(() => {
+      fetchWithdrawalNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchWithdrawalNotifications = async () => {
+    try {
+      const res = await fetch('/api/admin/notifications?limit=10');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setWithdrawalNotifications(data.notifications || []);
+          setUnreadCount(data.unreadCount || 0);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching withdrawal notifications:', err);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId }),
+      });
+      if (res.ok) {
+        fetchWithdrawalNotifications();
+      }
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true }),
+      });
+      if (res.ok) {
+        fetchWithdrawalNotifications();
+      }
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -203,7 +269,98 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-6">Super Admin Dashboard</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-0">Super Admin Dashboard</h1>
+        <button
+          onClick={() => setShowNotifications(!showNotifications)}
+          className="relative bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center space-x-2 text-sm"
+        >
+          <span>🔔</span>
+          <span>Withdrawal Notifications</span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Withdrawal Notifications Panel */}
+      {showNotifications && (
+        <div className="mb-6 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Withdrawal Notifications
+              {unreadCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadCount} new
+                </span>
+              )}
+            </h2>
+            <div className="flex gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllNotificationsAsRead}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                >
+                  Mark all as read
+                </button>
+              )}
+              <button
+                onClick={() => setShowNotifications(false)}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {withdrawalNotifications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <p>No withdrawal notifications</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {withdrawalNotifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                      !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    }`}
+                    onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900 dark:text-gray-100">{notification.title}</h3>
+                          {!notification.isRead && (
+                            <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                              New
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{notification.message}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      {notification.relatedId && notification.relatedType === 'WITHDRAWAL' && (
+                        <Link
+                          href="/dashboard/super-admin/withdrawals"
+                          className="ml-4 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View All →
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -828,16 +985,30 @@ export default function SuperAdminDashboard() {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Link href="/dashboard/super-admin/withdrawal-permissions" className="bg-gradient-to-r from-purple-50 to-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border-l-4 border-purple-500 transform hover:scale-105">
+        <Link href="/dashboard/super-admin/withdrawals" className="bg-gradient-to-r from-blue-50 to-white dark:from-blue-900 dark:to-gray-900 rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border-l-4 border-blue-500 transform hover:scale-105">
           <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
+              <svg className="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Manage Withdrawals</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">View and process all withdrawal requests</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/super-admin/withdrawal-permissions" className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900 dark:to-gray-900 rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border-l-4 border-purple-500 transform hover:scale-105">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 dark:bg-purple-800 rounded-lg">
+              <svg className="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Withdrawal Permissions</h3>
-              <p className="text-sm text-gray-500">Enable/disable withdrawal buttons for user roles</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Withdrawal Permissions</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Enable/disable withdrawal buttons for user roles</p>
             </div>
           </div>
         </Link>

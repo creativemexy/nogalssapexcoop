@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { sendMail } from '@/lib/email';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { generateSecurePassword } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot reset password for inactive user' }, { status: 400 });
     }
 
-    // Generate a new temporary password
-    const tempPassword = crypto.randomBytes(8).toString('hex');
+    // Generate a secure temporary password that meets complexity requirements
+    const tempPassword = generateSecurePassword(12);
     const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
     // Update user's password

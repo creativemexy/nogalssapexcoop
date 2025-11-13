@@ -4,6 +4,16 @@ import { encode } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { verifyTOTPToken } from '@/lib/utils';
+import {
+  isAccountLocked,
+  recordFailedLoginAttempt,
+  resetFailedLoginAttempts,
+  getRemainingLockoutTime,
+} from '@/lib/account-lockout';
+import {
+  isPasswordExpired,
+  getPasswordExpirationStatus,
+} from '@/lib/password-expiration';
 
 /**
  * Mobile login endpoint that uses NextAuth JWT tokens
@@ -70,17 +80,54 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user || !user.password) {
+      // Don't reveal if user exists for security
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
+    // Check if account is locked
+    const accountLocked = await isAccountLocked(user.id);
+    if (accountLocked) {
+      const remainingMinutes = await getRemainingLockoutTime(user.id);
+      return NextResponse.json(
+        {
+          error: `Account locked due to too many failed login attempts. Please try again in ${remainingMinutes} minute(s) or contact support.`,
+          code: 'ACCOUNT_LOCKED',
+          remainingMinutes,
+        },
+        { status: 423 } // 423 Locked
+      );
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      // Record failed login attempt
+      const lockoutResult = await recordFailedLoginAttempt(user.id);
+      
+      if (lockoutResult.isLocked) {
+        const remainingMinutes = Math.ceil(
+          (lockoutResult.lockoutUntil!.getTime() - new Date().getTime()) / (1000 * 60)
+        );
+        return NextResponse.json(
+          {
+            error: `Too many failed login attempts. Account locked for ${remainingMinutes} minute(s). Please try again later or contact support.`,
+            code: 'ACCOUNT_LOCKED',
+            remainingMinutes,
+            remainingAttempts: 0,
+          },
+          { status: 423 } // 423 Locked
+        );
+      }
+
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        {
+          error: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS',
+          remainingAttempts: lockoutResult.remainingAttempts,
+        },
         { status: 401 }
       );
     }
@@ -138,6 +185,25 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+    }
+
+    // Reset failed login attempts on successful authentication
+    await resetFailedLoginAttempts(user.id);
+
+    // Check if password is expired
+    const passwordExpired = await isPasswordExpired(user.id);
+    if (passwordExpired) {
+      const expirationStatus = await getPasswordExpirationStatus(user.id);
+      return NextResponse.json(
+        {
+          error: 'Your password has expired. Please change your password to continue.',
+          code: 'PASSWORD_EXPIRED',
+          daysExpired: expirationStatus.daysUntilExpiration
+            ? Math.abs(expirationStatus.daysUntilExpiration)
+            : null,
+        },
+        { status: 403 } // 403 Forbidden
+      );
     }
 
     // Create NextAuth JWT token

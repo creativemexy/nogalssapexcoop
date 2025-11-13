@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "accountLockedUntil" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "lastFailedLoginAttempt" TIMESTAMP(3);
+

@@ -51,16 +51,37 @@ function SignInForm() {
       });
 
       if (result?.error) {
-        // Handle specific 2FA errors
-        switch (result.error) {
-          case 'CredentialsSignin':
-            setError('Invalid email or password');
-            break;
-          case 'CallbackRouteError':
-            setError('2FA code is required. Please enter your 6-digit authentication code.');
-            break;
-          default:
-            setError('Invalid email or password');
+        // Handle specific errors
+        const errorMessage = result.error;
+        
+        // Check for password expiration error
+        if (errorMessage.includes('PASSWORD_EXPIRED') || errorMessage.includes('password has expired')) {
+          setError('Your password has expired. Please reset your password to continue.');
+          // Optionally redirect to password reset
+          setTimeout(() => {
+            router.push('/auth/forgot-password');
+          }, 3000);
+        } else if (errorMessage.includes('Account locked') || errorMessage.includes('too many failed login attempts')) {
+          setError(errorMessage);
+        } else {
+          // Handle specific 2FA errors
+          switch (result.error) {
+            case 'CredentialsSignin':
+              setError('Invalid email or password');
+              break;
+            case 'CallbackRouteError':
+              setError('2FA code is required. Please enter your 6-digit authentication code.');
+              break;
+            default:
+              // Check if it's a lockout message
+              if (errorMessage.includes('locked') || errorMessage.includes('failed login attempts')) {
+                setError(errorMessage);
+              } else if (errorMessage.includes('PASSWORD_EXPIRED') || errorMessage.includes('password has expired')) {
+                setError('Your password has expired. Please reset your password to continue.');
+              } else {
+                setError('Invalid email or password');
+              }
+          }
         }
       } else if (result?.ok) {
         // Successful login - register session with IP and user agent

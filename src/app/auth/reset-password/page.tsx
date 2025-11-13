@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PasswordInput from '@/components/ui/PasswordInput';
+import PasswordHints from '@/components/ui/PasswordHints';
+import { validatePassword, getPasswordPolicyMessage } from '@/lib/utils';
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState('');
@@ -37,8 +39,15 @@ function ResetPasswordForm() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    // Enforce strong password policy
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(
+        'Password does not meet security requirements:\n' +
+        passwordValidation.errors.join('\n') +
+        '\n\n' +
+        getPasswordPolicyMessage()
+      );
       setIsLoading(false);
       return;
     }
@@ -118,9 +127,7 @@ function ResetPasswordForm() {
                     autoComplete="new-password"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Password must be at least 8 characters long
-                </p>
+                {password && <PasswordHints password={password} />}
               </div>
 
               <div>

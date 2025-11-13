@@ -37,12 +37,30 @@ export const PasswordResetRequestSchema = z.object({
 
 export const PasswordResetSchema = z.object({
   token: z.string().min(1, 'Reset token is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').refine(
+    (password) => {
+      // Import here to avoid circular dependency
+      const { isStrongPassword } = require('@/lib/utils');
+      return isStrongPassword(password);
+    },
+    {
+      message: 'Password must contain uppercase, lowercase, number, and special character',
+    }
+  ),
 });
 
 export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters').refine(
+    (password) => {
+      // Import here to avoid circular dependency
+      const { isStrongPassword } = require('@/lib/utils');
+      return isStrongPassword(password);
+    },
+    {
+      message: 'Password must contain uppercase, lowercase, number, and special character',
+    }
+  ),
 });
 
 export const UpdateProfileSchema = z.object({
@@ -164,6 +182,10 @@ export class IdentityService {
       },
     });
 
+    // Initialize password expiration for new user
+    const { updatePasswordExpiration } = await import('@/lib/password-expiration');
+    await updatePasswordExpiration(user.id);
+
     // Generate tokens
     const tokens = this.generateTokens(user.id, user.email, user.role);
 
@@ -186,6 +208,14 @@ export class IdentityService {
 
   // User Login
   async login(data: LoginData): Promise<{ user: UserProfile; tokens: AuthTokens }> {
+    // Import account lockout functions
+    const {
+      isAccountLocked,
+      recordFailedLoginAttempt,
+      resetFailedLoginAttempts,
+      getRemainingLockoutTime,
+    } = await import('@/lib/account-lockout');
+
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: data.email },
@@ -200,10 +230,48 @@ export class IdentityService {
       throw new Error('Account is deactivated');
     }
 
+    // Check if account is locked
+    const accountLocked = await isAccountLocked(user.id);
+    if (accountLocked) {
+      const remainingMinutes = await getRemainingLockoutTime(user.id);
+      throw new Error(
+        `Account locked due to too many failed login attempts. Please try again in ${remainingMinutes} minute(s) or contact support.`
+      );
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(data.password, user.password);
     if (!isPasswordValid) {
+      // Record failed login attempt
+      const lockoutResult = await recordFailedLoginAttempt(user.id);
+      
+      if (lockoutResult.isLocked) {
+        const remainingMinutes = Math.ceil(
+          (lockoutResult.lockoutUntil!.getTime() - new Date().getTime()) / (1000 * 60)
+        );
+        throw new Error(
+          `Too many failed login attempts. Account locked for ${remainingMinutes} minute(s). Please try again later or contact support.`
+        );
+      }
+      
       throw new Error('Invalid email or password');
+    }
+
+    // Reset failed login attempts on successful authentication
+    await resetFailedLoginAttempts(user.id);
+
+    // Check if password is expired
+    const {
+      isPasswordExpired,
+      getPasswordExpirationStatus,
+    } = await import('@/lib/password-expiration');
+    
+    const passwordExpired = await isPasswordExpired(user.id);
+    if (passwordExpired) {
+      const expirationStatus = await getPasswordExpirationStatus(user.id);
+      throw new Error(
+        `PASSWORD_EXPIRED: Your password has expired. Please change your password to continue. Days expired: ${expirationStatus.daysUntilExpiration ? Math.abs(expirationStatus.daysUntilExpiration) : 'unknown'}`
+      );
     }
 
     // Generate tokens
@@ -391,6 +459,10 @@ This link will expire in 1 hour. If you didn't request this, please ignore this 
       }
     });
 
+    // Update password expiration
+    const { updatePasswordExpiration } = await import('@/lib/password-expiration');
+    await updatePasswordExpiration(user.id);
+
     // Log the password reset
     await prisma.log.create({
       data: {
@@ -425,6 +497,10 @@ This link will expire in 1 hour. If you didn't request this, please ignore this 
       where: { id: userId },
       data: { password: hashedPassword },
     });
+
+    // Update password expiration
+    const { updatePasswordExpiration } = await import('@/lib/password-expiration');
+    await updatePasswordExpiration(userId);
   }
 
   // Update Profile

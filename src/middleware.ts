@@ -12,8 +12,8 @@ import {
   handleCORSRequest,
   createSecurityHeadersMiddleware 
 } from '@/middleware/security-headers';
-import { SessionManager } from '@/lib/session-manager';
-// Note: securityConfig will be imported dynamically to avoid Edge Runtime issues
+// Note: SessionManager cannot be used in middleware as it uses Prisma which doesn't work on Edge Runtime
+// Session validation is handled via JWT expiration and in API routes instead
 
 // Run environment validation once on startup
 let envValidated = false;
@@ -96,28 +96,14 @@ export async function middleware(request: NextRequest) {
     return applySecurityHeaders(request, response);
   }
 
-  // Check session timeout
+  // Check session timeout (JWT expiration)
+  // Note: Database session validation cannot be done in middleware (Edge Runtime limitation)
+  // Database session validation happens in API routes and server components instead
   if (token.exp && Date.now() / 1000 > (token.exp as number)) {
     const response = NextResponse.redirect(new URL('/auth/signin?error=SessionExpired', request.url));
+    response.cookies.delete('next-auth.session-token');
+    response.cookies.delete('__Secure-next-auth.session-token');
     return applySecurityHeaders(request, response);
-  }
-
-  // Validate session in database for inactivity timeout enforcement
-  const sessionId = (token as any).sessionId;
-  if (sessionId && token.id) {
-    try {
-      const sessionInfo = await SessionManager.validateSession(sessionId);
-      if (!sessionInfo) {
-        // Session expired or invalidated, force logout
-        const response = NextResponse.redirect(new URL('/auth/signin?error=SessionExpired', request.url));
-        response.cookies.delete('next-auth.session-token');
-        response.cookies.delete('__Secure-next-auth.session-token');
-        return applySecurityHeaders(request, response);
-      }
-    } catch (error) {
-      console.error('Session validation error in middleware:', error);
-      // On error, allow request to continue but log it
-    }
   }
 
   // Role-based access control

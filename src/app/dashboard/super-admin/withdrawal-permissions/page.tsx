@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface WithdrawalPermissions {
   MEMBER: boolean;
@@ -108,8 +109,16 @@ export default function WithdrawalPermissionsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Withdrawal Permissions</h1>
-        <p className="text-gray-600">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Withdrawal Permissions</h1>
+          <Link
+            href="/dashboard/super-admin"
+            className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+          >
+            ← Back to Dashboard
+          </Link>
+        </div>
+        <p className="text-gray-600 dark:text-gray-400">
           Enable or disable withdrawal functionality for each user role. When disabled, users will not be able to request withdrawals.
         </p>
       </div>
@@ -126,10 +135,10 @@ export default function WithdrawalPermissionsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">User Role Permissions</h2>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">User Role Permissions</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Toggle withdrawal access for each user role below
           </p>
         </div>
@@ -138,11 +147,11 @@ export default function WithdrawalPermissionsPage() {
           {(Object.keys(permissions) as Array<keyof WithdrawalPermissions>).map((role) => (
             <div
               key={role}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               <div className="flex-1">
-                <h3 className="text-lg font-medium text-gray-900">{roleLabels[role]}</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">{roleLabels[role]}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {permissions[role]
                     ? 'Withdrawals are currently enabled for this role'
                     : 'Withdrawals are currently disabled for this role'}
@@ -161,12 +170,12 @@ export default function WithdrawalPermissionsPage() {
           ))}
         </div>
 
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <div className="flex justify-end gap-3">
             <button
               onClick={fetchPermissions}
               disabled={saving}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -188,9 +197,9 @@ export default function WithdrawalPermissionsPage() {
         </div>
       </div>
 
-      <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Important Notes</h3>
-        <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+      <div className="mt-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">⚠️ Important Notes</h3>
+        <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 list-disc list-inside">
           <li>When withdrawals are disabled, users will not see withdrawal buttons or be able to access withdrawal pages</li>
           <li>Existing withdrawal requests will still be visible but new requests cannot be submitted</li>
           <li>Changes take effect immediately after saving</li>

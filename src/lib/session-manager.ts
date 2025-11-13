@@ -55,32 +55,53 @@ export class SessionManager {
 
   /**
    * Validate a session and update its expiration
+   * Optimized with timeout to prevent connection pool exhaustion
    */
   static async validateSession(sessionId: string): Promise<SessionInfo | null> {
-    const session = await prisma.userSession.findUnique({
-      where: { sessionId },
-    });
+    try {
+      // Add timeout to prevent hanging connections
+      const session = await Promise.race([
+        prisma.userSession.findUnique({
+          where: { sessionId },
+        }),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Session validation timeout')), 5000)
+        ),
+      ]) as any;
 
-    if (!session || !session.isActive || session.expiresAt < new Date()) {
-      return null;
+      if (!session || !session.isActive || session.expiresAt < new Date()) {
+        return null;
+      }
+
+      // Update expiration time
+      const newExpiresAt = new Date(Date.now() + this.SESSION_TIMEOUT);
+      await Promise.race([
+        prisma.userSession.update({
+          where: { id: session.id },
+          data: { expiresAt: newExpiresAt },
+        }),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Session update timeout')), 5000)
+        ),
+      ]) as any;
+
+      return {
+        id: session.id,
+        sessionId: session.sessionId,
+        ipAddress: session.ipAddress || undefined,
+        userAgent: session.userAgent || undefined,
+        isActive: session.isActive,
+        createdAt: session.createdAt,
+        expiresAt: newExpiresAt,
+      };
+    } catch (error) {
+      // If timeout or connection error, return null to allow retry
+      if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('connection pool'))) {
+        console.warn('Session validation timeout/connection error:', error.message);
+        return null;
+      }
+      throw error;
     }
-
-    // Update expiration time
-    const newExpiresAt = new Date(Date.now() + this.SESSION_TIMEOUT);
-    await prisma.userSession.update({
-      where: { id: session.id },
-      data: { expiresAt: newExpiresAt },
-    });
-
-    return {
-      id: session.id,
-      sessionId: session.sessionId,
-      ipAddress: session.ipAddress || undefined,
-      userAgent: session.userAgent || undefined,
-      isActive: session.isActive,
-      createdAt: session.createdAt,
-      expiresAt: newExpiresAt,
-    };
   }
 
   /**

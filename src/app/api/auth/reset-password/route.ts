@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { validatePassword, getPasswordPolicyMessage } from '@/lib/utils';
+import { updatePasswordExpiration } from '@/lib/password-expiration';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +14,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Token and password are required' }, { status: 400 });
     }
 
-    if (password.length < 8) {
-      return NextResponse.json({ message: 'Password must be at least 8 characters long' }, { status: 400 });
+    // Enforce strong password policy
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json({ 
+        message: 'Password does not meet security requirements',
+        errors: passwordValidation.errors,
+        policy: getPasswordPolicyMessage()
+      }, { status: 400 });
     }
 
     // Validate token format
@@ -54,6 +62,9 @@ export async function POST(request: NextRequest) {
         resetTokenExpiry: null
       }
     });
+
+    // Update password expiration
+    await updatePasswordExpiration(user.id);
 
     // Log the password reset
     await prisma.log.create({

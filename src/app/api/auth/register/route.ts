@@ -75,6 +75,11 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: 'A co-operative with this registration number already exists.' }, { status: 409 });
             }
 
+            // Enforce strong password policy for leader
+            if (!isStrongPassword(leaderPassword)) {
+                return NextResponse.json({ error: getPasswordPolicyMessage() }, { status: 400 });
+            }
+
             // Validate parent organization exists and is active
             const parentOrganization = await prisma['parentOrganization'].findUnique({
                 where: { id: parentOrganizationId },

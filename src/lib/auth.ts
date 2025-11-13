@@ -5,6 +5,16 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyTOTPToken } from "@/lib/utils";
 import { SessionManager } from "@/lib/session-manager";
+import {
+  isAccountLocked,
+  recordFailedLoginAttempt,
+  resetFailedLoginAttempts,
+  getRemainingLockoutTime,
+} from "@/lib/account-lockout";
+import {
+  isPasswordExpired,
+  getPasswordExpirationStatus,
+} from "@/lib/password-expiration";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -85,7 +95,17 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (!user || !user.password) {
+            // Don't reveal if user exists for security
             return null;
+          }
+
+          // Check if account is locked
+          const accountLocked = await isAccountLocked(user.id);
+          if (accountLocked) {
+            const remainingMinutes = await getRemainingLockoutTime(user.id);
+            throw new Error(
+              `Account locked due to too many failed login attempts. Please try again in ${remainingMinutes} minute(s) or contact support.`
+            );
           }
 
           const isPasswordValid = await bcrypt.compare(
@@ -94,6 +114,19 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isPasswordValid) {
+            // Record failed login attempt
+            const lockoutResult = await recordFailedLoginAttempt(user.id);
+            
+            if (lockoutResult.isLocked) {
+              const remainingMinutes = Math.ceil(
+                (lockoutResult.lockoutUntil!.getTime() - new Date().getTime()) / (1000 * 60)
+              );
+              throw new Error(
+                `Too many failed login attempts. Account locked for ${remainingMinutes} minute(s). Please try again later or contact support.`
+              );
+            }
+            
+            // Don't reveal if password is wrong or user doesn't exist (security best practice)
             return null;
           }
 
@@ -165,6 +198,18 @@ export const authOptions: NextAuthOptions = {
             }
             // If no 2FA is required, continue with normal login
             console.log('No 2FA required, proceeding with normal login');
+          }
+
+          // Reset failed login attempts on successful authentication (after password and 2FA verification)
+          await resetFailedLoginAttempts(user.id);
+
+          // Check if password is expired
+          const passwordExpired = await isPasswordExpired(user.id);
+          if (passwordExpired) {
+            const expirationStatus = await getPasswordExpirationStatus(user.id);
+            throw new Error(
+              `PASSWORD_EXPIRED: Your password has expired. Please change your password to continue. Days expired: ${expirationStatus.daysUntilExpiration ? Math.abs(expirationStatus.daysUntilExpiration) : 'unknown'}`
+            );
           }
 
           console.log('Authentication successful, returning user data');
@@ -263,21 +308,43 @@ export const authOptions: NextAuthOptions = {
       }
       
       // On each request, validate and update session expiration
+      // Optimized: Only validate if token is close to expiring or hasn't been validated recently
+      // This reduces database queries and prevents connection pool exhaustion
       if (token.sessionId && token.id) {
-        try {
-          const sessionInfo = await SessionManager.validateSession(token.sessionId as string);
-          if (!sessionInfo) {
-            // Session expired or invalid, clear token
-            token.sessionId = undefined;
-            token.exp = 0; // Force expiration
-          } else {
-            // Update token expiration based on session expiration
-            token.exp = Math.floor(sessionInfo.expiresAt.getTime() / 1000);
+        const now = Math.floor(Date.now() / 1000);
+        const tokenExp = (token.exp as number) || 0;
+        const timeUntilExpiry = tokenExp - now;
+        
+        // Only validate session if:
+        // 1. Token is expired or expiring soon (within 5 minutes)
+        // 2. Or if we haven't validated recently (validate at most once per minute)
+        const lastValidation = (token.lastSessionValidation as number) || 0;
+        const shouldValidate = timeUntilExpiry < 300 || (now - lastValidation) > 60;
+        
+        if (shouldValidate) {
+          try {
+            const sessionInfo = await SessionManager.validateSession(token.sessionId as string);
+            if (!sessionInfo) {
+              // Session expired or invalid, clear token
+              token.sessionId = undefined;
+              token.exp = 0; // Force expiration
+            } else {
+              // Update token expiration based on session expiration
+              token.exp = Math.floor(sessionInfo.expiresAt.getTime() / 1000);
+              token.lastSessionValidation = now; // Track when we last validated
+            }
+          } catch (error) {
+            // If validation fails due to connection pool, don't invalidate the session
+            // Just log and continue with existing token expiration
+            if (error instanceof Error && error.message.includes('connection pool')) {
+              console.warn('Session validation skipped due to connection pool timeout. Will retry on next request.');
+              // Don't update lastSessionValidation so we'll retry sooner
+            } else {
+              console.error('Failed to validate session:', error);
+              token.sessionId = undefined;
+              token.exp = 0;
+            }
           }
-        } catch (error) {
-          console.error('Failed to validate session:', error);
-          token.sessionId = undefined;
-          token.exp = 0;
         }
       }
       

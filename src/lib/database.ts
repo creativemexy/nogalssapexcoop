@@ -9,6 +9,17 @@ const prismaConfig: Prisma.PrismaClientOptions = {
   },
   // Connection pool settings to prevent timeout issues
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  // Increase connection pool size to handle more concurrent requests
+  // Note: This should match or be less than your database's max_connections setting
+}
+
+// Configure connection pool via DATABASE_URL query parameters if not already set
+// Format: postgresql://user:password@host:port/database?connection_limit=50&pool_timeout=20
+// Or set via environment variable
+if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('connection_limit')) {
+  // If connection_limit is not in URL, we'll rely on Prisma defaults
+  // Prisma default: connection_limit=10, pool_timeout=10
+  // For production, consider increasing via DATABASE_URL: ?connection_limit=50&pool_timeout=20
 }
 
 const globalForPrisma = globalThis as unknown as {

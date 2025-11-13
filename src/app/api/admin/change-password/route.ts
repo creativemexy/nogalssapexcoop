@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { isStrongPassword, getPasswordPolicyMessage } from '@/lib/utils';
+import { updatePasswordExpiration } from '@/lib/password-expiration';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest) {
       where: { email: session.user.email },
       data: { password: hashedNewPassword }
     });
+
+    // Update password expiration
+    await updatePasswordExpiration(user.id);
 
     return NextResponse.json({ message: 'Password changed successfully' });
 

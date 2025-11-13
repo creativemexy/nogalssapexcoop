@@ -3,6 +3,9 @@
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import Link from 'next/link';
+import PasswordInput from '@/components/ui/PasswordInput';
+import PasswordHints from '@/components/ui/PasswordHints';
+import { validatePassword, getPasswordPolicyMessage } from '@/lib/utils';
 
 export default function ParentOrganizationChangePasswordPage() {
   const { data: session } = useSession();
@@ -31,8 +34,15 @@ export default function ParentOrganizationChangePasswordPage() {
       return;
     }
 
-    if (formData.newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
+    // Enforce strong password policy
+    const passwordValidation = validatePassword(formData.newPassword);
+    if (!passwordValidation.isValid) {
+      setError(
+        'Password does not meet security requirements:\n' +
+        passwordValidation.errors.join('\n') +
+        '\n\n' +
+        getPasswordPolicyMessage()
+      );
       return;
     }
 
@@ -166,35 +176,31 @@ export default function ParentOrganizationChangePasswordPage() {
               <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 New Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="newPassword"
                 name="newPassword"
                 value={formData.newPassword}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your new password"
                 required
-                minLength={8}
+                autoComplete="new-password"
                 disabled={loading}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Password must be at least 8 characters long
-              </p>
+              {formData.newPassword && <PasswordHints password={formData.newPassword} />}
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm New Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Confirm your new password"
                 required
-                minLength={8}
+                autoComplete="new-password"
                 disabled={loading}
               />
             </div>
@@ -203,9 +209,13 @@ export default function ParentOrganizationChangePasswordPage() {
             <div className="bg-blue-50 rounded-md p-4">
               <h4 className="text-sm font-medium text-blue-800 mb-2">Password Requirements:</h4>
               <ul className="text-xs text-blue-700 space-y-1">
-                <li>• At least 8 characters long</li>
+                <li>• At least 8 characters long (recommended: 12+)</li>
+                <li>• At least one uppercase letter (A-Z)</li>
+                <li>• At least one lowercase letter (a-z)</li>
+                <li>• At least one number (0-9)</li>
+                <li>• At least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)</li>
                 <li>• Must be different from your current password</li>
-                <li>• Use a combination of letters, numbers, and symbols for better security</li>
+                <li>• Avoid common patterns and sequential characters</li>
               </ul>
             </div>
 

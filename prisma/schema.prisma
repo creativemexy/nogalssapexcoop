@@ -8,92 +8,98 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String?        @unique
-  password      String
-  firstName     String
-  lastName      String
-  phoneNumber   String?        @unique
-  dateOfBirth   DateTime?
-  address       String?
-  profileImage  String?
-  nextOfKinName String?
-  nextOfKinPhone String?
-  nin           String?        @unique
-  role          UserRole       @default(MEMBER)
-  isActive      Boolean        @default(true)
-  isVerified    Boolean        @default(false)
-  twoFactorEnabled Boolean     @default(false)
-  twoFactorSecret  String?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  cooperativeId String?
-  businessId    String?
-  title         String?
-  apex          Apex?
-  contributions Contribution[]
-  leader        Leader?
-  loans         Loan[]
-  payments      Payment[]
-  transactions  Transaction[]
-  business      Business?      @relation(fields: [businessId], references: [id])
-  cooperative   Cooperative?   @relation(fields: [cooperativeId], references: [id])
-  sessions      UserSession[]
-  events        Event[]
-  virtualAccount VirtualAccount?
-  pendingContributions PendingContribution[]
-  withdrawals Withdrawal[]
-  expensesCreated Expense[]
-  expensesApproved Expense[] @relation("ExpenseApprover")
-  investments UserInvestment[]
-  parentOrganizationsCreated ParentOrganization[] @relation("OrganizationCreator")
-  parentOrganization ParentOrganization? @relation("OrganizationUser")
-  chargeRecords ChargeRecord[]
-  supportTickets SupportTicket[]
-  notifications InAppNotification[]
+  id                         String                @id @default(cuid())
+  email                      String?               @unique
+  password                   String
+  firstName                  String
+  lastName                   String
+  phoneNumber                String?               @unique
+  dateOfBirth                DateTime?
+  address                    String?
+  profileImage               String?
+  nextOfKinName              String?
+  nextOfKinPhone             String?
+  nin                        String?               @unique
+  role                       UserRole              @default(MEMBER)
+  isActive                   Boolean               @default(true)
+  isVerified                 Boolean               @default(false)
+  twoFactorEnabled           Boolean               @default(false)
+  twoFactorSecret            String?
+  resetToken                 String?
+  resetTokenExpiry           DateTime?
+  failedLoginAttempts        Int                   @default(0)
+  accountLockedUntil         DateTime?
+  lastFailedLoginAttempt     DateTime?
+  passwordChangedAt          DateTime?
+  passwordExpiresAt          DateTime?
+  passwordExpired            Boolean               @default(false)
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+  cooperativeId              String?
+  businessId                 String?
+  title                      String?
+  apex                       Apex?
+  contributions              Contribution[]
+  leader                     Leader?
+  loans                      Loan[]
+  payments                   Payment[]
+  transactions               Transaction[]
+  business                   Business?             @relation(fields: [businessId], references: [id])
+  cooperative                Cooperative?          @relation(fields: [cooperativeId], references: [id])
+  sessions                   UserSession[]
+  events                     Event[]
+  virtualAccount             VirtualAccount?
+  pendingContributions       PendingContribution[]
+  withdrawals                Withdrawal[]
+  expensesCreated            Expense[]
+  expensesApproved           Expense[]             @relation("ExpenseApprover")
+  investments                UserInvestment[]
+  parentOrganizationsCreated ParentOrganization[]  @relation("OrganizationCreator")
+  parentOrganization         ParentOrganization?   @relation("OrganizationUser")
+  chargeRecords              ChargeRecord[]
+  supportTickets             SupportTicket[]
+  notifications              InAppNotification[]
 
   @@map("users")
 }
 
 model Cooperative {
-  id                 String         @id @default(cuid())
-  name               String
-  registrationNumber String         @unique
-  address            String
-  phoneNumber        String
-  email              String
-  description        String?
-  logo               String?
-  isActive           Boolean        @default(true)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  bankAccountNumber  String
-  bankAccountName    String
-  bankName           String
-  city               String
-  approved           Boolean?       @default(false)
-  approvedAt         DateTime?
-  approvedBy         String?
-  bankId             String?
-  lgaId              String?
-  stateId            String?
-  type               String?
+  id                   String                @id @default(cuid())
+  name                 String
+  registrationNumber   String                @unique
+  address              String
+  phoneNumber          String
+  email                String
+  description          String?
+  logo                 String?
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  bankAccountNumber    String
+  bankAccountName      String
+  bankName             String
+  city                 String
+  approved             Boolean?              @default(false)
+  approvedAt           DateTime?
+  approvedBy           String?
+  bankId               String?
+  lgaId                String?
+  stateId              String?
+  type                 String?
   parentOrganizationId String
-  contributions      Contribution[]
-  bank               Bank?          @relation(fields: [bankId], references: [id])
-  lga                Lga?           @relation(fields: [lgaId], references: [id])
-  state              State?         @relation(fields: [stateId], references: [id])
-  parentOrganization ParentOrganization @relation(fields: [parentOrganizationId], references: [id])
-  leader             Leader?
-  loans              Loan[]
-  payments           Payment[]
-  transactions       Transaction[]
-  members            User[]
+  contributions        Contribution[]
+  bank                 Bank?                 @relation(fields: [bankId], references: [id])
+  lga                  Lga?                  @relation(fields: [lgaId], references: [id])
+  state                State?                @relation(fields: [stateId], references: [id])
+  parentOrganization   ParentOrganization    @relation(fields: [parentOrganizationId], references: [id])
+  leader               Leader?
+  loans                Loan[]
+  payments             Payment[]
+  transactions         Transaction[]
+  members              User[]
   pendingContributions PendingContribution[]
-  investments        UserInvestment[]
-  chargeRecords      ChargeRecord[]
+  investments          UserInvestment[]
+  chargeRecords        ChargeRecord[]
 
   @@map("cooperatives")
 }
@@ -133,18 +139,18 @@ model Apex {
 }
 
 model Business {
-  id                 String        @id @default(cuid())
+  id                 String         @id @default(cuid())
   name               String
-  registrationNumber String        @unique
+  registrationNumber String         @unique
   businessType       String
   address            String
   phoneNumber        String
   email              String
   description        String?
   logo               String?
-  isActive           Boolean       @default(true)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  isActive           Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   payments           Payment[]
   transactions       Transaction[]
   users              User[]
@@ -259,7 +265,7 @@ model Bank {
   currency     String?
   type         String?
   isDeleted    Int?          @default(0)
-  paystackCode String?       // Paystack bank code for account resolution
+  paystackCode String? // Paystack bank code for account resolution
   cooperatives Cooperative[]
 
   @@map("banks")
@@ -294,9 +300,9 @@ model Setting {
 model Partner {
   id          String   @id @default(cuid())
   name        String
-  logo        String   // URL to logo image
-  website     String?  // Optional partner website
-  description String?  // Optional description
+  logo        String // URL to logo image
+  website     String? // Optional partner website
+  description String? // Optional description
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -319,22 +325,22 @@ model EmergencyAlert {
   id        String   @id @default(cuid())
   title     String
   message   String
-  severity  String   // e.g., 'CRITICAL', 'WARNING'
+  severity  String // e.g., 'CRITICAL', 'WARNING'
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  createdBy String   // userId of the super admin
+  createdBy String // userId of the super admin
 }
 
 model SystemSettings {
-  id                String   @id @default(cuid())
-  category          String   // 'general', 'branding', 'payment', 'notification', 'security', 'privacy'
-  key               String   // Setting key
-  value             String   // Setting value (JSON string for complex data)
-  description       String?  // Human-readable description
-  isActive          Boolean  @default(true)
-  updatedAt         DateTime @updatedAt
-  updatedBy         String   // userId of the admin who updated
-  
+  id          String   @id @default(cuid())
+  category    String // 'general', 'branding', 'payment', 'notification', 'security', 'privacy'
+  key         String // Setting key
+  value       String // Setting value (JSON string for complex data)
+  description String? // Human-readable description
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  updatedBy   String // userId of the admin who updated
+
   @@unique([category, key])
   @@map("system_settings")
 }
@@ -350,36 +356,36 @@ model Occupation {
 }
 
 model NotificationLog {
-  id            String            @id @default(cuid())
-  type          NotificationType  // 'EMAIL' or 'SMS'
-  recipient     String            // email address or phone number
-  subject       String?           // email subject (null for SMS)
-  message       String            // message content
-  status        NotificationStatus @default(PENDING) // 'PENDING', 'SENT', 'FAILED'
-  provider      String?           // 'resend', 'sms_provider', etc.
-  providerId    String?           // external provider message ID
-  cost          Float?            // cost in Naira (for SMS)
-  errorMessage  String?           // error details if failed
-  metadata      Json?             // additional data (user info, etc.)
-  sentAt        DateTime?         // when notification was sent
-  createdAt     DateTime          @default(now())
-  
+  id           String             @id @default(cuid())
+  type         NotificationType // 'EMAIL' or 'SMS'
+  recipient    String // email address or phone number
+  subject      String? // email subject (null for SMS)
+  message      String // message content
+  status       NotificationStatus @default(PENDING) // 'PENDING', 'SENT', 'FAILED'
+  provider     String? // 'resend', 'sms_provider', etc.
+  providerId   String? // external provider message ID
+  cost         Float? // cost in Naira (for SMS)
+  errorMessage String? // error details if failed
+  metadata     Json? // additional data (user info, etc.)
+  sentAt       DateTime? // when notification was sent
+  createdAt    DateTime           @default(now())
+
   @@map("notification_logs")
 }
 
 model InAppNotification {
-  id            String   @id @default(cuid())
-  userId        String   // User who should see this notification (FINANCE user)
-  type          String   // 'WITHDRAWAL_REQUEST', 'EXPENSE_APPROVAL', etc.
-  title         String
-  message       String
-  relatedId     String?  // ID of related entity (e.g., withdrawal ID)
-  relatedType   String?  // Type of related entity (e.g., 'WITHDRAWAL')
-  isRead        Boolean  @default(false)
-  readAt        DateTime?
-  metadata      Json?    // Additional data
-  createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String // User who should see this notification (FINANCE user)
+  type        String // 'WITHDRAWAL_REQUEST', 'EXPENSE_APPROVAL', etc.
+  title       String
+  message     String
+  relatedId   String? // ID of related entity (e.g., withdrawal ID)
+  relatedType String? // Type of related entity (e.g., 'WITHDRAWAL')
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  metadata    Json? // Additional data
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("in_app_notifications")
 }
@@ -425,7 +431,7 @@ enum TransactionType {
 }
 
 model Event {
-  id          String      @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   date        DateTime
@@ -433,13 +439,13 @@ model Event {
   location    String?
   image       String?
   category    String?
-  attendees   Int?        @default(0)
-  isPublished Boolean     @default(false)
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  attendees   Int?     @default(0)
+  isPublished Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdBy   String
-  creator     User        @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  creator     User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   @@map("events")
 }
@@ -447,7 +453,7 @@ model Event {
 model VirtualAccount {
   id            String   @id @default(cuid())
   userId        String   @unique
-  accountType   String   // 'MEMBER', 'LEADER', 'COOPERATIVE'
+  accountType   String // 'MEMBER', 'LEADER', 'COOPERATIVE'
   accountName   String
   accountNumber String
   bankName      String
@@ -463,8 +469,8 @@ model VirtualAccount {
 
 model PendingRegistration {
   id        String   @id @default(cuid())
-  type      String   // 'COOPERATIVE', 'MEMBER'
-  data      String   // JSON string of registration data
+  type      String // 'COOPERATIVE', 'MEMBER'
+  data      String // JSON string of registration data
   reference String   @unique
   status    String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED'
   createdAt DateTime @default(now())
@@ -474,34 +480,34 @@ model PendingRegistration {
 }
 
 model PendingContribution {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   userId        String
   cooperativeId String
   amount        Decimal
-  reference     String   @unique
-  status        String   @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED'
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reference     String      @unique
+  status        String      @default("PENDING") // 'PENDING', 'COMPLETED', 'FAILED'
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
 
   @@map("pending_contributions")
 }
 
 model Withdrawal {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   amount      Decimal
   reason      String
-  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PROCESSED'
-  requestedAt DateTime @default(now())
+  status      String    @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PROCESSED'
+  requestedAt DateTime  @default(now())
   processedAt DateTime?
   processedBy String?
   notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("withdrawals")
 }
@@ -522,104 +528,104 @@ model ContactMessage {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   description String?
   amount      Decimal
-  category    String   // 'OFFICE_SUPPLIES', 'UTILITIES', 'TRAVEL', 'MARKETING', 'MAINTENANCE', 'OTHER'
-  status      String   @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PAID'
+  category    String // 'OFFICE_SUPPLIES', 'UTILITIES', 'TRAVEL', 'MARKETING', 'MAINTENANCE', 'OTHER'
+  status      String    @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED', 'PAID'
   receiptUrl  String?
   createdBy   String
   approvedBy  String?
   approvedAt  DateTime?
   paidAt      DateTime?
   notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  creator     User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  approver    User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  creator  User  @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  approver User? @relation("ExpenseApprover", fields: [approvedBy], references: [id])
 
   @@map("expenses")
 }
 
 model UserInvestment {
-  id            String   @id @default(cuid())
-  userId        String
-  cooperativeId String
-  amount        Int      // Amount in kobo
-  type          String   // 'FIXED_DEPOSIT', 'SAVINGS_BOND', 'TREASURY_BILL', 'MUTUAL_FUND'
-  status        String   @default("PENDING") // 'PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'
-  description   String?
-  startDate     DateTime?
-  endDate       DateTime?
-  interestRate  Decimal?
-  maturityAmount Int?    // Maturity amount in kobo
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cooperative   Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  userId         String
+  cooperativeId  String
+  amount         Int // Amount in kobo
+  type           String // 'FIXED_DEPOSIT', 'SAVINGS_BOND', 'TREASURY_BILL', 'MUTUAL_FUND'
+  status         String    @default("PENDING") // 'PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'
+  description    String?
+  startDate      DateTime?
+  endDate        DateTime?
+  interestRate   Decimal?
+  maturityAmount Int? // Maturity amount in kobo
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cooperative Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Cascade)
 
   @@map("investments")
 }
 
 model ParentOrganization {
-  id            String   @id @default(cuid())
-  name          String
-  description   String?
-  contactEmail  String
-  contactPhone  String?
-  address       String?
-  website       String?
-  logo          String?
-  parentId      String?  // Self-referencing for hierarchy
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  createdBy     String   // User ID who created this organization
-  
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  contactEmail String
+  contactPhone String?
+  address      String?
+  website      String?
+  logo         String?
+  parentId     String? // Self-referencing for hierarchy
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String // User ID who created this organization
+
   // User account fields
-  userId        String?  @unique // Associated user account
+  userId          String? @unique // Associated user account
   defaultPassword String? // Default password for the organization
-  
+
   // CAC Registration Details
-  rcNumber      String?
-  companyType   String?
-  registrationDate DateTime?
+  rcNumber           String?
+  companyType        String?
+  registrationDate   DateTime?
   businessActivities String?
-  
+
   // Additional CAC Information
-  tin           String?
-  vatNumber     String?
+  tin            String?
+  vatNumber      String?
   registryNumber String?
-  companyStatus String?
-  city          String?
-  state         String?
-  lga           String?
-  branchAddress String?
-  objectives    String?
-  
+  companyStatus  String?
+  city           String?
+  state          String?
+  lga            String?
+  branchAddress  String?
+  objectives     String?
+
   // Share Capital Information
-  shareCapitalInWords String?
-  paidUpCapital       String?
+  shareCapitalInWords    String?
+  paidUpCapital          String?
   subscribedShareCapital String?
-  sharesIssued        String?
-  sharesValue         String?
-  
+  sharesIssued           String?
+  sharesValue            String?
+
   // Company Contact Persons
   companyContactName  String?
   companyContactEmail String?
   companyContactPhone String?
-  
+
   // Key Personnel - Secretary
   secretaryName    String?
   secretaryEmail   String?
   secretaryPhone   String?
   secretaryAddress String?
-  
+
   // Directors
   director1Name        String?
   director1Email       String?
@@ -627,33 +633,33 @@ model ParentOrganization {
   director1Address     String?
   director1Occupation  String?
   director1Nationality String?
-  
+
   // Shareholders
   shareholder1Name        String?
   shareholder1Shares      String?
   shareholder1Percentage  String?
   shareholder1Address     String?
   shareholder1Nationality String?
-  
+
   // President Details
   presidentFirstName String?
   presidentLastName  String?
   presidentEmail     String?
   presidentPhone     String?
-  
+
   // Bank Details
-  bankName           String?
-  bankAccountNumber  String?
-  bankAccountName    String?
-  
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountName   String?
+
   // Self-referencing relationship for hierarchy
-  parent        ParentOrganization? @relation("OrganizationHierarchy", fields: [parentId], references: [id])
-  children      ParentOrganization[] @relation("OrganizationHierarchy")
-  
+  parent   ParentOrganization?  @relation("OrganizationHierarchy", fields: [parentId], references: [id])
+  children ParentOrganization[] @relation("OrganizationHierarchy")
+
   // Relations to other entities
-  cooperatives  Cooperative[]
-  creator       User @relation("OrganizationCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  user          User? @relation("OrganizationUser", fields: [userId], references: [id], onDelete: SetNull)
+  cooperatives   Cooperative[]
+  creator        User            @relation("OrganizationCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  user           User?           @relation("OrganizationUser", fields: [userId], references: [id], onDelete: SetNull)
   supportTickets SupportTicket[]
 
   @@map("parent_organizations")
@@ -666,7 +672,7 @@ model DataProcessingActivity {
   legalBasis       String
   dataCategories   String[]
   recipients       String[]
-  retentionPeriod  Int      // in days
+  retentionPeriod  Int // in days
   securityMeasures String[]
   riskLevel        String   @default("low")
   isActive         Boolean  @default(true)
@@ -675,15 +681,15 @@ model DataProcessingActivity {
   createdBy        String
 
   // Relations
-  consentRecords   ConsentRecord[]
-  dataBreaches     DataBreach[]
-  auditLogs        AuditLog[]
+  consentRecords ConsentRecord[]
+  dataBreaches   DataBreach[]
+  auditLogs      AuditLog[]
 
   @@map("data_processing_activities")
 }
 
 model ConsentRecord {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   dataSubjectId  String
   purpose        String
   consentGiven   Boolean
@@ -691,9 +697,9 @@ model ConsentRecord {
   withdrawalDate DateTime?
   ipAddress      String
   userAgent      String
-  consentVersion String   @default("1.0")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  consentVersion String    @default("1.0")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
   dataProcessingActivityId String?
@@ -706,7 +712,7 @@ model DataBreach {
   id                      String   @id @default(cuid())
   description             String
   categories              String[]
-  approximateDataSubjects  Int
+  approximateDataSubjects Int
   likelyConsequences      String
   measuresProposed        String
   reportedToAuthority     Boolean  @default(false)
@@ -725,51 +731,51 @@ model DataBreach {
 }
 
 model DataSubjectRequest {
-  id          String   @id @default(cuid())
+  id            String    @id @default(cuid())
   dataSubjectId String
-  requestType String   // access, rectification, erasure, portability, objection
-  description String
-  status      String   @default("pending") // pending, in_progress, completed, rejected
-  response    String?
-  requestedAt DateTime @default(now())
-  completedAt DateTime?
-  handledBy   String?
+  requestType   String // access, rectification, erasure, portability, objection
+  description   String
+  status        String    @default("pending") // pending, in_progress, completed, rejected
+  response      String?
+  requestedAt   DateTime  @default(now())
+  completedAt   DateTime?
+  handledBy     String?
 
   @@map("data_subject_requests")
 }
 
 model PrivacyImpactAssessment {
-  id                      String   @id @default(cuid())
-  activityId              String
-  purpose                 String
-  legalBasis              String
-  dataCategories          String[]
-  riskLevel               String
-  mitigationMeasures      String[]
-  dataMinimization        String
-  purposeLimitation       String
-  storageLimitation       String
-  accuracy                String
-  security                String
-  transparency            String
-  assessmentDate          DateTime @default(now())
-  assessedBy              String
-  approvedBy              String?
+  id                 String   @id @default(cuid())
+  activityId         String
+  purpose            String
+  legalBasis         String
+  dataCategories     String[]
+  riskLevel          String
+  mitigationMeasures String[]
+  dataMinimization   String
+  purposeLimitation  String
+  storageLimitation  String
+  accuracy           String
+  security           String
+  transparency       String
+  assessmentDate     DateTime @default(now())
+  assessedBy         String
+  approvedBy         String?
 
   @@map("privacy_impact_assessments")
 }
 
 model AuditLog {
-  id                      String   @id @default(cuid())
-  userId                  String?
-  action                  String
-  resource                String
-  resourceId              String?
-  oldValues               Json?
-  newValues               Json?
-  ipAddress               String
-  userAgent               String
-  timestamp               DateTime @default(now())
+  id                       String                  @id @default(cuid())
+  userId                   String?
+  action                   String
+  resource                 String
+  resourceId               String?
+  oldValues                Json?
+  newValues                Json?
+  ipAddress                String
+  userAgent                String
+  timestamp                DateTime                @default(now())
   dataProcessingActivityId String?
   dataProcessingActivity   DataProcessingActivity? @relation(fields: [dataProcessingActivityId], references: [id])
 
@@ -779,7 +785,7 @@ model AuditLog {
 model DataRetentionPolicy {
   id              String   @id @default(cuid())
   dataCategory    String
-  retentionPeriod Int      // in days
+  retentionPeriod Int // in days
   legalBasis      String
   description     String
   isActive        Boolean  @default(true)
@@ -792,49 +798,49 @@ model DataRetentionPolicy {
 
 // Charge Tracking Model - Records charges without applying them to payments
 model ChargeRecord {
-  id                String   @id @default(cuid())
-  transactionId     String?  // Reference to the transaction if available
-  userId            String
-  cooperativeId     String?
-  businessId        String?
-  chargeType        String
-  baseAmount        Float
-  chargeAmount      Float
-  chargePercentage  Float
-  totalAmount       Float
-  paymentType       String
-  paymentMethod     String
-  status            String   @default("recorded")
-  description       String?
-  metadata          Json?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(cuid())
+  transactionId    String? // Reference to the transaction if available
+  userId           String
+  cooperativeId    String?
+  businessId       String?
+  chargeType       String
+  baseAmount       Float
+  chargeAmount     Float
+  chargePercentage Float
+  totalAmount      Float
+  paymentType      String
+  paymentMethod    String
+  status           String   @default("recorded")
+  description      String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  user              User         @relation(fields: [userId], references: [id])
-  cooperative       Cooperative? @relation(fields: [cooperativeId], references: [id])
-  business          Business?    @relation(fields: [businessId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  cooperative Cooperative? @relation(fields: [cooperativeId], references: [id])
+  business    Business?    @relation(fields: [businessId], references: [id])
 
   @@map("charge_records")
 }
 
 model SupportTicket {
-  id                  String   @id @default(cuid())
-  subject             String
-  description         String
-  status              SupportTicketStatus @default(OPEN)
-  priority            SupportTicketPriority @default(MEDIUM)
-  category            SupportTicketCategory @default(GENERAL)
+  id                   String                @id @default(cuid())
+  subject              String
+  description          String
+  status               SupportTicketStatus   @default(OPEN)
+  priority             SupportTicketPriority @default(MEDIUM)
+  category             SupportTicketCategory @default(GENERAL)
   parentOrganizationId String?
-  userId              String
-  assignedTo          String?
-  resolution          String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  userId               String
+  assignedTo           String?
+  resolution           String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   // Relations
-  parentOrganization  ParentOrganization? @relation(fields: [parentOrganizationId], references: [id])
-  user                User @relation(fields: [userId], references: [id])
+  parentOrganization ParentOrganization? @relation(fields: [parentOrganizationId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
 
   @@map("support_tickets")
 }

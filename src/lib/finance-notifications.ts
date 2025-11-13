@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
 /**
- * Notify all finance users about a new withdrawal request
+ * Notify all finance users and super admin users about a new withdrawal request
  */
 export async function notifyFinanceUsersOfWithdrawal(withdrawal: {
   id: string;
@@ -28,22 +28,36 @@ export async function notifyFinanceUsersOfWithdrawal(withdrawal: {
       return;
     }
 
-    // Get all finance users
-    const financeUsers = await prisma.user.findMany({
-      where: {
-        role: 'FINANCE',
-        isActive: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
+    // Get all finance users and super admin users
+    const [financeUsers, superAdmins] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          role: 'FINANCE',
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      }),
+      prisma.user.findMany({
+        where: {
+          role: 'SUPER_ADMIN',
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      }),
+    ]);
 
-    if (financeUsers.length === 0) {
-      console.warn('No finance users found to notify about withdrawal');
+    if (financeUsers.length === 0 && superAdmins.length === 0) {
+      console.warn('No finance users or super admins found to notify about withdrawal');
       return;
     }
 
@@ -52,12 +66,15 @@ export async function notifyFinanceUsersOfWithdrawal(withdrawal: {
     const userRole = user.role || 'User';
     const userName = `${user.firstName} ${user.lastName}`;
 
-    // Create notifications for all finance users
+    // Combine all users to notify
+    const usersToNotify = [...financeUsers, ...superAdmins];
+
+    // Create notifications for all finance users and super admins
     const notifications = await Promise.all(
-      financeUsers.map((financeUser) =>
+      usersToNotify.map((targetUser) =>
         prisma.inAppNotification.create({
           data: {
-            userId: financeUser.id,
+            userId: targetUser.id,
             type: 'WITHDRAWAL_REQUEST',
             title: `New Withdrawal Request - ${userRole}`,
             message: `${userName} (${user.email}) has requested a withdrawal of ₦${amountInNaira.toLocaleString()}. Reason: ${withdrawal.reason}`,
@@ -77,11 +94,11 @@ export async function notifyFinanceUsersOfWithdrawal(withdrawal: {
       )
     );
 
-    console.log(`✅ Created ${notifications.length} notifications for finance users about withdrawal ${withdrawal.id}`);
+    console.log(`✅ Created ${notifications.length} notifications (${financeUsers.length} finance, ${superAdmins.length} super admin) about withdrawal ${withdrawal.id}`);
 
     return notifications;
   } catch (error) {
-    console.error('Error notifying finance users of withdrawal:', error);
+    console.error('Error notifying users of withdrawal:', error);
     // Don't throw - we don't want to break the withdrawal creation if notification fails
   }
 }

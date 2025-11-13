@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "passwordChangedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "passwordExpiresAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "passwordExpired" BOOLEAN NOT NULL DEFAULT false;
+
