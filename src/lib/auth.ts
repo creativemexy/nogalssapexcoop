@@ -10,11 +10,16 @@ import {
   recordFailedLoginAttempt,
   resetFailedLoginAttempts,
   getRemainingLockoutTime,
+  getFailedLoginAttempts,
 } from "@/lib/account-lockout";
 import {
   isPasswordExpired,
   getPasswordExpirationStatus,
 } from "@/lib/password-expiration";
+import {
+  verifyCaptcha,
+  isCaptchaRequired,
+} from "@/lib/captcha";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -39,7 +44,8 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email, Phone, or NIN", type: "text" },
         password: { label: "Password", type: "password" },
-        totp: { label: "2FA Code", type: "text" }
+        totp: { label: "2FA Code", type: "text" },
+        captchaToken: { label: "CAPTCHA Token", type: "text" }
       },
       async authorize(credentials) {
         try {
@@ -106,6 +112,23 @@ export const authOptions: NextAuthOptions = {
             throw new Error(
               `Account locked due to too many failed login attempts. Please try again in ${remainingMinutes} minute(s) or contact support.`
             );
+          }
+
+          // Check if CAPTCHA is required and verify it
+          const failedAttempts = await getFailedLoginAttempts(user.id);
+          const captchaRequired = await isCaptchaRequired(user.id, failedAttempts);
+          
+          if (captchaRequired) {
+            if (!credentials.captchaToken) {
+              throw new Error('CAPTCHA_REQUIRED');
+            }
+            
+            const captchaValid = await verifyCaptcha(credentials.captchaToken);
+            if (!captchaValid) {
+              // Record failed attempt for invalid CAPTCHA
+              await recordFailedLoginAttempt(user.id);
+              throw new Error('Invalid CAPTCHA. Please try again.');
+            }
           }
 
           const isPasswordValid = await bcrypt.compare(
@@ -317,32 +340,52 @@ export const authOptions: NextAuthOptions = {
         
         // Only validate session if:
         // 1. Token is expired or expiring soon (within 5 minutes)
-        // 2. Or if we haven't validated recently (validate at most once per minute)
+        // 2. Or if we haven't validated recently (validate at most once per 5 minutes to reduce DB load)
         const lastValidation = (token.lastSessionValidation as number) || 0;
-        const shouldValidate = timeUntilExpiry < 300 || (now - lastValidation) > 60;
+        const shouldValidate = timeUntilExpiry < 300 || (now - lastValidation) > 300;
         
         if (shouldValidate) {
           try {
             const sessionInfo = await SessionManager.validateSession(token.sessionId as string);
             if (!sessionInfo) {
-              // Session expired or invalid, clear token
-              token.sessionId = undefined;
-              token.exp = 0; // Force expiration
+              // If session validation returned null, it could mean:
+              // 1. Session expired/invalid in database
+              // 2. Database timeout/connection error
+              // Only invalidate if JWT token is also expired or expiring very soon
+              // This prevents invalidating valid sessions due to database timeouts
+              if (timeUntilExpiry < 60) {
+                // JWT is expiring soon or expired, safe to invalidate
+                token.sessionId = undefined;
+                token.exp = 0; // Force expiration
+              } else {
+                // JWT is still valid, likely a database timeout - keep session valid
+                // Don't update lastValidation so we'll retry validation later
+                if (process.env.NODE_ENV === 'development') {
+                  console.warn('Session validation returned null but JWT is still valid. Likely a timeout. Keeping session.');
+                }
+              }
             } else {
               // Update token expiration based on session expiration
               token.exp = Math.floor(sessionInfo.expiresAt.getTime() / 1000);
               token.lastSessionValidation = now; // Track when we last validated
             }
           } catch (error) {
-            // If validation fails due to connection pool, don't invalidate the session
-            // Just log and continue with existing token expiration
-            if (error instanceof Error && error.message.includes('connection pool')) {
-              console.warn('Session validation skipped due to connection pool timeout. Will retry on next request.');
-              // Don't update lastSessionValidation so we'll retry sooner
+            // If validation fails due to timeout or connection issues, don't invalidate the session
+            // Just continue with existing token expiration - the session is still valid based on JWT
+            if (error instanceof Error && (
+              error.message.includes('connection pool') || 
+              error.message.includes('timeout') ||
+              error.message.includes('Session validation timeout')
+            )) {
+              // Silently skip validation on timeout - session is still valid based on JWT expiration
+              // Don't update lastValidation so we'll retry later, but don't spam logs
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('Session validation skipped due to timeout. Will retry later.');
+              }
             } else {
+              // For other errors, log but don't invalidate session
               console.error('Failed to validate session:', error);
-              token.sessionId = undefined;
-              token.exp = 0;
+              // Don't invalidate session on validation errors - JWT is still valid
             }
           }
         }

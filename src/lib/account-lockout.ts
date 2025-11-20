@@ -153,6 +153,20 @@ export async function unlockAccount(userId: string): Promise<void> {
 }
 
 /**
+ * Get failed login attempts count for a user
+ */
+export async function getFailedLoginAttempts(userId: string): Promise<number> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      failedLoginAttempts: true,
+    },
+  });
+
+  return user?.failedLoginAttempts || 0;
+}
+
+/**
  * Get account lockout status
  */
 export async function getAccountLockoutStatus(userId: string): Promise<{

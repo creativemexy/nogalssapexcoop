@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/lib/auth';
 import { requireAuthFromSession, logSecurityEvent } from '@/lib/security';
 import { prisma } from '@/lib/prisma';
@@ -91,8 +92,46 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Authenticate user - allow APEX and SUPER_ADMIN to view alerts
+    // Try getToken first (more reliable in API routes)
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    // Fallback to getServerSession
+    let session: any = null;
+    let userRole: string | null = null;
+    
+    if (token && token.id && token.role) {
+      session = {
+        user: {
+          id: token.id as string,
+          email: token.email as string,
+          role: token.role as string,
+        },
+      };
+      userRole = token.role as string;
+    } else {
+      const serverSession = await getServerSession(authOptions);
+      if (serverSession?.user) {
+        session = serverSession;
+        userRole = (serverSession.user as any).role;
+      }
+    }
+    
+    // Check if user is authenticated and has appropriate role
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Allow APEX and SUPER_ADMIN to view alerts
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'APEX') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     const alerts = await prisma.emergencyAlert.findMany({
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },
@@ -100,7 +139,6 @@ export async function GET() {
     return NextResponse.json({ alerts }, { status: 200 });
   } catch (error) {
     console.error('Error fetching alerts:', error);
-    // Return empty alerts array instead of error to prevent 401 issues
     return NextResponse.json({ alerts: [] }, { status: 200 });
   }
 }

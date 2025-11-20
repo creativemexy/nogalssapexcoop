@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
       user: session.user,
       ipAddress: session.ipAddress,
       userAgent: session.userAgent,
+      lastActivityAt: session.lastActivityAt,
       createdAt: session.createdAt,
       expiresAt: session.expiresAt,
     }));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { notifyLoanApproval, notifyLoanRejection } from '@/lib/push-notifications';
 
 export async function POST(
   request: NextRequest,
@@ -41,9 +42,12 @@ export async function POST(
       select: {
         id: true,
         status: true,
+        amount: true,
+        userId: true,
         cooperativeId: true,
         user: {
           select: {
+            id: true,
             firstName: true,
             lastName: true,
             email: true
@@ -79,6 +83,14 @@ export async function POST(
         approvedBy: targetUserId
       }
     });
+
+    // Send push notification to user
+    try {
+      await notifyLoanApproval(loan.userId, loanId, Number(loan.amount));
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({
       success: true,

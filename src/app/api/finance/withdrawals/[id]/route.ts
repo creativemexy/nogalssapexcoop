@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { notifyWithdrawalApproval, notifyWithdrawalRejection } from '@/lib/push-notifications';
 
 /**
  * GET - Get a specific withdrawal by ID
@@ -112,6 +113,27 @@ export async function PATCH(
         },
       },
     });
+
+    // Send push notification based on status
+    try {
+      if (status === 'APPROVED') {
+        await notifyWithdrawalApproval(
+          updatedWithdrawal.userId,
+          Number(updatedWithdrawal.amount),
+          params.id
+        );
+      } else if (status === 'REJECTED') {
+        await notifyWithdrawalRejection(
+          updatedWithdrawal.userId,
+          Number(updatedWithdrawal.amount),
+          params.id,
+          notes
+        );
+      }
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({
       success: true,

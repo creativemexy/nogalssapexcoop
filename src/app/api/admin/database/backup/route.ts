@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       // Clean up empty backup file if it exists
       if (fs.existsSync(backupPath)) {
         try {
-          fs.unlinkSync(backupPath);
+        fs.unlinkSync(backupPath);
         } catch (unlinkError) {
           // Ignore unlink errors
         }

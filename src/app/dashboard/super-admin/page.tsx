@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
+import ContributionDistributionChart from '@/components/ContributionDistributionChart';
 
 interface DashboardStats {
   totalUsers: number;
@@ -482,30 +483,6 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* Withdrawal Permissions - Prominent Card */}
-      <div className="mb-8">
-        <Link href="/dashboard/super-admin/withdrawal-permissions" className="block bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-xl p-6 hover:shadow-2xl transition-all transform hover:scale-[1.02]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-4 bg-white bg-opacity-20 rounded-lg">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <div className="ml-6">
-                <h3 className="text-2xl font-bold text-white">Withdrawal Permissions</h3>
-                <p className="text-purple-100 mt-1">Enable or disable withdrawal buttons for Members, Leaders, Cooperatives, and Parent Organizations</p>
-              </div>
-            </div>
-            <div className="text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </Link>
-      </div>
-
       {/* Loan Status Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Link href="/dashboard/super-admin/pending-loans" className="block bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
@@ -602,6 +579,11 @@ export default function SuperAdminDashboard() {
                 </div>
             </div>
         </div>
+      </div>
+
+      {/* Contribution Distribution Chart */}
+      <div className="mb-6 sm:mb-8">
+        <ContributionDistributionChart title="Contribution Distribution" />
       </div>
 
       {/* System Settings */}

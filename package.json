@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "dev:https": "next dev --experimental-https --experimental-https-key ./cert.key --experimental-https-cert ./cert.crt",
     "build": "next build",
     "start": "next start",
@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
+    "expo-server-sdk": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "keen-slider": "^6.8.6",
     "lucide-react": "^0.522.0",

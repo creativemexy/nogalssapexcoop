@@ -9,11 +9,16 @@ import {
   recordFailedLoginAttempt,
   resetFailedLoginAttempts,
   getRemainingLockoutTime,
+  getFailedLoginAttempts,
 } from '@/lib/account-lockout';
 import {
   isPasswordExpired,
   getPasswordExpirationStatus,
 } from '@/lib/password-expiration';
+import {
+  verifyCaptcha,
+  isCaptchaRequired,
+} from '@/lib/captcha';
 
 /**
  * Mobile login endpoint that uses NextAuth JWT tokens
@@ -99,6 +104,38 @@ export async function POST(request: NextRequest) {
         },
         { status: 423 } // 423 Locked
       );
+    }
+
+    // Check if CAPTCHA is required and verify it
+    const failedAttempts = await getFailedLoginAttempts(user.id);
+    const captchaRequired = await isCaptchaRequired(user.id, failedAttempts);
+    
+    if (captchaRequired) {
+      const { captchaToken } = body;
+      if (!captchaToken) {
+        return NextResponse.json(
+          {
+            error: 'CAPTCHA verification is required',
+            code: 'CAPTCHA_REQUIRED',
+            requiresCaptcha: true,
+          },
+          { status: 400 }
+        );
+      }
+      
+      const captchaValid = await verifyCaptcha(captchaToken);
+      if (!captchaValid) {
+        // Record failed attempt for invalid CAPTCHA
+        await recordFailedLoginAttempt(user.id);
+        return NextResponse.json(
+          {
+            error: 'Invalid CAPTCHA. Please try again.',
+            code: 'INVALID_CAPTCHA',
+            requiresCaptcha: true,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Verify password

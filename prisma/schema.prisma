@@ -59,6 +59,7 @@ model User {
   chargeRecords              ChargeRecord[]
   supportTickets             SupportTicket[]
   notifications              InAppNotification[]
+  devices                    Device[]
 
   @@map("users")
 }
@@ -308,17 +309,41 @@ model Partner {
 }
 
 model UserSession {
-  id        String   @id @default(cuid())
-  userId    String
-  sessionId String   @unique
-  ipAddress String?
-  userAgent String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String            @id @default(cuid())
+  userId          String
+  sessionId      String            @unique
+  ipAddress       String?
+  userAgent       String?
+  isActive        Boolean           @default(true)
+  lastActivityAt  DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  expiresAt       DateTime
+  updatedAt       DateTime          @default(now()) @updatedAt
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities      SessionActivity[]
 
   @@map("user_sessions")
+}
+
+model SessionActivity {
+  id          String      @id @default(cuid())
+  sessionId   String
+  userId      String
+  action      String      // e.g., 'LOGIN', 'LOGOUT', 'PAGE_VIEW', 'API_CALL', 'PASSWORD_CHANGE'
+  resource    String?     // e.g., '/dashboard/member', '/api/member/withdraw'
+  method      String?     // HTTP method if applicable
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?       // Additional context (request body, response status, etc.)
+  riskLevel   String      @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  createdAt   DateTime    @default(now())
+  session     UserSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([riskLevel])
+  @@map("session_activities")
 }
 
 model EmergencyAlert {
@@ -864,4 +889,18 @@ enum SupportTicketCategory {
   BILLING
   GENERAL
   FEATURE_REQUEST
+}
+
+model Device {
+  id            String   @id @default(cuid())
+  userId        String
+  expoPushToken String   @unique
+  platform      String   // 'ios' | 'android' | 'web'
+  deviceId      String?  // Optional device identifier
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("devices")
 }

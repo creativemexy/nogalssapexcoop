@@ -1,0 +1,13 @@
+// This is an example file showing where to configure Android build settings
+// Copy relevant parts to your android/app/build.gradle file
+
+// Example: Add to android section
+android {
+    defaultConfig {
+        // Add your package name
+        applicationId "com.nogalss.mobile"
+        minSdkVersion 21
+        targetSdkVersion 33
+    }
+}
+

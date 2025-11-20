@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useWithdrawalPermission } from '@/hooks/useWithdrawalPermission';
+import ContributionDistributionChart from '@/components/ContributionDistributionChart';
 
 interface ParentOrganization {
   id: string;
@@ -386,6 +387,16 @@ export default function ParentOrganizationDashboard() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Contribution Distribution Chart */}
+      {organization && (
+        <div className="mb-8">
+          <ContributionDistributionChart 
+            title="Contribution Distribution" 
+            parentOrganizationId={organization.id}
+          />
         </div>
       )}
 

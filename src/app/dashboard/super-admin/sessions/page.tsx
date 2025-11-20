@@ -12,38 +12,79 @@ interface SessionStats {
 interface UserSession {
   id: string;
   sessionId: string;
+  userId: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
   ipAddress?: string;
   userAgent?: string;
   isActive: boolean;
+  lastActivityAt?: string;
   createdAt: string;
   expiresAt: string;
 }
 
+interface SessionActivity {
+  id: string;
+  sessionId: string;
+  userId: string;
+  action: string;
+  resource?: string;
+  method?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  riskLevel: string;
+  createdAt: string;
+  metadata?: any;
+}
+
 export default function SessionManagementPage() {
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cleanupStats, setCleanupStats] = useState<any>(null);
   const [cleaningUp, setCleaningUp] = useState(false);
   const [lastCleanup, setLastCleanup] = useState<string | null>(null);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [activities, setActivities] = useState<SessionActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [activityStats, setActivityStats] = useState<any>(null);
 
   useEffect(() => {
     fetchSessionStats();
     fetchCleanupStats();
+    fetchActivityStats();
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchSessionStats();
       fetchCleanupStats();
+      fetchActivityStats();
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (selectedSession) {
+      fetchSessionActivities(selectedSession);
+    }
+  }, [selectedSession]);
 
   const fetchSessionStats = async () => {
     try {
       const response = await fetch('/api/admin/sessions');
       const data = await response.json();
       if (response.ok) {
-        setStats(data);
+        setStats({
+          totalActiveSessions: data.totalActiveSessions,
+          totalUsers: data.totalUsers,
+          averageSessionsPerUser: data.averageSessionsPerUser,
+        });
+        setSessions(data.sessions || []);
       } else {
         setError(data.error || 'Failed to fetch session stats');
       }
@@ -63,6 +104,33 @@ export default function SessionManagementPage() {
       }
     } catch (err) {
       console.error('Failed to fetch cleanup stats:', err);
+    }
+  };
+
+  const fetchActivityStats = async () => {
+    try {
+      const response = await fetch('/api/admin/sessions/activity/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setActivityStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Failed to fetch activity stats:', err);
+    }
+  };
+
+  const fetchSessionActivities = async (sessionId: string) => {
+    setLoadingActivities(true);
+    try {
+      const response = await fetch(`/api/admin/sessions/activity?sessionId=${sessionId}&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data.activities || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch session activities:', err);
+    } finally {
+      setLoadingActivities(false);
     }
   };
 
@@ -303,6 +371,240 @@ export default function SessionManagementPage() {
               </div>
             )}
           </div>
+
+          {/* Active Sessions List with IP and User Agent */}
+          <div className="bg-white rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-4">Active Sessions</h2>
+            {sessions.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No active sessions</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        IP Address
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User Agent
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created At
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Activity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Expires At
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sessions.map((session) => (
+                      <tr key={session.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {session.user
+                              ? `${session.user.firstName} ${session.user.lastName}`
+                              : 'Unknown User'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {session.user?.email || session.userId}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {session.user?.role || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 font-mono">
+                            {session.ipAddress || (
+                              <span className="text-gray-400 italic">Not available</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate" title={session.userAgent || ''}>
+                            {session.userAgent ? (
+                              session.userAgent.length > 50
+                                ? `${session.userAgent.substring(0, 50)}...`
+                                : session.userAgent
+                            ) : (
+                              <span className="text-gray-400 italic">Not available</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {session.lastActivityAt
+                            ? new Date(session.lastActivityAt).toLocaleString()
+                            : 'Never'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(session.expiresAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => setSelectedSession(selectedSession === session.sessionId ? null : session.sessionId)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              {selectedSession === session.sessionId ? 'Hide' : 'View'} Activity
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Are you sure you want to invalidate this session?')) {
+                                  return;
+                                }
+                                try {
+                                  const response = await fetch(
+                                    `/api/admin/sessions?sessionId=${session.sessionId}`,
+                                    { method: 'DELETE' }
+                                  );
+                                  const data = await response.json();
+                                  if (response.ok) {
+                                    alert('Session invalidated successfully');
+                                    fetchSessionStats();
+                                  } else {
+                                    alert(data.error || 'Failed to invalidate session');
+                                  }
+                                } catch (err) {
+                                  alert('Failed to invalidate session');
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Invalidate
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Activity Statistics */}
+          {activityStats && (
+            <div className="bg-white rounded-lg shadow p-6 mt-8">
+              <h2 className="text-xl font-semibold mb-4">Activity Statistics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">By Risk Level</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Critical:</span>
+                      <span className="font-semibold text-red-600">{activityStats.byRiskLevel?.CRITICAL || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">High:</span>
+                      <span className="font-semibold text-orange-600">{activityStats.byRiskLevel?.HIGH || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Medium:</span>
+                      <span className="font-semibold text-yellow-600">{activityStats.byRiskLevel?.MEDIUM || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Low:</span>
+                      <span className="font-semibold text-green-600">{activityStats.byRiskLevel?.LOW || 0}</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Total Activities</h3>
+                  <p className="text-3xl font-bold text-gray-900">{activityStats.total || 0}</p>
+                </div>
+              </div>
+              {activityStats.recentCritical && activityStats.recentCritical.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Recent Critical Activities</h3>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {activityStats.recentCritical.map((activity: any) => (
+                      <div key={activity.id} className="p-3 bg-red-50 rounded border border-red-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-red-900">{activity.action}</p>
+                            <p className="text-sm text-red-700">{activity.resource || 'N/A'}</p>
+                            <p className="text-xs text-red-600 mt-1">
+                              {new Date(activity.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className="px-2 py-1 text-xs font-medium bg-red-200 text-red-800 rounded">
+                            {activity.riskLevel}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Session Activities */}
+          {selectedSession && (
+            <div className="bg-white rounded-lg shadow p-6 mt-8">
+              <h2 className="text-xl font-semibold mb-4">Session Activities</h2>
+              {loadingActivities ? (
+                <p className="text-gray-500 text-center py-8">Loading activities...</p>
+              ) : activities.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No activities found for this session</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resource</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk Level</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {activities.map((activity) => (
+                        <tr key={activity.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {activity.action}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={activity.resource || ''}>
+                            {activity.resource || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {activity.method || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs font-medium rounded ${
+                              activity.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                              activity.riskLevel === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                              activity.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {activity.riskLevel}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(activity.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

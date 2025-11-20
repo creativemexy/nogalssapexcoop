@@ -1,11 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession } from 'next-auth/react';
 import Image from 'next/image';
 import PasswordInput from '@/components/ui/PasswordInput';
+
+// Declare reCAPTCHA types
+declare global {
+  interface Window {
+    grecaptcha: {
+      ready: (callback: () => void) => void;
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+      render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void }) => number;
+      reset: (widgetId: number) => void;
+    };
+  }
+}
 
 function SignInForm() {
   const [emailOrPhoneOrNin, setEmailOrPhoneOrNin] = useState('');
@@ -13,8 +25,145 @@ function SignInForm() {
   const [totp, setTotp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const captchaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Load reCAPTCHA script
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (!siteKey) {
+      console.warn('reCAPTCHA site key not configured');
+      return;
+    }
+
+    // Check if script is already loaded
+    if (window.grecaptcha) {
+      return;
+    }
+
+    // Check if script tag already exists
+    const existingScript = document.querySelector(`script[src*="recaptcha"]`);
+    if (existingScript) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit`;
+    script.async = true;
+    script.defer = true;
+    
+    // Set up onload callback
+    (window as any).onRecaptchaLoad = () => {
+      // Script loaded, ready to render
+    };
+    
+    document.body.appendChild(script);
+
+          return () => {
+            // Cleanup
+            const scriptToRemove = document.querySelector(`script[src*="recaptcha"]`);
+            if (scriptToRemove && scriptToRemove.parentNode) {
+              try {
+                scriptToRemove.parentNode.removeChild(scriptToRemove);
+              } catch (error) {
+                // Script might have already been removed, ignore error
+                console.debug('Script cleanup: script already removed or not a child');
+              }
+            }
+            delete (window as any).onRecaptchaLoad;
+          };
+  }, []);
+
+  // Check if CAPTCHA is required when email changes
+  useEffect(() => {
+    if (emailOrPhoneOrNin && emailOrPhoneOrNin.length > 0) {
+      checkCaptchaRequirement();
+    } else {
+      setCaptchaRequired(false);
+      setCaptchaToken(null);
+    }
+  }, [emailOrPhoneOrNin]);
+
+  const checkCaptchaRequirement = async () => {
+    try {
+      const isEmail = emailOrPhoneOrNin.includes('@');
+      const isPhone = /^(\+?234|0)?[789][01]\d{8}$/.test(emailOrPhoneOrNin);
+      const isNIN = /^\d{11}$/.test(emailOrPhoneOrNin);
+
+      const response = await fetch('/api/auth/check-captcha-required', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: isEmail ? emailOrPhoneOrNin : undefined,
+          phone: isPhone ? emailOrPhoneOrNin : undefined,
+          nin: isNIN ? emailOrPhoneOrNin : undefined,
+        }),
+      });
+
+      const data = await response.json();
+      setCaptchaRequired(data.captchaRequired || false);
+
+      // If CAPTCHA is required, render it
+      if (data.captchaRequired) {
+        // Wait for reCAPTCHA to be ready
+        if (window.grecaptcha && window.grecaptcha.ready) {
+          window.grecaptcha.ready(() => {
+            if (captchaRef.current) {
+              renderCaptcha();
+            }
+          });
+        } else {
+          // Wait a bit for script to load
+          setTimeout(() => {
+            if (window.grecaptcha && captchaRef.current) {
+              renderCaptcha();
+            }
+          }, 1000);
+        }
+      }
+    } catch (err) {
+      console.error('Error checking CAPTCHA requirement:', err);
+    }
+  };
+
+  const renderCaptcha = () => {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (!siteKey || !captchaRef.current || !window.grecaptcha) {
+      return;
+    }
+
+    // Clear existing CAPTCHA
+    if (captchaWidgetId !== null) {
+      try {
+        window.grecaptcha.reset(captchaWidgetId);
+      } catch (e) {
+        // Ignore reset errors
+      }
+    }
+
+    // Render new CAPTCHA
+    try {
+      const widgetId = window.grecaptcha.render(captchaRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => {
+          setCaptchaToken(token);
+        },
+        'expired-callback': () => {
+          setCaptchaToken(null);
+        },
+        'error-callback': () => {
+          setCaptchaToken(null);
+        },
+      } as any);
+      setCaptchaWidgetId(widgetId);
+    } catch (err) {
+      console.error('Error rendering CAPTCHA:', err);
+    }
+  };
 
   // Clear URL parameters on component mount for security
   useEffect(() => {
@@ -42,11 +191,19 @@ function SignInForm() {
     setIsLoading(true);
     setError('');
 
+    // If CAPTCHA is required, verify we have a token
+    if (captchaRequired && !captchaToken) {
+      setError('Please complete the CAPTCHA verification.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await signIn('credentials', {
         email: emailOrPhoneOrNin,
         password,
         totp: totp || undefined,
+        captchaToken: captchaToken || undefined,
         redirect: false,
       });
 
@@ -54,8 +211,25 @@ function SignInForm() {
         // Handle specific errors
         const errorMessage = result.error;
         
-        // Check for password expiration error
-        if (errorMessage.includes('PASSWORD_EXPIRED') || errorMessage.includes('password has expired')) {
+        // Check for CAPTCHA requirement
+        if (errorMessage === 'CAPTCHA_REQUIRED' || errorMessage.includes('CAPTCHA')) {
+          setCaptchaRequired(true);
+          setError('CAPTCHA verification is required. Please complete the CAPTCHA below.');
+          if (captchaRef.current && window.grecaptcha) {
+            renderCaptcha();
+          }
+        } else if (errorMessage.includes('Invalid CAPTCHA')) {
+          setError('Invalid CAPTCHA. Please try again.');
+          // Reset CAPTCHA
+          if (captchaWidgetId !== null && window.grecaptcha) {
+            try {
+              window.grecaptcha.reset(captchaWidgetId);
+              setCaptchaToken(null);
+            } catch (e) {
+              // Ignore reset errors
+            }
+          }
+        } else if (errorMessage.includes('PASSWORD_EXPIRED') || errorMessage.includes('password has expired')) {
           setError('Your password has expired. Please reset your password to continue.');
           // Optionally redirect to password reset
           setTimeout(() => {
@@ -68,6 +242,8 @@ function SignInForm() {
           switch (result.error) {
             case 'CredentialsSignin':
               setError('Invalid email or password');
+              // Check if we need to show CAPTCHA after failed attempt
+              checkCaptchaRequirement();
               break;
             case 'CallbackRouteError':
               setError('2FA code is required. Please enter your 6-digit authentication code.');
@@ -80,11 +256,24 @@ function SignInForm() {
                 setError('Your password has expired. Please reset your password to continue.');
               } else {
                 setError('Invalid email or password');
+                // Check if we need to show CAPTCHA after failed attempt
+                checkCaptchaRequirement();
               }
           }
         }
       } else if (result?.ok) {
-        // Successful login - register session with IP and user agent
+        // Successful login - reset CAPTCHA and register session
+        setCaptchaToken(null);
+        setCaptchaRequired(false);
+        if (captchaWidgetId !== null && window.grecaptcha) {
+          try {
+            window.grecaptcha.reset(captchaWidgetId);
+          } catch (e) {
+            // Ignore reset errors
+          }
+        }
+        
+        // Register session with IP and user agent
         try {
           await fetch('/api/auth/register-session', {
             method: 'POST',
@@ -97,6 +286,8 @@ function SignInForm() {
         router.push('/dashboard');
       } else {
         setError('Login failed. Please try again.');
+        // Check if we need to show CAPTCHA after failed attempt
+        checkCaptchaRequirement();
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -182,6 +373,18 @@ function SignInForm() {
                 placeholder="Enter 6-digit code"
               />
             </div>
+
+            {captchaRequired && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Security Verification
+                </label>
+                <div ref={captchaRef} className="flex justify-center"></div>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Please complete the CAPTCHA to continue. This helps protect your account from automated attacks.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center">

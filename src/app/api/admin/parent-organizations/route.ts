@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createLog } from '@/lib/logger';
@@ -9,16 +10,82 @@ import bcrypt from 'bcryptjs';
 // GET - Fetch all parent organizations
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Try getToken first (more reliable in API routes as it explicitly uses request)
+    // This reads the JWT token from the NextAuth session cookie
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    // Check if token is expired
+    if (token && token.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      const tokenExp = token.exp as number;
+      if (now >= tokenExp) {
+        // Token is expired
+        return NextResponse.json({ 
+          error: 'Unauthorized',
+          message: 'Your session has expired. Please refresh the page or sign in again.'
+        }, { status: 401 });
+      }
+    }
+    
+    // Fallback to getServerSession if token is not available
+    let session: any = null;
+    let userRole: string | null = null;
+    let userId: string | null = null;
+    
+    if (token && token.id && token.role) {
+      // Create a session-like object from token (preferred method for API routes)
+      session = {
+        user: {
+          id: token.id as string,
+          email: token.email as string,
+          name: token.name as string,
+          role: token.role as string,
+          cooperativeId: token.cooperativeId as string | null,
+          businessId: token.businessId as string | null,
+          sessionId: token.sessionId as string | undefined,
+        },
+        expires: token.exp ? new Date((token.exp as number) * 1000).toISOString() : undefined,
+      };
+      userRole = token.role as string;
+      userId = token.id as string;
+    } else {
+      // Fallback to getServerSession
+      const serverSession = await getServerSession(authOptions);
+      if (serverSession?.user) {
+        session = serverSession;
+        userRole = (serverSession.user as any).role;
+        userId = (serverSession.user as any).id;
+      }
+    }
     
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Check if NEXTAUTH_SECRET is configured
+      if (!process.env.NEXTAUTH_SECRET) {
+        console.error('NEXTAUTH_SECRET is not configured');
+        return NextResponse.json({ 
+          error: 'Server configuration error',
+          message: 'Authentication is not properly configured'
+        }, { status: 500 });
+      }
+      
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Please sign in to access this resource'
+      }, { status: 401 });
     }
 
     // Check if user is super admin or apex
-    const userRole = (session.user as any).role;
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'APEX') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    console.log('User role check:', { userRole, userId, required: ['SUPER_ADMIN', 'APEX'] });
+    
+    if (!userRole || (userRole !== 'SUPER_ADMIN' && userRole !== 'APEX')) {
+      console.error('Forbidden: User role not authorized', { userRole, userId });
+      return NextResponse.json({ 
+        error: 'Forbidden',
+        message: 'You do not have permission to access this resource'
+      }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -37,6 +104,8 @@ export async function GET(request: NextRequest) {
     // Only filter by isActive for APEX users, SUPER_ADMIN sees all
     if (userRole === 'APEX') {
       where.isActive = true;
+    } else if (userRole === 'SUPER_ADMIN') {
+      // SUPER_ADMIN sees all, no filter needed
     }
 
     if (search) {
@@ -105,17 +174,25 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({
-        organizations,
+      const response = {
+        organizations: organizations || [],
         pagination: {
           page,
           limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-          hasNext: page * limit < total,
+          total: total || 0,
+          totalPages: Math.ceil((total || 0) / limit),
+          hasNext: page * limit < (total || 0),
           hasPrev: page > 1,
         },
+      };
+
+      console.log('Returning response:', {
+        organizationCount: response.organizations.length,
+        total: response.pagination.total,
+        page: response.pagination.page,
       });
+
+      return NextResponse.json(response);
     } catch (error: any) {
       // If the table doesn't exist yet, return empty results
       if (error.message?.includes('parentOrganization') || error.code === 'P2021') {

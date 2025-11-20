@@ -770,6 +770,19 @@ async function handleContributionPayment(reference: string, paystackData: any, p
             reference
           );
         }
+
+        // Send push notification for contribution confirmation
+        try {
+          const { notifyContributionConfirmation } = await import('@/lib/push-notifications');
+          await notifyContributionConfirmation(
+            pendingContribution.userId,
+            pendingContribution.amount,
+            reference
+          );
+        } catch (pushError) {
+          console.error('Error sending push notification:', pushError);
+          // Don't fail if push notification fails
+        }
       }
     } catch (notificationError) {
       console.error('Notification error:', notificationError);

@@ -21,11 +21,23 @@ export default function EmergencyAlertBanner() {
 
   const fetchActiveAlert = async () => {
     try {
-      const response = await fetch('/api/admin/emergency-alert');
+      const response = await fetch('/api/admin/emergency-alert', {
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       // Handle 401 Unauthorized - user doesn't have access to admin endpoints
       if (response.status === 401) {
         console.log('User does not have access to emergency alerts');
+        setLoading(false);
+        return;
+      }
+      
+      // Handle 403 Forbidden - user doesn't have the right role
+      if (response.status === 403) {
+        console.log('User does not have permission to view emergency alerts');
         setLoading(false);
         return;
       }

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import RegistrationFeeCard from '@/components/RegistrationFeeCard';
 import { useSocket } from '@/hooks/useSocket';
+import ContributionDistributionChart from '@/components/ContributionDistributionChart';
 
 interface ApexDashboardStats {
   totalUsers: number;
@@ -14,6 +15,7 @@ interface ApexDashboardStats {
   totalContributions: number;
   totalLoans: number;
 }
+
 
 export default function ApexDashboard() {
   const { data: session } = useSession();
@@ -39,6 +41,7 @@ export default function ApexDashboard() {
     };
     fetchApexStats();
   }, []);
+
 
   useEffect(() => {
     if (!socket) return;
@@ -80,6 +83,11 @@ export default function ApexDashboard() {
         <StatCard title="Pending Loans" value={stats?.pendingLoans} color="yellow" />
         <StatCard title="Total Contributions" value={stats?.totalContributions} color="green" isCurrency />
         <StatCard title="Total Loans" value={stats?.totalLoans} color="yellow" isCurrency />
+      </div>
+
+      {/* Contribution Distribution Chart */}
+      <div className="mb-6 sm:mb-8">
+        <ContributionDistributionChart title="Contribution Distribution" />
       </div>
 
       {/* Quick Actions */}

@@ -1,42 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { authenticateRequest } from '@/lib/mobile-auth';
 import { prisma } from '@/lib/prisma';
 import { ChargeTracker } from '@/lib/charge-tracker';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || !['FINANCE', 'SUPER_ADMIN'].includes((session.user as any).role)) {
+    // Try mobile auth first (JWT), fallback to NextAuth session
+    let user: { id: string; role: string } | null = null;
+    
+    const mobileUser = await authenticateRequest(request);
+    if (mobileUser) {
+      user = { id: mobileUser.id, role: mobileUser.role };
+    } else {
+      const session = await getServerSession(authOptions);
+      if (session?.user) {
+        user = {
+          id: (session.user as any).id,
+          role: (session.user as any).role,
+        };
+      }
+    }
+    
+    if (!user || !['FINANCE', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Try to get comprehensive financial data with fallback
-    let adminFees, transactionContributions, directContributions, loans, withdrawals, loanRepayments, recentTransactions, recentContributions, monthlyStats, userStats;
-    
-    try {
-      [
-        // Administrative fees (includes registration fees)
-        adminFees,
-        // Contributions/Savings from Transaction table (excluding admin fees)
-        transactionContributions,
-        // Contributions from Contribution table (direct contributions)
-        directContributions,
-        // Loans
-        loans,
-        // Withdrawals
-        withdrawals,
-        // Loan repayments
-        loanRepayments,
-        // Recent transactions
-        recentTransactions,
-        // Recent contributions
-        recentContributions,
-        // Monthly breakdown
-        monthlyStats,
-        // User counts
-        userStats
-      ] = await Promise.all([
+    // Get comprehensive financial data from database
+    const [
+      // Administrative fees (includes registration fees)
+      adminFees,
+      // Contributions/Savings from Transaction table (excluding admin fees)
+      transactionContributions,
+      // Contributions from Contribution table (direct contributions)
+      directContributions,
+      // Loans
+      loans,
+      // Withdrawals
+      withdrawals,
+      // Loan repayments
+      loanRepayments,
+      // Recent transactions
+      recentTransactions,
+      // Recent contributions
+      recentContributions,
+      // Monthly breakdown
+      monthlyStats,
+      // User counts
+      userStats
+    ] = await Promise.all([
       // Administrative fees (includes registration fees and other admin charges)
       prisma.transaction.aggregate({
         _sum: { amount: true },
@@ -137,27 +150,12 @@ export async function GET(request: NextRequest) {
         GROUP BY DATE_TRUNC('month', "createdAt")
         ORDER BY month DESC
       `,
-        // User statistics
-        prisma.user.groupBy({
-          by: ['role'],
-          _count: { id: true }
-        })
-      ]);
-    } catch (dbError) {
-      console.error('Database connection error, using fallback data:', dbError);
-      
-      // Fallback data when database is unavailable
-      adminFees = { _sum: { amount: 0 }, _count: { id: 0 } };
-      transactionContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
-      directContributions = { _sum: { amount: 0 }, _count: { id: 0 } };
-      loans = { _sum: { amount: 0 }, _count: { id: 0 } };
-      withdrawals = { _sum: { amount: 0 }, _count: { id: 0 } };
-      loanRepayments = { _sum: { amount: 0 }, _count: { id: 0 } };
-      recentTransactions = [];
-      recentContributions = [];
-      monthlyStats = [];
-      userStats = [];
-    }
+      // User statistics
+      prisma.user.groupBy({
+        by: ['role'],
+        _count: { id: true }
+      })
+    ]);
 
     // Calculate totals (convert from kobo to naira)
     const totalAdminFees = Number(adminFees._sum.amount || 0) / 100;
@@ -256,10 +254,7 @@ export async function GET(request: NextRequest) {
         chargeCount: chargeTracking.chargeCount,
         averageChargePercentage: chargeTracking.averageChargePercentage,
         chargesByType: chargeTracking.chargesByType
-      },
-      
-      // Database status
-      databaseStatus: allRecentActivity.length > 0 ? 'connected' : 'fallback'
+      }
     });
   } catch (error) {
     console.error('Finance dashboard stats error:', error);

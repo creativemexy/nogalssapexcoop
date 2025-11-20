@@ -1,22 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { getToken } from 'next-auth/jwt';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Try getToken first (more reliable in API routes)
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    // Fallback to getServerSession
+    let session: any = null;
+    let userRole: string | null = null;
+    let userId: string | null = null;
+    
+    if (token && token.id && token.role) {
+      session = {
+        user: {
+          id: token.id as string,
+          email: token.email as string,
+          role: token.role as string,
+        },
+      };
+      userRole = token.role as string;
+      userId = token.id as string;
+    } else {
+      const serverSession = await getServerSession(authOptions);
+      if (serverSession?.user) {
+        session = serverSession;
+        userRole = (serverSession.user as any).role;
+        userId = (serverSession.user as any).id;
+      }
+    }
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is a parent organization
-    if ((session.user as any).role !== 'PARENT_ORGANIZATION') {
-      return NextResponse.json({ error: 'Access denied. Parent organization role required.' }, { status: 403 });
+    // Check if user is a parent organization, APEX, or SUPER_ADMIN
+    if (userRole !== 'PARENT_ORGANIZATION' && userRole !== 'APEX' && userRole !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Access denied. Parent organization, APEX, or SUPER_ADMIN role required.' }, { status: 403 });
     }
 
-    const userId = (session.user as any).id;
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '10');
@@ -24,14 +52,35 @@ export async function GET(request: NextRequest) {
     const cooperativeId = searchParams.get('cooperativeId') || '';
     const status = searchParams.get('status') || '';
     const verificationStatus = searchParams.get('verificationStatus') || '';
+    const parentOrganizationId = searchParams.get('parentOrganizationId') || '';
 
-    // Get the parent organization for this user
-    const parentOrganization = await prisma.parentOrganization.findFirst({
-      where: { userId: userId }
-    });
+    let parentOrganization;
 
-    if (!parentOrganization) {
-      return NextResponse.json({ error: 'Parent organization not found' }, { status: 404 });
+    // For PARENT_ORGANIZATION users, get their own organization
+    if (userRole === 'PARENT_ORGANIZATION') {
+      parentOrganization = await prisma.parentOrganization.findFirst({
+        where: { userId: userId }
+      });
+
+      if (!parentOrganization) {
+        return NextResponse.json({ error: 'Parent organization not found' }, { status: 404 });
+      }
+    } 
+    // For APEX or SUPER_ADMIN, allow viewing any parent organization's members
+    else if (userRole === 'APEX' || userRole === 'SUPER_ADMIN') {
+      if (parentOrganizationId) {
+        // View specific parent organization's members
+        parentOrganization = await prisma.parentOrganization.findUnique({
+          where: { id: parentOrganizationId }
+        });
+
+        if (!parentOrganization) {
+          return NextResponse.json({ error: 'Parent organization not found' }, { status: 404 });
+        }
+      } else {
+        // If no parentOrganizationId specified, return error for APEX/SUPER_ADMIN
+        return NextResponse.json({ error: 'parentOrganizationId parameter is required for APEX and SUPER_ADMIN users' }, { status: 400 });
+      }
     }
 
     // Build where clause for filtering

@@ -39,6 +39,7 @@ export class SessionManager {
         ipAddress,
         userAgent,
         expiresAt,
+        lastActivityAt: new Date(),
       },
     });
 
@@ -73,12 +74,15 @@ export class SessionManager {
         return null;
       }
 
-      // Update expiration time
+      // Update expiration time and last activity
       const newExpiresAt = new Date(Date.now() + this.SESSION_TIMEOUT);
       await Promise.race([
         prisma.userSession.update({
           where: { id: session.id },
-          data: { expiresAt: newExpiresAt },
+          data: {
+            expiresAt: newExpiresAt,
+            lastActivityAt: new Date(),
+          },
         }),
         new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error('Session update timeout')), 5000)
@@ -97,7 +101,10 @@ export class SessionManager {
     } catch (error) {
       // If timeout or connection error, return null to allow retry
       if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('connection pool'))) {
-        console.warn('Session validation timeout/connection error:', error.message);
+        // Only log in development to reduce noise in production
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Session validation timeout/connection error:', error.message);
+        }
         return null;
       }
       throw error;

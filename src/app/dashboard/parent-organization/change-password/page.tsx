@@ -1,13 +1,13 @@
 'use client';
 
+import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useState } from 'react';
 import Link from 'next/link';
 import PasswordInput from '@/components/ui/PasswordInput';
 import PasswordHints from '@/components/ui/PasswordHints';
 import { validatePassword, getPasswordPolicyMessage } from '@/lib/utils';
 
-export default function ParentOrganizationChangePasswordPage() {
+export default function ParentOrganizationChangePasswordPage(): JSX.Element {
   const { data: session } = useSession();
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -213,7 +213,7 @@ export default function ParentOrganizationChangePasswordPage() {
                 <li>• At least one uppercase letter (A-Z)</li>
                 <li>• At least one lowercase letter (a-z)</li>
                 <li>• At least one number (0-9)</li>
-                <li>• At least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)</li>
+                <li>• At least one special character ({'!@#$%^&*()_+-=[]{}|;:,.<>?'})</li>
                 <li>• Must be different from your current password</li>
                 <li>• Avoid common patterns and sequential characters</li>
               </ul>

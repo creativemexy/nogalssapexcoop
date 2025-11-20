@@ -44,7 +44,7 @@ interface OrganizationsResponse {
 }
 
 export default function ApexParentOrganizationsPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [organizations, setOrganizations] = useState<ParentOrganization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,26 +62,62 @@ export default function ApexParentOrganizationsPage() {
   const [selectedOrg, setSelectedOrg] = useState<ParentOrganization | null>(null);
 
   useEffect(() => {
-    fetchOrganizations();
-  }, [pagination.page, search]);
+    // Only fetch if session is loaded and available
+    if (sessionStatus === 'authenticated' && session) {
+      fetchOrganizations();
+    } else if (sessionStatus === 'unauthenticated') {
+      setError('Please sign in to access this page');
+      setLoading(false);
+    }
+  }, [pagination.page, search, session, sessionStatus]);
 
   const fetchOrganizations = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
         ...(search && { search }),
       });
 
-      const response = await fetch(`/api/admin/parent-organizations?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch organizations');
+      const response = await fetch(`/api/admin/parent-organizations?${params}`, {
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const errorMessage = errorData.error || errorData.message || `Failed to fetch organizations (${response.status})`;
+        
+        // If unauthorized, suggest re-login
+        if (response.status === 401) {
+          throw new Error('Your session has expired. Please refresh the page or sign in again.');
+        }
+        
+        throw new Error(errorMessage);
+      }
       
       const data: OrganizationsResponse = await response.json();
-      setOrganizations(data.organizations);
-      setPagination(data.pagination);
+      
+      if (!data.organizations) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      setOrganizations(data.organizations || []);
+      setPagination(data.pagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      });
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error fetching organizations:', err);
+      setError(err.message || 'Failed to fetch organizations. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,6 +135,10 @@ export default function ApexParentOrganizationsPage() {
     try {
       const response = await fetch(`/api/admin/parent-organizations/${id}`, {
         method: 'DELETE',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -113,12 +153,36 @@ export default function ApexParentOrganizationsPage() {
     }
   };
 
-  if (!session) {
+  // Show loading while session is being checked
+  if (sessionStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">Loading session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to sign in if not authenticated
+  if (sessionStatus === 'unauthenticated' || !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="mb-4">
+            <svg className="mx-auto h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">Please sign in to access this page.</p>
+          <Link
+            href="/auth/signin"
+            className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Sign In
+          </Link>
         </div>
       </div>
     );
@@ -147,12 +211,12 @@ export default function ApexParentOrganizationsPage() {
           >
             ← Back to Dashboard
           </Link>
-          <button
-            onClick={() => setShowCreateModal(true)}
+          <Link
+            href="/dashboard/apex/parent-organizations/create"
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
             Add Organization
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -195,7 +259,23 @@ export default function ApexParentOrganizationsPage() {
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">{error}</p>
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-red-800">Error loading organizations</h3>
+              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <button
+                onClick={() => fetchOrganizations()}
+                className="mt-3 text-sm font-medium text-red-800 hover:text-red-900 underline"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
         </div>
       ) : organizations.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
@@ -253,11 +333,17 @@ export default function ApexParentOrganizationsPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex justify-between text-sm text-gray-500">
+                <div className="flex justify-between text-sm text-gray-500 mb-3">
                   <span>{org.cooperatives.length} cooperatives</span>
                   <span>{org.children.length} child orgs</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <Link
+                  href={`/dashboard/apex/parent-organizations/${org.id}/members`}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                >
+                  View Members
+                </Link>
+                <p className="text-xs text-gray-400 mt-2">
                   Created by {org.creator.firstName} {org.creator.lastName}
                 </p>
               </div>
@@ -362,6 +448,7 @@ function OrganizationModal({
 
       const response = await fetch(url, {
         method,
+        credentials: 'include', // Include cookies for authentication
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
