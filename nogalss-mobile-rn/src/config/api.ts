@@ -7,15 +7,15 @@ const getApiBaseUrl = () => {
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     // In development
     if (Platform.OS === 'web') {
-      // Web can use localhost
-      return 'http://localhost:3000';
+      // Web can use localhost 
+      return 'http://localhost:3000';             
     } else {
       // Mobile devices need the computer's IP address
       return 'http://192.168.8.107:3000';
     }
   }
   // Production
-  return 'https://noggalssapexcoop.org';
+  return 'https://nogalssapexcoop.org';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
