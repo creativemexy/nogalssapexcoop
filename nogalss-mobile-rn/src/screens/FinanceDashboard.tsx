@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { BiometricService } from '../services/biometric';
+import { BannerAdComponent } from '../components/BannerAd';
 
 interface FinanceStats {
   totalInflow: number;
@@ -428,6 +429,13 @@ export const FinanceDashboard: React.FC = () => {
           </View>
         </>
       )}
+      
+      {/* Banner Ad at the bottom */}
+      <BannerAdComponent 
+        position="bottom"
+        onAdLoaded={() => console.log('Finance Dashboard: Banner ad loaded')}
+        onAdFailedToLoad={(error) => console.error('Finance Dashboard: Banner ad failed', error)}
+      />
     </ScrollView>
   );
 };

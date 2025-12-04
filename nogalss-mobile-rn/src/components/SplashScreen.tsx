@@ -96,7 +96,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#059669', // Green background matching app theme
+    backgroundColor: '#ffffff', // White background
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -127,12 +127,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#059669',
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#059669',
     opacity: 0.9,
   },
 });

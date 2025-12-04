@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { BannerAdComponent } from '../components/BannerAd';
 
 interface LeaderStats {
   totalMembers: number;
@@ -154,6 +155,13 @@ export const LeaderDashboard: React.FC = () => {
           </View>
         </>
       )}
+      
+      {/* Banner Ad at the bottom */}
+      <BannerAdComponent 
+        position="bottom"
+        onAdLoaded={() => console.log('Leader Dashboard: Banner ad loaded')}
+        onAdFailedToLoad={(error) => console.error('Leader Dashboard: Banner ad failed', error)}
+      />
     </ScrollView>
   );
 };

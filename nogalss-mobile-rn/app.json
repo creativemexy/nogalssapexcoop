@@ -7,9 +7,9 @@
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/splash-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#059669"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -23,8 +23,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#059669"
+        "foregroundImage": "./assets/icon-foreground.png",
+        "backgroundColor": "#ffffff"
       },
       "package": "com.nogalss.mobile",
       "versionCode": 1,
@@ -57,11 +57,29 @@
           "icon": "./assets/logo.png",
           "color": "#059669"
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "infoPlist": {
+              "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511"
+            }
+          }
+        }
+      ],
+      "./app.plugin.js"
     ],
     "extra": {
       "eas": {
         "projectId": "d817dddc-9787-48b5-aa1f-4eae1200779c"
+      },
+      "googleMobileAdsAppId": {
+        "android": "ca-app-pub-3940256099942544~3347511713",
+        "ios": "ca-app-pub-3940256099942544~1458002511"
       }
     },
     "owner": "mexyik"
